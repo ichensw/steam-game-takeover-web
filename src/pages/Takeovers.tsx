@@ -38,6 +38,8 @@ type MemberRow = Record<string, unknown> & {
   userId: React.Key;
   nickname?: string;
   openid?: string;
+  openId?: string;
+  open_id?: string;
   steamId?: string;
   remark?: string;
   joinedAt?: string;
@@ -296,7 +298,12 @@ export default function Takeovers() {
               dataSource={detail.members || []}
               columns={[
                 { title: '用户', dataIndex: 'nickname', width: 120 },
-                { title: 'openid', dataIndex: 'openid', ellipsis: true, className: 'mono' },
+                {
+                  title: 'openid',
+                  ellipsis: true,
+                  className: 'mono',
+                  render: (_, row) => row.openid || row.openId || row.open_id || '-',
+                },
                 { title: 'SteamID', dataIndex: 'steamId', width: 140, className: 'mono' },
                 { title: '备注', dataIndex: 'remark', ellipsis: true },
                 { title: '加入时间', dataIndex: 'joinedAt', width: 170, className: 'mono' },

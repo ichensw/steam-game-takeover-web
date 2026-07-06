@@ -41,6 +41,13 @@ type UserRow = Record<string, unknown> & {
   creditStatus?: string;
 };
 
+const renderCreditStatus = (value: unknown) => {
+  const status = String(value || 'normal');
+  if (status === 'disabled') return <Tag color="red">禁用</Tag>;
+  if (status === 'limited') return <Tag color="orange">受限</Tag>;
+  return <Tag color="green">正常</Tag>;
+};
+
 export default function Users() {
   const [rows, setRows] = useState<UserRow[]>([]);
   const [total, setTotal] = useState(0);
@@ -181,7 +188,7 @@ export default function Users() {
       className: 'mono',
       sorter: true,
     },
-    { title: '状态', dataIndex: 'creditStatus', width: 110, render: StatusTag },
+    { title: '状态', dataIndex: 'creditStatus', width: 110, render: renderCreditStatus },
     {
       title: '操作',
       width: 240,
@@ -325,7 +332,7 @@ export default function Users() {
               <span className="mono">{detail.creditScore ?? '-'}</span>
             </Descriptions.Item>
             <Descriptions.Item label="信誉状态">
-              <StatusTag value={detail.creditStatus} />
+              {renderCreditStatus(detail.creditStatus)}
             </Descriptions.Item>
           </Descriptions>
         )}
