@@ -1,0 +1,357 @@
+import {
+  Button,
+  Card,
+  Descriptions,
+  Drawer,
+  Form,
+  Input,
+  Modal,
+  Popconfirm,
+  Select,
+  Space,
+  Table,
+  Tag,
+  App as AntApp,
+} from 'antd';
+import type { ColumnsType, TablePaginationConfig } from 'antd/es/table';
+import type { SorterResult } from 'antd/es/table/interface';
+import { useEffect, useState } from 'react';
+import {
+  banUser,
+  batchPublishWhitelist,
+  getUser,
+  listUsers,
+  restoreUserCredit,
+  unbanUser,
+} from '../api/admin';
+import PageHeader from '../components/PageHeader';
+import StatusTag from '../components/StatusTag';
+
+type UserRow = Record<string, unknown> & {
+  id: React.Key;
+  nickname?: string;
+  openid?: string;
+  steamId?: string;
+  avatarUrl?: string;
+  isBanned?: boolean;
+  banReason?: string;
+  bannedAt?: string;
+  publishWhitelisted?: boolean;
+  creditScore?: number;
+  creditStatus?: string;
+};
+
+export default function Users() {
+  const [rows, setRows] = useState<UserRow[]>([]);
+  const [total, setTotal] = useState(0);
+  const [loading, setLoading] = useState(false);
+  const [page, setPage] = useState(1);
+  const [sort, setSort] = useState<{ field?: string; order?: string }>({
+    field: 'createdAt',
+    order: 'desc',
+  });
+  const [selectedRowKeys, setSelectedRowKeys] = useState<React.Key[]>([]);
+  const [detail, setDetail] = useState<UserRow | null>(null);
+  const [detailLoading, setDetailLoading] = useState(false);
+  const [banTarget, setBanTarget] = useState<UserRow | null>(null);
+  const [form] = Form.useForm();
+  const [banForm] = Form.useForm<{ reason: string }>();
+  const { message } = AntApp.useApp();
+
+  const buildParams = (
+    targetPage: number,
+    nextSort: { field?: string; order?: string } = sort,
+  ) => {
+    const values = form.getFieldsValue();
+    return {
+      page: targetPage,
+      pageSize: 20,
+      keyword: values.keyword,
+      status: values.status,
+      sortField: values.sortField || nextSort.field,
+      sortOrder: values.sortOrder || nextSort.order,
+    };
+  };
+
+  const load = async (targetPage = page, nextSort = sort) => {
+    setLoading(true);
+    try {
+      const res = await listUsers(buildParams(targetPage, nextSort));
+      setRows((res.list || res.items || []) as UserRow[]);
+      setTotal(res.total || 0);
+      setPage(targetPage);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    load();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  const openDetail = async (id: React.Key) => {
+    setDetailLoading(true);
+    setDetail({ id });
+    try {
+      setDetail((await getUser(id)) as UserRow);
+    } finally {
+      setDetailLoading(false);
+    }
+  };
+
+  const refreshAfterAction = async (text: string) => {
+    message.success(text);
+    setDetail(null);
+    setSelectedRowKeys([]);
+    await load();
+  };
+
+  const submitBan = async () => {
+    if (!banTarget) return;
+    const values = await banForm.validateFields();
+    await banUser(banTarget.id, values.reason || '');
+    setBanTarget(null);
+    banForm.resetFields();
+    refreshAfterAction('用户已封禁');
+  };
+
+  const addWhitelist = async () => {
+    const selectedKeySet = new Set(selectedRowKeys.map(String));
+    const openids = rows
+      .filter((row) => selectedKeySet.has(String(row.id)))
+      .map((row) => row.openid)
+      .filter((value): value is string => Boolean(value?.trim()))
+      .map((value) => value.trim());
+    if (openids.length === 0) {
+      message.warning('请选择有 openid 的用户');
+      return;
+    }
+    const res = await batchPublishWhitelist(openids);
+    message.success(`已加白 ${res.count} 个用户`);
+    setSelectedRowKeys([]);
+    load();
+  };
+
+  const onTableChange = (
+    pagination: TablePaginationConfig,
+    _filters: unknown,
+    sorter: SorterResult<UserRow> | SorterResult<UserRow>[],
+  ) => {
+    const singleSorter = Array.isArray(sorter) ? sorter[0] : sorter;
+    const field = (singleSorter?.field as string) || 'createdAt';
+    const nextSort = {
+      field,
+      order: singleSorter?.order === 'ascend' ? 'asc' : 'desc',
+    };
+    form.setFieldsValue({ sortField: nextSort.field, sortOrder: nextSort.order });
+    setSort(nextSort);
+    load(pagination.current || 1, nextSort);
+  };
+
+  const reset = () => {
+    form.resetFields();
+    setSort({ field: 'createdAt', order: 'desc' });
+    setTimeout(() => load(1), 0);
+  };
+
+  const columns: ColumnsType<UserRow> = [
+    { title: '用户ID', dataIndex: 'id', width: 100, className: 'mono', sorter: true },
+    { title: '昵称', dataIndex: 'nickname', width: 160, sorter: true },
+    { title: 'openid', dataIndex: 'openid', ellipsis: true, className: 'mono' },
+    { title: 'SteamID', dataIndex: 'steamId', width: 150, className: 'mono', sorter: true },
+    {
+      title: '发布白名单',
+      dataIndex: 'publishWhitelisted',
+      width: 120,
+      render: (value) => (value ? <Tag color="green">已加白</Tag> : <Tag>未加白</Tag>),
+      sorter: true,
+    },
+    {
+      title: '封禁',
+      dataIndex: 'isBanned',
+      width: 100,
+      render: (value) => (value ? <Tag color="red">已封禁</Tag> : <Tag color="green">正常</Tag>),
+      sorter: true,
+    },
+    {
+      title: '信誉分',
+      dataIndex: 'creditScore',
+      width: 110,
+      className: 'mono',
+      sorter: true,
+    },
+    { title: '状态', dataIndex: 'creditStatus', width: 110, render: StatusTag },
+    {
+      title: '操作',
+      width: 240,
+      fixed: 'right',
+      render: (_, row) => (
+        <Space>
+          <Button size="small" onClick={() => openDetail(row.id)}>
+            详情
+          </Button>
+          {row.isBanned ? (
+            <Popconfirm
+              title="解除封禁"
+              description="确认解除该用户封禁？"
+              okText="解封"
+              cancelText="取消"
+              onConfirm={() => unbanUser(row.id).then(() => refreshAfterAction('用户已解封'))}
+            >
+              <Button size="small">解封</Button>
+            </Popconfirm>
+          ) : (
+            <Button size="small" danger onClick={() => setBanTarget(row)}>
+              封禁
+            </Button>
+          )}
+          <Popconfirm
+            title="恢复信誉分"
+            description="确认将该用户信誉分恢复到 100？"
+            okText="恢复"
+            cancelText="取消"
+            onConfirm={() =>
+              restoreUserCredit(row.id).then(() => refreshAfterAction('信誉分已恢复'))
+            }
+          >
+            <Button size="small">恢复信誉</Button>
+          </Popconfirm>
+        </Space>
+      ),
+    },
+  ];
+
+  return (
+    <>
+      <PageHeader
+        title="用户管理"
+        description="查询小程序用户、白名单、封禁和信誉状态。"
+        extra={
+          <Button type="primary" disabled={!selectedRowKeys.length} onClick={addWhitelist}>
+            批量加发布白名单
+          </Button>
+        }
+      />
+      <Card className="filter-card">
+        <Form form={form} layout="inline" onFinish={() => load(1)}>
+          <Form.Item name="keyword">
+            <Input.Search placeholder="昵称 / openid / SteamID" allowClear />
+          </Form.Item>
+          <Form.Item name="status">
+            <Select
+              placeholder="封禁状态"
+              allowClear
+              style={{ width: 130 }}
+              options={[
+                { value: 'normal', label: '正常' },
+                { value: 'banned', label: '已封禁' },
+              ]}
+            />
+          </Form.Item>
+          <Form.Item name="sortField">
+            <Select
+              placeholder="排序字段"
+              allowClear
+              style={{ width: 150 }}
+              options={[
+                { value: 'createdAt', label: '创建时间' },
+                { value: 'creditScore', label: '信誉分' },
+                { value: 'publishWhitelisted', label: '发布白名单' },
+              ]}
+            />
+          </Form.Item>
+          <Form.Item name="sortOrder">
+            <Select
+              placeholder="排序"
+              allowClear
+              style={{ width: 120 }}
+              options={[
+                { value: 'desc', label: '倒序' },
+                { value: 'asc', label: '正序' },
+              ]}
+            />
+          </Form.Item>
+          <Space>
+            <Button type="primary" htmlType="submit">
+              查询
+            </Button>
+            <Button onClick={reset}>重置</Button>
+          </Space>
+        </Form>
+      </Card>
+      <Table
+        rowKey={(row) => String(row.id)}
+        rowSelection={{ selectedRowKeys, onChange: setSelectedRowKeys }}
+        loading={loading}
+        columns={columns}
+        dataSource={rows}
+        onChange={onTableChange}
+        scroll={{ x: 1180 }}
+        pagination={{ total, current: page, pageSize: 20, showTotal: (n) => `共 ${n} 条` }}
+      />
+      <Drawer
+        title="用户详情"
+        width={620}
+        open={!!detail}
+        onClose={() => setDetail(null)}
+        loading={detailLoading}
+      >
+        {detail && (
+          <Descriptions column={1} bordered size="small">
+            <Descriptions.Item label="用户ID">
+              <span className="mono">{detail.id}</span>
+            </Descriptions.Item>
+            <Descriptions.Item label="昵称">{detail.nickname || '-'}</Descriptions.Item>
+            <Descriptions.Item label="openid">
+              <span className="mono">{detail.openid || '-'}</span>
+            </Descriptions.Item>
+            <Descriptions.Item label="SteamID">
+              <span className="mono">{detail.steamId || '-'}</span>
+            </Descriptions.Item>
+            <Descriptions.Item label="发布白名单">
+              {detail.publishWhitelisted ? <Tag color="green">已加白</Tag> : <Tag>未加白</Tag>}
+            </Descriptions.Item>
+            <Descriptions.Item label="封禁状态">
+              {detail.isBanned ? <Tag color="red">已封禁</Tag> : <Tag color="green">正常</Tag>}
+            </Descriptions.Item>
+            <Descriptions.Item label="封禁原因">
+              {detail.banReason || '-'}
+            </Descriptions.Item>
+            <Descriptions.Item label="封禁时间">
+              <span className="mono">{detail.bannedAt || '-'}</span>
+            </Descriptions.Item>
+            <Descriptions.Item label="信誉分">
+              <span className="mono">{detail.creditScore ?? '-'}</span>
+            </Descriptions.Item>
+            <Descriptions.Item label="信誉状态">
+              <StatusTag value={detail.creditStatus} />
+            </Descriptions.Item>
+          </Descriptions>
+        )}
+      </Drawer>
+      <Modal
+        title="封禁用户"
+        open={!!banTarget}
+        okText="确认封禁"
+        okButtonProps={{ danger: true }}
+        cancelText="取消"
+        onOk={submitBan}
+        onCancel={() => {
+          setBanTarget(null);
+          banForm.resetFields();
+        }}
+      >
+        <Form form={banForm} layout="vertical">
+          <Form.Item
+            label="封禁原因"
+            name="reason"
+            rules={[{ max: 255, message: '封禁原因最多 255 字' }]}
+          >
+            <Input.TextArea rows={4} placeholder="选填，后台留痕用" showCount maxLength={255} />
+          </Form.Item>
+        </Form>
+      </Modal>
+    </>
+  );
+}

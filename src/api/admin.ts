@@ -1,0 +1,93 @@
+import { AdminUser } from '../auth';
+import { http, unwrap } from './http';
+
+export type PageResult<T> = {
+  list?: T[];
+  items?: T[];
+  total: number;
+  page: number;
+  pageSize?: number;
+  page_size?: number;
+};
+
+export type Query = Record<string, string | number | boolean | undefined>;
+
+export function adminLogin(values: { username: string; password: string }) {
+  return unwrap<{ token: string; expiresIn: number; admin: AdminUser }>(
+    http.post('/admin/auth/login', values),
+  );
+}
+
+export function adminLogout() {
+  return unwrap<null>(http.post('/admin/auth/logout'));
+}
+
+export function getDashboardSummary() {
+  return unwrap<Record<string, number>>(http.get('/admin/dashboard/summary'));
+}
+
+export function listTakeovers(params: Query) {
+  return unwrap<PageResult<Record<string, unknown>>>(
+    http.get('/admin/takeovers', { params }),
+  );
+}
+
+export function getTakeover(id: React.Key) {
+  return unwrap<Record<string, unknown>>(http.get(`/admin/takeovers/${id}`));
+}
+
+export function deleteTakeover(id: React.Key) {
+  return unwrap<null>(http.delete(`/admin/takeovers/${id}`));
+}
+
+export function listUsers(params: Query) {
+  return unwrap<PageResult<Record<string, unknown>>>(
+    http.get('/admin/users', { params }),
+  );
+}
+
+export function getUser(id: React.Key) {
+  return unwrap<Record<string, unknown>>(http.get(`/admin/users/${id}`));
+}
+
+export function banUser(id: React.Key, reason: string) {
+  return unwrap<null>(http.post(`/admin/users/${id}/ban`, { reason }));
+}
+
+export function unbanUser(id: React.Key) {
+  return unwrap<null>(http.post(`/admin/users/${id}/unban`));
+}
+
+export function restoreUserCredit(id: React.Key, toScore = 100) {
+  return unwrap<null>(http.post(`/admin/users/${id}/credit`, { toScore }));
+}
+
+export function batchPublishWhitelist(openids: string[]) {
+  return unwrap<{ count: number }>(
+    http.post('/admin/publish-whitelist/batch', { openids }),
+  );
+}
+
+export function listFeedbacks(params: Query) {
+  return unwrap<PageResult<Record<string, unknown>>>(
+    http.get('/admin/user-feedbacks', { params }),
+  );
+}
+
+export function getFeedback(id: React.Key) {
+  return unwrap<Record<string, unknown>>(http.get(`/admin/user-feedbacks/${id}`));
+}
+
+export function updateFeedbackStatus(id: React.Key, status: number) {
+  return unwrap<{ message: string }>(
+    http.put(`/admin/user-feedbacks/${id}/status`, { status }),
+  );
+}
+
+export function getSettings() {
+  return unwrap<Record<string, unknown>>(http.get('/admin/settings'));
+}
+
+export function updateSettings(values: Record<string, unknown>) {
+  return unwrap<Record<string, unknown>>(http.put('/admin/settings', values));
+}
