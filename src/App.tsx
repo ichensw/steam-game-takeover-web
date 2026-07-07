@@ -3,6 +3,7 @@ import { Navigate, Route, BrowserRouter as Router, Routes } from 'react-router-d
 import { getToken } from './auth';
 
 const AdminLayout = lazy(() => import('./layout/AdminLayout'));
+const Announcements = lazy(() => import('./pages/Announcements'));
 const Dashboard = lazy(() => import('./pages/Dashboard'));
 const Feedbacks = lazy(() => import('./pages/Feedbacks'));
 const Login = lazy(() => import('./pages/Login'));
@@ -41,6 +42,7 @@ export default function App() {
             <Route path="takeovers" element={<Takeovers />} />
             <Route path="users" element={<Users />} />
             <Route path="feedbacks" element={<Feedbacks />} />
+            <Route path="announcements" element={<Announcements />} />
             <Route path="settings" element={<Settings />} />
           </Route>
           <Route path="*" element={<Navigate to="/" replace />} />

@@ -22,6 +22,18 @@ export function adminLogout() {
   return unwrap<null>(http.post('/admin/auth/logout'));
 }
 
+export function getAdminMe() {
+  return unwrap<AdminUser>(http.get('/admin/me'));
+}
+
+export function updateAdminMe(values: { nickname?: string; avatarUrl?: string }) {
+  return unwrap<AdminUser>(http.put('/admin/me', values));
+}
+
+export function updateAdminPassword(values: { oldPassword: string; newPassword: string }) {
+  return unwrap<null>(http.put('/admin/me/password', values));
+}
+
 export function getDashboardSummary() {
   return unwrap<Record<string, number>>(http.get('/admin/dashboard/summary'));
 }
@@ -82,6 +94,48 @@ export function updateFeedbackStatus(id: React.Key, status: number) {
   return unwrap<{ message: string }>(
     http.put(`/admin/user-feedbacks/${id}/status`, { status }),
   );
+}
+
+export function listAnnouncements(params: Query) {
+  return unwrap<PageResult<Record<string, unknown>>>(
+    http.get('/admin/announcements', { params }),
+  );
+}
+
+export function getAnnouncement(id: React.Key) {
+  return unwrap<Record<string, unknown>>(http.get(`/admin/announcements/${id}`));
+}
+
+export function createAnnouncement(values: Record<string, unknown>) {
+  return unwrap<Record<string, unknown>>(http.post('/admin/announcements', values));
+}
+
+export function updateAnnouncement(id: React.Key, values: Record<string, unknown>) {
+  return unwrap<Record<string, unknown>>(http.put(`/admin/announcements/${id}`, values));
+}
+
+export function enableAnnouncement(id: React.Key) {
+  return unwrap<null>(http.post(`/admin/announcements/${id}/enable`));
+}
+
+export function disableAnnouncement(id: React.Key) {
+  return unwrap<null>(http.post(`/admin/announcements/${id}/disable`));
+}
+
+export function deleteAnnouncement(id: React.Key) {
+  return unwrap<null>(http.delete(`/admin/announcements/${id}`));
+}
+
+export function uploadAdminImage(file: File) {
+  const data = new FormData();
+  data.append('file', file);
+  return unwrap<{ url: string; objectKey: string }>(
+    http.post('/admin/uploads/image', data),
+  );
+}
+
+export function uploadAnnouncementImage(file: File) {
+  return uploadAdminImage(file);
 }
 
 export function getSettings() {

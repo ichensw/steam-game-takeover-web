@@ -5,6 +5,7 @@ export type AdminUser = {
   id?: number;
   username?: string;
   nickname?: string;
+  avatarUrl?: string;
   role?: string;
 };
 
@@ -31,4 +32,3 @@ export function getAdmin(): AdminUser | null {
     return null;
   }
 }
-
