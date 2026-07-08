@@ -26,6 +26,16 @@ export function getAdminMe() {
   return unwrap<AdminUser>(http.get('/admin/me'));
 }
 
+export function listAdminUsers(params: Query) {
+  return unwrap<PageResult<Record<string, unknown>>>(
+    http.get('/admin/admin-users', { params }),
+  );
+}
+
+export function createAdminUser(values: { username: string; password: string; nickname?: string }) {
+  return unwrap<Record<string, unknown>>(http.post('/admin/admin-users', values));
+}
+
 export function updateAdminMe(values: { nickname?: string; avatarUrl?: string }) {
   return unwrap<AdminUser>(http.put('/admin/me', values));
 }
