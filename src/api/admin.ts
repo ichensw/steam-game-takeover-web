@@ -126,6 +126,40 @@ export function deleteAnnouncement(id: React.Key) {
   return unwrap<null>(http.delete(`/admin/announcements/${id}`));
 }
 
+export function listKookMembers(params: Query) {
+  return unwrap<PageResult<Record<string, unknown>>>(
+    http.get('/admin/kook-members', { params }),
+  );
+}
+
+export function getKookMember(id: React.Key) {
+  return unwrap<Record<string, unknown>>(http.get(`/admin/kook-members/${id}`));
+}
+
+export function createKookMember(values: Record<string, unknown>) {
+  return unwrap<Record<string, unknown>>(http.post('/admin/kook-members', values));
+}
+
+export function updateKookMember(id: React.Key, values: Record<string, unknown>) {
+  return unwrap<Record<string, unknown>>(http.put(`/admin/kook-members/${id}`, values));
+}
+
+export function deleteKookMember(id: React.Key) {
+  return unwrap<null>(http.delete(`/admin/kook-members/${id}`));
+}
+
+export function syncKookMembers() {
+  return unwrap<{ count: number }>(http.post('/admin/kook-members/sync'));
+}
+
+export function blacklistKookMember(id: React.Key, values: { reason?: string; delMsgDays?: number }) {
+  return unwrap<null>(http.post(`/admin/kook-members/${id}/blacklist`, values));
+}
+
+export function unblacklistKookMember(id: React.Key) {
+  return unwrap<null>(http.post(`/admin/kook-members/${id}/unblacklist`));
+}
+
 export function uploadAdminImage(file: File) {
   const data = new FormData();
   data.append('file', file);

@@ -22,6 +22,7 @@ const menuItems = [
   { key: '/dashboard', icon: <DashboardOutlined />, label: '控制台' },
   { key: '/takeovers', icon: <TeamOutlined />, label: '接龙管理' },
   { key: '/users', icon: <UserOutlined />, label: '用户管理' },
+  { key: '/kook-members', icon: <TeamOutlined />, label: 'KOOK 成员' },
   { key: '/feedbacks', icon: <FormOutlined />, label: '反馈管理' },
   { key: '/announcements', icon: <BellOutlined />, label: '公告管理' },
   { key: '/settings', icon: <SettingOutlined />, label: '系统设置' },

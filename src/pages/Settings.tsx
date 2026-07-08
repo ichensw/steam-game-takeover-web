@@ -9,12 +9,14 @@ type SettingsValues = {
   steamWebApiKey?: string;
   kookBotToken?: string;
   kookGuildId?: string;
+  kookVerifyToken?: string;
 };
 
 const sensitiveKeys: Array<keyof SettingsValues> = [
   'uapiKey',
   'steamWebApiKey',
   'kookBotToken',
+  'kookVerifyToken',
 ];
 
 function normalizeSettings(values: SettingsValues) {
@@ -24,7 +26,13 @@ function normalizeSettings(values: SettingsValues) {
     steamWebApiKey: values.steamWebApiKey?.trim() || '',
     kookBotToken: values.kookBotToken?.trim() || '',
     kookGuildId: values.kookGuildId?.trim() || '',
+    kookVerifyToken: values.kookVerifyToken?.trim() || '',
   };
+}
+
+function kookWebhookUrl() {
+  const apiBase = (import.meta.env.VITE_API_BASE_URL || '/miniprogram-api/api').replace(/\/$/, '');
+  return new URL(`${apiBase}/kook/webhook`, window.location.origin).toString();
 }
 
 export default function Settings() {
@@ -136,6 +144,18 @@ export default function Settings() {
             extra="KOOK Guild ID，只填写数字 ID。"
           >
             <Input placeholder="KOOK Guild ID" className="mono" />
+          </Form.Item>
+          <Form.Item
+            label="KOOK Webhook Verify Token"
+            name="kookVerifyToken"
+            extra="KOOK Webhook 校验 token，需和 KOOK 平台配置一致。"
+          >
+            <Input.Password placeholder="KOOK Webhook Verify Token" autoComplete="off" />
+          </Form.Item>
+          <Form.Item label="KOOK Webhook 地址">
+            <Typography.Text className="mono" copyable>
+              {kookWebhookUrl()}
+            </Typography.Text>
           </Form.Item>
           <Space>
             <Button type="primary" htmlType="submit" loading={submitting}>
