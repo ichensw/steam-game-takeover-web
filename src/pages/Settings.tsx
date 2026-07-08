@@ -31,8 +31,7 @@ function normalizeSettings(values: SettingsValues) {
 }
 
 function kookWebhookUrl() {
-  const apiBase = (import.meta.env.VITE_API_BASE_URL || '/miniprogram-api/api').replace(/\/$/, '');
-  return new URL(`${apiBase}/kook/webhook`, window.location.origin).toString();
+  return 'https://www.rabbits.ink/miniprogram-api/api/kook/webhook?compress=0';
 }
 
 export default function Settings() {
@@ -41,6 +40,8 @@ export default function Settings() {
   const [submitting, setSubmitting] = useState(false);
   const [initialValues, setInitialValues] = useState<SettingsValues>({});
   const { message, modal } = AntApp.useApp();
+  const currentValues = normalizeSettings(Form.useWatch([], form) || initialValues);
+  const webhookUrl = kookWebhookUrl();
 
   const loadSettings = async () => {
     setLoading(true);
@@ -94,6 +95,11 @@ export default function Settings() {
   const refresh = async () => {
     await loadSettings();
     message.success('配置已刷新');
+  };
+
+  const copy = async (text: string, successText: string) => {
+    await navigator.clipboard.writeText(text);
+    message.success(successText);
   };
 
   return (
@@ -153,9 +159,49 @@ export default function Settings() {
             <Input.Password placeholder="KOOK Webhook Verify Token" autoComplete="off" />
           </Form.Item>
           <Form.Item label="KOOK Webhook 地址">
-            <Typography.Text className="mono" copyable>
-              {kookWebhookUrl()}
-            </Typography.Text>
+            <Typography.Text className="mono">{webhookUrl}</Typography.Text>
+          </Form.Item>
+          <Form.Item label="KOOK 复制">
+            <Space wrap>
+              <Button onClick={() => copy(webhookUrl, '已复制 KOOK 回调地址')}>
+                复制 KOOK 回调地址
+              </Button>
+              <Button
+                onClick={() => copy(currentValues.kookVerifyToken || '', '已复制 KOOK Verify Token')}
+                disabled={!currentValues.kookVerifyToken}
+              >
+                复制 KOOK Verify Token
+              </Button>
+            </Space>
+          </Form.Item>
+          <Form.Item label="KOOK 配置说明">
+            <Typography.Paragraph>
+              KOOK 机器人连接模式请选择 webhook
+              <br />
+              Callback Url 填写本页 KOOK Webhook 地址
+              <br />
+              Verify Token 必须与本页配置一致
+              <br />
+              不要开启加密/压缩事件推送
+              <br />
+              配置完成后需要在 KOOK 后台点击“机器人上线”
+            </Typography.Paragraph>
+          </Form.Item>
+          <Form.Item label="KOOK 配置状态检查">
+            <Space wrap>
+              <Typography.Text type={currentValues.kookBotToken ? 'success' : 'danger'}>
+                Bot Token {currentValues.kookBotToken ? '已填写' : '未填写'}
+              </Typography.Text>
+              <Typography.Text type={currentValues.kookGuildId ? 'success' : 'danger'}>
+                KOOK 服务器 ID {currentValues.kookGuildId ? '已填写' : '未填写'}
+              </Typography.Text>
+              <Typography.Text type={currentValues.kookVerifyToken ? 'success' : 'danger'}>
+                Webhook Verify Token {currentValues.kookVerifyToken ? '已填写' : '未填写'}
+              </Typography.Text>
+              <Typography.Text type={webhookUrl.includes('?compress=0') ? 'success' : 'danger'}>
+                Webhook 地址{webhookUrl.includes('?compress=0') ? '包含' : '缺少'} ?compress=0
+              </Typography.Text>
+            </Space>
           </Form.Item>
           <Space>
             <Button type="primary" htmlType="submit" loading={submitting}>

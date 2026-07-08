@@ -12,6 +12,7 @@ import {
   Space,
   Table,
   Tag,
+  Typography,
   App as AntApp,
 } from 'antd';
 import type { ColumnsType } from 'antd/es/table';
@@ -46,6 +47,9 @@ type KookMemberRow = Record<string, unknown> & {
   remark?: string;
   createdAt?: string;
   updatedAt?: string;
+  gmtModified?: string;
+  updated_at?: string;
+  gmt_modified?: string;
 };
 
 const memberStatusOptions = [
@@ -64,12 +68,28 @@ const renderMemberStatus = (value: unknown) =>
 const renderBlacklist = (value: unknown) =>
   value ? <Tag color="red">已拉黑</Tag> : <Tag color="green">正常</Tag>;
 
+function getErrorMessage(error: unknown) {
+  const responseMessage = (error as { response?: { data?: { message?: string } } })?.response?.data?.message;
+  if (responseMessage) return responseMessage;
+  if (error instanceof Error) return error.message;
+  return '操作失败';
+}
+
+function latestUpdateTime(rows: KookMemberRow[]) {
+  return rows
+    .map((row) => row.updatedAt || row.gmtModified || row.updated_at || row.gmt_modified)
+    .filter(Boolean)
+    .sort((a, b) => Date.parse(String(b)) - Date.parse(String(a)))[0];
+}
+
 export default function KookMembers() {
   const [rows, setRows] = useState<KookMemberRow[]>([]);
   const [total, setTotal] = useState(0);
   const [page, setPage] = useState(1);
   const [loading, setLoading] = useState(false);
   const [syncing, setSyncing] = useState(false);
+  const [lastSyncTime, setLastSyncTime] = useState('');
+  const [lastUpdateTime, setLastUpdateTime] = useState('');
   const [drawerOpen, setDrawerOpen] = useState(false);
   const [editing, setEditing] = useState<KookMemberRow | null>(null);
   const [detail, setDetail] = useState<KookMemberRow | null>(null);
@@ -92,9 +112,11 @@ export default function KookMembers() {
         memberStatus: values.memberStatus,
         isBlacklisted: values.isBlacklisted,
       });
-      setRows((res.list || res.items || []) as KookMemberRow[]);
+      const nextRows = (res.list || res.items || []) as KookMemberRow[];
+      setRows(nextRows);
       setTotal(res.total || 0);
       setPage(targetPage);
+      setLastUpdateTime(String(latestUpdateTime(nextRows) || ''));
     } finally {
       setLoading(false);
     }
@@ -151,6 +173,7 @@ export default function KookMembers() {
     try {
       const res = await syncKookMembers();
       message.success(`已同步 ${res.count} 个 KOOK 成员`);
+      setLastSyncTime(new Date().toLocaleString());
       await load(1);
     } finally {
       setSyncing(false);
@@ -166,14 +189,18 @@ export default function KookMembers() {
   const submitBlacklist = async () => {
     if (!blacklistTarget) return;
     const values = await blacklistForm.validateFields();
-    await blacklistKookMember(blacklistTarget.id, {
-      reason: values.reason || '',
-      delMsgDays: values.delMsgDays || 0,
-    });
-    setBlacklistTarget(null);
-    blacklistForm.resetFields();
-    message.success('KOOK 成员已拉黑');
-    await load();
+    try {
+      await blacklistKookMember(blacklistTarget.id, {
+        reason: values.reason || '',
+        delMsgDays: values.delMsgDays || 0,
+      });
+      setBlacklistTarget(null);
+      blacklistForm.resetFields();
+      message.success('KOOK 成员已拉黑');
+      await load();
+    } catch (error) {
+      message.error(getErrorMessage(error));
+    }
   };
 
   const reset = () => {
@@ -210,12 +237,15 @@ export default function KookMembers() {
               description="确认从 KOOK 黑名单移除该成员？"
               okText="解除"
               cancelText="取消"
-              onConfirm={() =>
-                unblacklistKookMember(row.id).then(async () => {
+              onConfirm={async () => {
+                try {
+                  await unblacklistKookMember(row.id);
                   message.success('KOOK 成员已解除拉黑');
                   await load();
-                })
-              }
+                } catch (error) {
+                  message.error(getErrorMessage(error));
+                }
+              }}
             >
               <Button size="small">解除</Button>
             </Popconfirm>
@@ -242,7 +272,7 @@ export default function KookMembers() {
         extra={
           <Space>
             <Button onClick={syncMembers} loading={syncing}>
-              同步 KOOK
+              同步 KOOK 成员
             </Button>
             <Button type="primary" onClick={openCreate}>
               新增成员
@@ -269,6 +299,9 @@ export default function KookMembers() {
           </Space>
         </Form>
       </Card>
+      <Typography.Paragraph type="secondary">
+        最近更新时间：{lastUpdateTime || (lastSyncTime ? `同步完成时间 ${lastSyncTime}` : '暂无')}
+      </Typography.Paragraph>
       <Table
         rowKey={(row) => String(row.id)}
         loading={loading}
