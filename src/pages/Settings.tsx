@@ -38,6 +38,7 @@ export default function Settings() {
   const [form] = Form.useForm();
   const [loading, setLoading] = useState(true);
   const [submitting, setSubmitting] = useState(false);
+  const [testingWebhook, setTestingWebhook] = useState(false);
   const [initialValues, setInitialValues] = useState<SettingsValues>({});
   const { message, modal } = AntApp.useApp();
   const currentValues = normalizeSettings(Form.useWatch([], form) || initialValues);
@@ -100,6 +101,27 @@ export default function Settings() {
   const copy = async (text: string, successText: string) => {
     await navigator.clipboard.writeText(text);
     message.success(successText);
+  };
+
+  const testWebhook = async () => {
+    const challenge = `codex-${Date.now()}`;
+    setTestingWebhook(true);
+    try {
+      const response = await fetch(webhookUrl, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ challenge }),
+      });
+      const data = await response.json();
+      if (!response.ok || data.challenge !== challenge) {
+        throw new Error(data.message || 'challenge 返回不匹配');
+      }
+      message.success('Webhook 链路正常：challenge 已返回');
+    } catch (error) {
+      message.error(error instanceof Error ? error.message : 'Webhook 链路测试失败');
+    } finally {
+      setTestingWebhook(false);
+    }
   };
 
   return (
@@ -172,7 +194,13 @@ export default function Settings() {
               >
                 复制 KOOK Verify Token
               </Button>
+              <Button onClick={testWebhook} loading={testingWebhook}>
+                测试 Webhook 连通性
+              </Button>
             </Space>
+            <Typography.Paragraph type="secondary" className="settings-note">
+              仅验证 Nginx/后端 challenge 链路，不代表 KOOK 已推送真实事件。
+            </Typography.Paragraph>
           </Form.Item>
           <Form.Item label="KOOK 配置说明">
             <Typography.Paragraph>
