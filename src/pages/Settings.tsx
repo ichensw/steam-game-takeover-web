@@ -10,6 +10,7 @@ type SettingsValues = {
   kookBotToken?: string;
   kookGuildId?: string;
   kookVerifyToken?: string;
+  kookEncryptKey?: string;
 };
 
 const sensitiveKeys: Array<keyof SettingsValues> = [
@@ -17,6 +18,7 @@ const sensitiveKeys: Array<keyof SettingsValues> = [
   'steamWebApiKey',
   'kookBotToken',
   'kookVerifyToken',
+  'kookEncryptKey',
 ];
 
 function normalizeSettings(values: SettingsValues) {
@@ -27,6 +29,7 @@ function normalizeSettings(values: SettingsValues) {
     kookBotToken: values.kookBotToken?.trim() || '',
     kookGuildId: values.kookGuildId?.trim() || '',
     kookVerifyToken: values.kookVerifyToken?.trim() || '',
+    kookEncryptKey: values.kookEncryptKey?.trim() || '',
   };
 }
 
@@ -180,6 +183,13 @@ export default function Settings() {
           >
             <Input.Password placeholder="KOOK Webhook Verify Token" autoComplete="off" />
           </Form.Item>
+          <Form.Item
+            label="KOOK Webhook Encrypt Key"
+            name="kookEncryptKey"
+            extra="用于解密 KOOK Webhook 加密消息，需与 KOOK 官方机器人后台的 Encrypt Key 完全一致。"
+          >
+            <Input.Password placeholder="KOOK Webhook Encrypt Key" autoComplete="off" />
+          </Form.Item>
           <Form.Item label="KOOK Webhook 地址">
             <Typography.Text className="mono">{webhookUrl}</Typography.Text>
           </Form.Item>
@@ -199,20 +209,22 @@ export default function Settings() {
               </Button>
             </Space>
             <Typography.Paragraph type="secondary" className="settings-note">
-              仅验证 Nginx/后端 challenge 链路，不代表 KOOK 已推送真实事件。
+              当前测试只验证后端 challenge 链路是否正常，不代表 KOOK 已经推送真实入服/退服事件。
             </Typography.Paragraph>
           </Form.Item>
           <Form.Item label="KOOK 配置说明">
             <Typography.Paragraph>
-              KOOK 机器人连接模式请选择 webhook
+              KOOK 后台连接模式选择 webhook
               <br />
               Callback Url 填写本页 KOOK Webhook 地址
               <br />
-              Verify Token 必须与本页配置一致
+              Verify Token 必须与本页 KOOK Webhook Verify Token 一致
               <br />
-              不要开启加密/压缩事件推送
+              Encrypt Key 必须与本页 KOOK Webhook Encrypt Key 一致
               <br />
-              配置完成后需要在 KOOK 后台点击“机器人上线”
+              配置完成后，在 KOOK 官方机器人后台点击“测试url”
+              <br />
+              测试通过后点击“机器人上线”
             </Typography.Paragraph>
           </Form.Item>
           <Form.Item label="KOOK 配置状态检查">
@@ -225,6 +237,9 @@ export default function Settings() {
               </Typography.Text>
               <Typography.Text type={currentValues.kookVerifyToken ? 'success' : 'danger'}>
                 Webhook Verify Token {currentValues.kookVerifyToken ? '已填写' : '未填写'}
+              </Typography.Text>
+              <Typography.Text type={currentValues.kookEncryptKey ? 'success' : 'danger'}>
+                Webhook Encrypt Key {currentValues.kookEncryptKey ? '已填写' : '未填写'}
               </Typography.Text>
               <Typography.Text type={webhookUrl.includes('?compress=0') ? 'success' : 'danger'}>
                 Webhook 地址{webhookUrl.includes('?compress=0') ? '包含' : '缺少'} ?compress=0
