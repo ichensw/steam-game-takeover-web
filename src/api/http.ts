@@ -31,7 +31,13 @@ http.interceptors.response.use(
 );
 
 export async function unwrap<T>(request: Promise<{ data: ApiResponse<T> }>) {
-  const response = await request;
+  let response;
+  try {
+    response = await request;
+  } catch (error) {
+    const responseMessage = (error as { response?: { data?: { message?: string } } })?.response?.data?.message;
+    throw new Error(responseMessage || (error instanceof Error ? error.message : '请求失败'));
+  }
   if (response.data.success === false) {
     throw new Error(response.data.message || '请求失败');
   }
