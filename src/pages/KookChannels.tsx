@@ -34,6 +34,7 @@ import {
   updateKookChannelRole,
 } from '../api/admin';
 import PageHeader from '../components/PageHeader';
+import { kookPermissionOptions, permissionText, permissionValue } from '../constants/kookPermissions';
 
 type Row = Record<string, unknown> & {
   id: React.Key;
@@ -299,11 +300,17 @@ export default function KookChannels() {
   const submitRole = async (update = false) => {
     if (!rolesTarget) return;
     const values = await roleForm.validateFields();
+    const payload = {
+      type: values.type,
+      value: values.value,
+      allow: permissionValue(values.allowPermissions),
+      deny: permissionValue(values.denyPermissions),
+    };
     if (update) {
-      await updateKookChannelRole(rolesTarget.id, values);
+      await updateKookChannelRole(rolesTarget.id, payload);
       message.success('权限已更新');
     } else {
-      await createKookChannelRole(rolesTarget.id, values);
+      await createKookChannelRole(rolesTarget.id, payload);
       message.success('权限已创建');
     }
     await refreshRoles();
@@ -387,8 +394,8 @@ export default function KookChannels() {
       width: 160,
       render: (_, row) => row.role_id !== undefined ? `角色 ${row.role_id}` : `用户 ${row.user?.id || row.user_id || '-'}`,
     },
-    { title: '允许值', dataIndex: 'allow', width: 100 },
-    { title: '拒绝值', dataIndex: 'deny', width: 100 },
+    { title: '允许权限', dataIndex: 'allow', width: 220, ellipsis: true, render: permissionText },
+    { title: '拒绝权限', dataIndex: 'deny', width: 220, ellipsis: true, render: permissionText },
     {
       title: '操作',
       width: 100,
@@ -562,11 +569,11 @@ export default function KookChannels() {
                   <Form.Item label="对象 ID" name="value" rules={[{ required: true, message: '请输入用户或角色 ID' }]}>
                     <Input className="mono" />
                   </Form.Item>
-                  <Form.Item label="允许权限值" name="allow">
-                    <InputNumber min={0} precision={0} style={{ width: '100%' }} />
+                  <Form.Item label="允许权限" name="allowPermissions">
+                    <Select mode="multiple" allowClear options={kookPermissionOptions} optionFilterProp="label" />
                   </Form.Item>
-                  <Form.Item label="拒绝权限值" name="deny">
-                    <InputNumber min={0} precision={0} style={{ width: '100%' }} />
+                  <Form.Item label="拒绝权限" name="denyPermissions">
+                    <Select mode="multiple" allowClear options={kookPermissionOptions} optionFilterProp="label" />
                   </Form.Item>
                   <Space>
                     <Button type="primary" onClick={() => submitRole(false)}>创建</Button>

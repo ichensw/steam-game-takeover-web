@@ -242,6 +242,30 @@ export function syncKookChannelRoles(id: React.Key) {
   return unwrap<Record<string, unknown>>(http.post(`/admin/kook-channels/${id}/roles/sync`));
 }
 
+export function listKookRoles(params: Query) {
+  return unwrap<Record<string, unknown>>(http.get('/admin/kook-roles', { params }));
+}
+
+export function createKookRole(values: Record<string, unknown>) {
+  return unwrap<Record<string, unknown>>(http.post('/admin/kook-roles', values));
+}
+
+export function updateKookRole(id: React.Key, values: Record<string, unknown>) {
+  return unwrap<Record<string, unknown>>(http.put(`/admin/kook-roles/${id}`, values));
+}
+
+export function deleteKookRole(id: React.Key) {
+  return unwrap<Record<string, unknown>>(http.delete(`/admin/kook-roles/${id}`));
+}
+
+export function grantKookRole(id: React.Key, userId: string) {
+  return unwrap<Record<string, unknown>>(http.post(`/admin/kook-roles/${id}/grant`, { userId }));
+}
+
+export function revokeKookRole(id: React.Key, userId: string) {
+  return unwrap<Record<string, unknown>>(http.post(`/admin/kook-roles/${id}/revoke`, { userId }));
+}
+
 export function uploadAdminImage(file: File) {
   const data = new FormData();
   data.append('file', file);
