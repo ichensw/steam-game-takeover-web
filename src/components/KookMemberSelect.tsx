@@ -1,4 +1,5 @@
 import { Select } from 'antd';
+import type { SelectProps } from 'antd';
 import type { CSSProperties } from 'react';
 import { useEffect, useRef, useState } from 'react';
 import { listKookMembers } from '../api/admin';
@@ -14,7 +15,7 @@ type MemberRow = {
 type Props = {
   value?: string | string[];
   onChange?: (value: string | string[]) => void;
-  mode?: 'multiple';
+  mode?: SelectProps['mode'];
   placeholder?: string;
   style?: CSSProperties;
 };

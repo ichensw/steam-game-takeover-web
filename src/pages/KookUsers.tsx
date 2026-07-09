@@ -1,15 +1,17 @@
-import { App as AntApp, Avatar, Button, Card, Descriptions, Empty, Flex, Form, Input, Space, Tag, Typography } from 'antd';
-import { useEffect, useState } from 'react';
+import { App as AntApp, AutoComplete, Avatar, Button, Card, Descriptions, Empty, Flex, Form, Space, Tag, Typography } from 'antd';
+import { useEffect, useRef, useState } from 'react';
 import {
   getKookBotOnlineStatus,
   getKookUser,
   getKookUserMe,
+  listKookMembers,
   offlineKookBot,
   onlineKookBot,
 } from '../api/admin';
 import PageHeader from '../components/PageHeader';
 
 type KookUser = Record<string, unknown>;
+type KookMember = Record<string, unknown>;
 
 function text(row: KookUser | null, ...keys: string[]) {
   for (const key of keys) {
@@ -34,6 +36,23 @@ function renderOnline(row: KookUser | null) {
 
 function userTitle(row: KookUser | null) {
   return text(row, 'nickname') || text(row, 'username') || text(row, 'id') || 'KOOK 用户';
+}
+
+function memberUserId(row: KookMember) {
+  return text(row, 'kookUserId', 'userId', 'user_id', 'id');
+}
+
+function sameMember(row: KookMember, keyword: string) {
+  const lower = keyword.toLowerCase();
+  return ['kookUserId', 'userId', 'user_id', 'id', 'username', 'nickname', 'identifyNum', 'identify_num'].some(
+    (key) => text(row, key).toLowerCase() === lower,
+  );
+}
+
+function memberLabel(row: KookMember) {
+  const name = text(row, 'nickname') || text(row, 'username') || '未命名用户';
+  const identifyNum = text(row, 'identifyNum', 'identify_num');
+  return `${name}${identifyNum ? `#${identifyNum}` : ''} (${memberUserId(row)})`;
 }
 
 function UserInfo({ user }: { user: KookUser | null }) {
@@ -68,6 +87,8 @@ export default function KookUsers() {
   const [loadingStatus, setLoadingStatus] = useState(false);
   const [loadingTarget, setLoadingTarget] = useState(false);
   const [switching, setSwitching] = useState(false);
+  const [memberOptions, setMemberOptions] = useState<{ value: string; label: string }[]>([]);
+  const memberSearchTimer = useRef<number | undefined>(undefined);
   const [form] = Form.useForm<{ userId: string }>();
   const { message } = AntApp.useApp();
 
@@ -92,13 +113,33 @@ export default function KookUsers() {
   useEffect(() => {
     loadBot();
     loadStatus();
+    return () => window.clearTimeout(memberSearchTimer.current);
   }, []);
 
+  const searchMemberOptions = (keyword = '') => {
+    window.clearTimeout(memberSearchTimer.current);
+    memberSearchTimer.current = window.setTimeout(async () => {
+      const res = await listKookMembers({ page: 1, pageSize: 10, keyword, isBlacklisted: false });
+      setMemberOptions(
+        ((res.list || res.items || []) as KookMember[])
+          .map((row) => ({ value: memberUserId(row), label: memberLabel(row) }))
+          .filter((option) => option.value),
+      );
+    }, 300);
+  };
+
   const searchUser = async ({ userId }: { userId: string }) => {
-    const id = userId.trim();
-    if (!id) return;
+    const keyword = userId.trim();
+    if (!keyword) return;
     setLoadingTarget(true);
     try {
+      let id = keyword;
+      const res = await listKookMembers({ page: 1, pageSize: 10, keyword, isBlacklisted: false });
+      const members = (res.list || res.items || []) as KookMember[];
+      const matched = members.find((row) => sameMember(row, keyword)) || members[0];
+      if (matched && memberUserId(matched)) {
+        id = memberUserId(matched);
+      }
       setTarget(await getKookUser(id));
     } finally {
       setLoadingTarget(false);
@@ -146,8 +187,15 @@ export default function KookUsers() {
       <Card title="查询目标用户" className="filter-card" style={{ marginTop: 16 }} loading={loadingTarget}>
         <Form form={form} layout="inline" onFinish={searchUser}>
           <Form.Item name="userId" rules={[{ required: true, message: '请输入 KOOK 用户 ID' }]}>
-            <Input.Search placeholder="KOOK 用户 ID" enterButton="查询" allowClear style={{ width: 360 }} />
+            <AutoComplete
+              allowClear
+              options={memberOptions}
+              onSearch={searchMemberOptions}
+              placeholder="昵称 / 用户名 / KOOK ID"
+              style={{ width: 360 }}
+            />
           </Form.Item>
+          <Button type="primary" htmlType="submit" loading={loadingTarget}>查询</Button>
         </Form>
       </Card>
       <Card title={userTitle(target)} style={{ marginTop: 16 }}>
