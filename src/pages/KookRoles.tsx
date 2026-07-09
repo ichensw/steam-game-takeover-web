@@ -24,6 +24,7 @@ import {
   revokeKookRole,
   updateKookRole,
 } from '../api/admin';
+import KookMemberSelect from '../components/KookMemberSelect';
 import PageHeader from '../components/PageHeader';
 import { kookPermissionOptions, permissionBits, permissionText, permissionValue } from '../constants/kookPermissions';
 import { pageSizeOptions, responsePageSize } from '../utils/pagination';
@@ -279,7 +280,7 @@ export default function KookRoles() {
       >
         <Form form={grantForm} layout="vertical">
           <Form.Item label="KOOK 用户 ID" name="userId" rules={[{ required: true, message: '请输入 KOOK 用户 ID' }]}>
-            <Input className="mono" />
+            <KookMemberSelect />
           </Form.Item>
         </Form>
       </Modal>

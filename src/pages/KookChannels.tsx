@@ -33,6 +33,8 @@ import {
   updateKookChannel,
   updateKookChannelRole,
 } from '../api/admin';
+import KookMemberSelect from '../components/KookMemberSelect';
+import KookRoleSelect from '../components/KookRoleSelect';
 import PageHeader from '../components/PageHeader';
 import { kookPermissionOptions, permissionText, permissionValue } from '../constants/kookPermissions';
 
@@ -169,8 +171,9 @@ export default function KookChannels() {
   const [saving, setSaving] = useState(false);
   const [form] = Form.useForm();
   const [filterForm] = Form.useForm();
-  const [moveForm] = Form.useForm<{ userIds: string }>();
+  const [moveForm] = Form.useForm<{ userIds: string[] | string }>();
   const [roleForm] = Form.useForm();
+  const roleValueType = Form.useWatch('type', roleForm);
   const { message, modal } = AntApp.useApp();
 
   const load = async () => {
@@ -261,7 +264,9 @@ export default function KookChannels() {
   const moveUsers = async () => {
     if (!usersTarget) return;
     const values = await moveForm.validateFields();
-    const userIds = values.userIds.split(/[\s,，]+/).map((id) => id.trim()).filter(Boolean);
+    const userIds = Array.isArray(values.userIds)
+      ? values.userIds
+      : values.userIds.split(/[\s,，]+/).map((id) => id.trim()).filter(Boolean);
     await moveKookChannelUsers(usersTarget.id, userIds);
     moveForm.resetFields();
     message.success('用户已移动到该语音频道');
@@ -514,7 +519,7 @@ export default function KookChannels() {
       <Drawer title={`语音成员 - ${usersTarget ? rowName(usersTarget) : ''}`} width={760} open={!!usersTarget} onClose={() => setUsersTarget(null)}>
         <Form form={moveForm} layout="inline" onFinish={moveUsers}>
           <Form.Item name="userIds" rules={[{ required: true, message: '请输入用户 ID' }]}>
-            <Input placeholder="用户 ID，多个用逗号或空格分隔" style={{ width: 320 }} />
+            <KookMemberSelect mode="multiple" placeholder="搜索并选择用户" style={{ width: 360 }} />
           </Form.Item>
           <Button type="primary" htmlType="submit">移动到当前频道</Button>
         </Form>
@@ -564,10 +569,13 @@ export default function KookChannels() {
               children: (
                 <Form form={roleForm} layout="vertical">
                   <Form.Item label="对象类型" name="type" rules={[{ required: true, message: '请选择对象类型' }]}>
-                    <Select options={roleTypeOptions} />
+                    <Select
+                      options={roleTypeOptions}
+                      onChange={() => roleForm.setFieldValue('value', undefined)}
+                    />
                   </Form.Item>
                   <Form.Item label="对象 ID" name="value" rules={[{ required: true, message: '请输入用户或角色 ID' }]}>
-                    <Input className="mono" />
+                    {roleValueType === 'role_id' ? <KookRoleSelect /> : <KookMemberSelect />}
                   </Form.Item>
                   <Form.Item label="允许权限" name="allowPermissions">
                     <Select mode="multiple" allowClear options={kookPermissionOptions} optionFilterProp="label" />

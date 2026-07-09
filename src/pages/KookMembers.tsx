@@ -23,11 +23,13 @@ import {
   deleteKookMember,
   getKookMember,
   listKookMembers,
+  listKookRoles,
   syncKookMembers,
   unblacklistKookMember,
   updateKookMember,
 } from '../api/admin';
 import PageHeader from '../components/PageHeader';
+import { permissionText } from '../constants/kookPermissions';
 import { pageSizeOptions, responsePageSize } from '../utils/pagination';
 
 type KookMemberRow = Record<string, unknown> & {
@@ -39,6 +41,7 @@ type KookMemberRow = Record<string, unknown> & {
   identifyNum?: string;
   avatarUrl?: string;
   isBot?: boolean;
+  roleIds?: string[];
   memberStatus?: number;
   joinedAt?: string;
   exitedAt?: string;
@@ -51,6 +54,13 @@ type KookMemberRow = Record<string, unknown> & {
   gmtModified?: string;
   updated_at?: string;
   gmt_modified?: string;
+};
+
+type RoleRow = Record<string, unknown> & {
+  role_id?: React.Key;
+  roleId?: React.Key;
+  name?: string;
+  permissions?: number;
 };
 
 const memberStatusOptions = [
@@ -83,6 +93,14 @@ function latestUpdateTime(rows: KookMemberRow[]) {
     .sort((a, b) => Date.parse(String(b)) - Date.parse(String(a)))[0];
 }
 
+function roleId(row: RoleRow) {
+  return String(row.role_id || row.roleId || row.id || '');
+}
+
+function roleItems(data: Record<string, unknown>) {
+  return ((data.items || data.list || []) as RoleRow[]).map((item) => ({ ...item, id: roleId(item) }));
+}
+
 export default function KookMembers() {
   const [rows, setRows] = useState<KookMemberRow[]>([]);
   const [total, setTotal] = useState(0);
@@ -92,6 +110,7 @@ export default function KookMembers() {
   const [syncing, setSyncing] = useState(false);
   const [lastSyncTime, setLastSyncTime] = useState('');
   const [lastUpdateTime, setLastUpdateTime] = useState('');
+  const [roleMap, setRoleMap] = useState<Record<string, RoleRow>>({});
   const [drawerOpen, setDrawerOpen] = useState(false);
   const [editing, setEditing] = useState<KookMemberRow | null>(null);
   const [detail, setDetail] = useState<KookMemberRow | null>(null);
@@ -125,8 +144,18 @@ export default function KookMembers() {
     }
   };
 
+  const loadRoles = async () => {
+    try {
+      const roles = roleItems(await listKookRoles({ page: 1, pageSize: 100 }));
+      setRoleMap(Object.fromEntries(roles.map((role) => [roleId(role), role])));
+    } catch {
+      setRoleMap({});
+    }
+  };
+
   useEffect(() => {
     load(1);
+    loadRoles();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
@@ -154,6 +183,14 @@ export default function KookMembers() {
       setDetailLoading(false);
     }
   };
+
+  const roleNames = (roleIds?: string[]) => {
+    if (!roleIds?.length) return '-';
+    return roleIds.map((id) => roleMap[String(id)]?.name || id).join('、');
+  };
+
+  const rolePermissionValue = (roleIds?: string[]) =>
+    (roleIds || []).reduce((sum, id) => sum | (Number(roleMap[String(id)]?.permissions) || 0), 0);
 
   const save = async (values: Record<string, unknown>) => {
     setSubmitting(true);
@@ -218,6 +255,8 @@ export default function KookMembers() {
     { title: '昵称', dataIndex: 'nickname', width: 140, ellipsis: true },
     { title: '认证号', dataIndex: 'identifyNum', width: 100, className: 'mono' },
     { title: '机器人', dataIndex: 'isBot', width: 90, render: (v) => (v ? <Tag>是</Tag> : <Tag>否</Tag>) },
+    { title: '角色', dataIndex: 'roleIds', width: 220, ellipsis: true, render: roleNames },
+    { title: '拥有权限', dataIndex: 'roleIds', width: 260, ellipsis: true, render: (ids) => permissionText(rolePermissionValue(ids as string[] | undefined)) },
     { title: '成员状态', dataIndex: 'memberStatus', width: 100, render: renderMemberStatus },
     { title: '黑名单', dataIndex: 'isBlacklisted', width: 100, render: renderBlacklist },
     { title: '加入时间', dataIndex: 'joinedAt', width: 170, className: 'mono', render: (v) => v || '-' },
@@ -310,7 +349,7 @@ export default function KookMembers() {
         loading={loading}
         columns={columns}
         dataSource={rows}
-        scroll={{ x: 1480 }}
+        scroll={{ x: 1960 }}
         pagination={{
           total,
           current: page,
@@ -387,6 +426,8 @@ export default function KookMembers() {
             <Descriptions.Item label="昵称">{detail.nickname || '-'}</Descriptions.Item>
             <Descriptions.Item label="认证号"><span className="mono">{detail.identifyNum || '-'}</span></Descriptions.Item>
             <Descriptions.Item label="机器人">{detail.isBot ? '是' : '否'}</Descriptions.Item>
+            <Descriptions.Item label="角色">{roleNames(detail.roleIds)}</Descriptions.Item>
+            <Descriptions.Item label="拥有权限">{permissionText(rolePermissionValue(detail.roleIds))}</Descriptions.Item>
             <Descriptions.Item label="成员状态">{renderMemberStatus(detail.memberStatus)}</Descriptions.Item>
             <Descriptions.Item label="黑名单">{renderBlacklist(detail.isBlacklisted)}</Descriptions.Item>
             <Descriptions.Item label="拉黑原因">{detail.blacklistReason || '-'}</Descriptions.Item>
