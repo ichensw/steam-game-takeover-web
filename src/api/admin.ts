@@ -170,6 +170,60 @@ export function unblacklistKookMember(id: React.Key) {
   return unwrap<null>(http.post(`/admin/kook-members/${id}/unblacklist`));
 }
 
+export function listKookChannels(params: Query) {
+  return unwrap<Record<string, unknown>>(http.get('/admin/kook-channels', { params }));
+}
+
+export function getKookChannel(id: React.Key, params?: Query) {
+  return unwrap<Record<string, unknown>>(http.get(`/admin/kook-channels/${id}`, { params }));
+}
+
+export function createKookChannel(values: Record<string, unknown>) {
+  return unwrap<Record<string, unknown>>(http.post('/admin/kook-channels', values));
+}
+
+export function updateKookChannel(id: React.Key, values: Record<string, unknown>) {
+  return unwrap<Record<string, unknown>>(http.put(`/admin/kook-channels/${id}`, values));
+}
+
+export function deleteKookChannel(id: React.Key) {
+  return unwrap<Record<string, unknown>>(http.delete(`/admin/kook-channels/${id}`));
+}
+
+export function listKookChannelUsers(id: React.Key) {
+  return unwrap<Record<string, unknown>[]>(http.get(`/admin/kook-channels/${id}/users`));
+}
+
+export function moveKookChannelUsers(id: React.Key, userIds: string[]) {
+  return unwrap<Record<string, unknown>>(http.post(`/admin/kook-channels/${id}/move-user`, { userIds }));
+}
+
+export function kickoutKookChannelUser(id: React.Key, userId: string) {
+  return unwrap<Record<string, unknown>>(http.post(`/admin/kook-channels/${id}/kickout`, { userId }));
+}
+
+export function getKookChannelRoles(id: React.Key) {
+  return unwrap<Record<string, unknown>>(http.get(`/admin/kook-channels/${id}/roles`));
+}
+
+export function createKookChannelRole(id: React.Key, values: Record<string, unknown>) {
+  return unwrap<Record<string, unknown>>(http.post(`/admin/kook-channels/${id}/roles`, values));
+}
+
+export function updateKookChannelRole(id: React.Key, values: Record<string, unknown>) {
+  return unwrap<Record<string, unknown>>(http.put(`/admin/kook-channels/${id}/roles`, values));
+}
+
+export function deleteKookChannelRole(id: React.Key, values: Record<string, unknown>) {
+  return unwrap<Record<string, unknown>>(
+    http.delete(`/admin/kook-channels/${id}/roles`, { data: values }),
+  );
+}
+
+export function syncKookChannelRoles(id: React.Key) {
+  return unwrap<Record<string, unknown>>(http.post(`/admin/kook-channels/${id}/roles/sync`));
+}
+
 export function uploadAdminImage(file: File) {
   const data = new FormData();
   data.append('file', file);
