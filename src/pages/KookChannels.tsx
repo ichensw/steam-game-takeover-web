@@ -44,6 +44,7 @@ type Row = Record<string, unknown> & {
   level?: number;
   limit_amount?: number;
   limitAmount?: number;
+  children?: Row[];
 };
 
 type UserRow = Record<string, unknown> & {
@@ -86,10 +87,6 @@ function channelItems(data: Record<string, unknown>) {
   }));
 }
 
-function meta(data: Record<string, unknown>) {
-  return (data.meta || {}) as { total?: number; page?: number; page_size?: number; pageSize?: number };
-}
-
 function channelType(value: unknown) {
   const type = Number(value);
   if (type === 0) return <Tag>分组</Tag>;
@@ -99,6 +96,49 @@ function channelType(value: unknown) {
 
 function rowName(row: Row) {
   return row.name || String(row.id || '-');
+}
+
+function parentIdOf(row: Row) {
+  return String(row.parent_id || row.parentId || '');
+}
+
+function trimEmptyChildren(row: Row): Row {
+  const children = row.children?.map(trimEmptyChildren).filter(Boolean);
+  return children?.length ? { ...row, children } : { ...row, children: undefined };
+}
+
+function buildChannelTree(rows: Row[], filters: { keyword?: string; type?: number; parentId?: string }) {
+  const byId = new Map<string, Row>();
+  rows.forEach((row) => byId.set(String(row.id), { ...row, children: [] }));
+
+  const matched = new Set<string>();
+  const keyword = String(filters.keyword || '').trim().toLowerCase();
+  rows.forEach((row) => {
+    const keywordMatched = !keyword || String(row.name || '').toLowerCase().includes(keyword);
+    const typeMatched = filters.type === undefined || Number(row.type) === Number(filters.type);
+    const parentMatched = !filters.parentId || parentIdOf(row) === String(filters.parentId).trim();
+    if (!keywordMatched || !typeMatched || !parentMatched) return;
+    for (let current: Row | undefined = row; current; current = byId.get(parentIdOf(current))) {
+      matched.add(String(current.id));
+    }
+  });
+  if (matched.size === 0 && filters.type === undefined && !filters.parentId) {
+    rows.forEach((row) => matched.add(String(row.id)));
+  }
+
+  const tree: Row[] = [];
+  rows.forEach((row) => {
+    const id = String(row.id);
+    const node = byId.get(id);
+    if (!node || !matched.has(id)) return;
+    const parent = byId.get(parentIdOf(node));
+    if (parent && matched.has(String(parent.id))) {
+      parent.children = [...(parent.children || []), node];
+    } else {
+      tree.push(node);
+    }
+  });
+  return tree.map(trimEmptyChildren);
 }
 
 function roleKey(row: RoleRow, index?: number) {
@@ -114,9 +154,7 @@ function getErrorMessage(error: unknown) {
 
 export default function KookChannels() {
   const [rows, setRows] = useState<Row[]>([]);
-  const [page, setPage] = useState(1);
-  const [pageSize, setPageSize] = useState(20);
-  const [total, setTotal] = useState(0);
+  const [filters, setFilters] = useState<{ keyword?: string; type?: number; parentId?: string }>({});
   const [loading, setLoading] = useState(false);
   const [drawerOpen, setDrawerOpen] = useState(false);
   const [editing, setEditing] = useState<Row | null>(null);
@@ -134,28 +172,18 @@ export default function KookChannels() {
   const [roleForm] = Form.useForm();
   const { message, modal } = AntApp.useApp();
 
-  const load = async (targetPage = page, targetPageSize = pageSize) => {
+  const load = async () => {
     setLoading(true);
     try {
-      const filters = filterForm.getFieldsValue();
-      const data = await listKookChannels({
-        page: targetPage,
-        pageSize: targetPageSize,
-        type: filters.type,
-        parentId: filters.parentId,
-      });
-      const nextMeta = meta(data);
+      const data = await listKookChannels({});
       setRows(channelItems(data));
-      setTotal(nextMeta.total || 0);
-      setPage(nextMeta.page || targetPage);
-      setPageSize(nextMeta.page_size || nextMeta.pageSize || targetPageSize);
     } finally {
       setLoading(false);
     }
   };
 
   useEffect(() => {
-    load(1);
+    load();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
@@ -202,7 +230,7 @@ export default function KookChannels() {
         message.success('频道已创建');
       }
       setDrawerOpen(false);
-      await load(editing ? page : 1);
+      await load();
     } finally {
       setSaving(false);
     }
@@ -211,7 +239,7 @@ export default function KookChannels() {
   const remove = async (row: Row) => {
     await deleteKookChannel(row.id);
     message.success('频道已删除');
-    await load(1);
+    await load();
   };
 
   const openDetail = async (row: Row) => {
@@ -383,6 +411,7 @@ export default function KookChannels() {
     ...((roles?.permission_overwrites || []) as RoleRow[]),
     ...((roles?.permission_users || []) as RoleRow[]),
   ];
+  const treeRows = buildChannelTree(rows, filters);
 
   return (
     <>
@@ -393,7 +422,10 @@ export default function KookChannels() {
       />
 
       <Card className="filter-card">
-        <Form form={filterForm} layout="inline" onFinish={() => load(1)}>
+        <Form form={filterForm} layout="inline" onFinish={(values) => setFilters(values)}>
+          <Form.Item name="keyword">
+            <Input.Search placeholder="搜索频道名称" allowClear />
+          </Form.Item>
           <Form.Item name="type">
             <Select placeholder="频道类型" allowClear style={{ width: 130 }} options={channelTypeOptions} />
           </Form.Item>
@@ -402,25 +434,22 @@ export default function KookChannels() {
           </Form.Item>
           <Space>
             <Button type="primary" htmlType="submit">查询</Button>
-            <Button onClick={() => { filterForm.resetFields(); setTimeout(() => load(1), 0); }}>重置</Button>
+            <Button onClick={() => { filterForm.resetFields(); setFilters({}); }}>重置</Button>
           </Space>
         </Form>
       </Card>
+      <Typography.Paragraph type="secondary">
+        {`共 ${treeRows.length} 个顶层频道，${rows.length} 个频道`}
+      </Typography.Paragraph>
 
       <Table
         rowKey={(row) => String(row.id)}
         loading={loading}
         columns={columns}
-        dataSource={rows}
+        dataSource={treeRows}
         scroll={{ x: 1180 }}
-        pagination={{
-          total,
-          current: page,
-          pageSize,
-          showSizeChanger: true,
-          onChange: load,
-          showTotal: (n) => `共 ${n} 条`,
-        }}
+        pagination={false}
+        expandable={{ defaultExpandAllRows: true }}
       />
 
       <Drawer title={editing ? '编辑 KOOK 频道' : '创建 KOOK 频道'} width={620} open={drawerOpen} onClose={() => setDrawerOpen(false)}>
