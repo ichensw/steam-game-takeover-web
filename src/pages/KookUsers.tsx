@@ -61,14 +61,25 @@ function boolText(value: unknown) {
 }
 
 function renderOnline(row: KookUser | null) {
-  const value = row?.online ?? row?.onlineStatus ?? row?.status;
-  if (value === true || value === 1 || value === '1' || value === 'online') return <Tag color="green">在线</Tag>;
-  if (value === false || value === 0 || value === '0' || value === 'offline') return <Tag>离线</Tag>;
+  const value = onlineValue(row);
+  if (value === true) return <Tag color="green">在线</Tag>;
+  if (value === false) return <Tag>离线</Tag>;
   return <Tag>{value ? String(value) : '未知'}</Tag>;
+}
+
+function onlineValue(row: KookUser | null) {
+  const value = row?.online ?? row?.onlineStatus ?? row?.is_online ?? row?.bot_online ?? row?.status;
+  if (value === true || value === 1 || value === '1' || value === 'online') return true;
+  if (value === false || value === 0 || value === '0' || value === 'offline') return false;
+  return undefined;
 }
 
 function userTitle(row: KookUser | null) {
   return text(row, 'nickname') || text(row, 'username') || text(row, 'id') || 'KOOK 用户';
+}
+
+function avatarURL(user: KookUser | null) {
+  return text(user, 'vip_avatar', 'vipAvatar', 'avatar', 'avatarUrl');
 }
 
 function roleId(row: KookRole) {
@@ -149,12 +160,12 @@ function orderedEntries(user: KookUser) {
 function UserInfo({ user, roleMap }: { user: KookUser | null; roleMap: Record<string, KookRole> }) {
   if (!user) return <Empty image={Empty.PRESENTED_IMAGE_SIMPLE} description="暂无用户信息" />;
 
-  const avatarURL = text(user, 'vip_avatar', 'vipAvatar', 'avatar', 'avatarUrl');
+  const src = avatarURL(user);
 
   return (
     <Flex gap={18} align="start" wrap>
       <Space direction="vertical" align="center">
-        <Avatar src={avatarURL || undefined} size={96}>
+        <Avatar src={src || undefined} size={96}>
           {userTitle(user).slice(0, 1)}
         </Avatar>
         {text(user, 'banner') ? <Avatar shape="square" src={text(user, 'banner')} size={96} /> : null}
@@ -263,6 +274,8 @@ export default function KookUsers() {
     }
   };
 
+  const botOnline = onlineValue(botStatus);
+
   return (
     <>
       <PageHeader title="KOOK 用户" description="查看 Bot 与目标 KOOK 用户信息，维护 Bot 在线状态。" />
@@ -275,14 +288,20 @@ export default function KookUsers() {
           loading={loadingStatus}
           extra={
             <Space>
-              <Button onClick={() => setBotOnline(true)} loading={switching}>上线</Button>
-              <Button danger onClick={() => setBotOnline(false)} loading={switching}>离线</Button>
+              {botOnline !== true && <Button onClick={() => setBotOnline(true)} loading={switching}>上线</Button>}
+              {botOnline !== false && <Button danger onClick={() => setBotOnline(false)} loading={switching}>离线</Button>}
             </Space>
           }
         >
-          <Space direction="vertical" size={12}>
-            <Typography.Title level={3} style={{ margin: 0 }}>{renderOnline(botStatus)}</Typography.Title>
-            <Typography.Text type="secondary">状态来源：KOOK user/get-online-status</Typography.Text>
+          <Space size={16} align="center">
+            <Avatar src={avatarURL(bot) || undefined} size={64}>
+              {userTitle(bot).slice(0, 1)}
+            </Avatar>
+            <Space direction="vertical" size={8}>
+              <Typography.Title level={3} style={{ margin: 0 }}>{renderOnline(botStatus)}</Typography.Title>
+              <Typography.Text>{userTitle(bot)}</Typography.Text>
+              <Typography.Text type="secondary">状态来源：KOOK user/get-online-status</Typography.Text>
+            </Space>
           </Space>
         </Card>
       </div>
