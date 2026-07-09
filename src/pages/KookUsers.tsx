@@ -82,6 +82,42 @@ function avatarURL(user: KookUser | null) {
   return text(user, 'vip_avatar', 'vipAvatar', 'avatar', 'avatarUrl');
 }
 
+function KookAvatar({ user, size = 96, shape = 'circle' }: { user: KookUser | null; size?: number; shape?: 'circle' | 'square' }) {
+  const [failed, setFailed] = useState(false);
+  const src = avatarURL(user);
+  const title = userTitle(user);
+  const radius = shape === 'circle' ? '50%' : 8;
+
+  return (
+    <div
+      style={{
+        width: size,
+        height: size,
+        borderRadius: radius,
+        overflow: 'hidden',
+        background: '#56585f',
+        display: 'grid',
+        placeItems: 'center',
+        color: '#fff',
+        fontSize: Math.max(18, Math.round(size / 3)),
+        fontWeight: 700,
+      }}
+    >
+      {src && !failed ? (
+        <img
+          alt={title}
+          referrerPolicy="no-referrer"
+          src={src}
+          onError={() => setFailed(true)}
+          style={{ width: '100%', height: '100%', objectFit: 'cover', display: 'block' }}
+        />
+      ) : (
+        title.slice(0, 1)
+      )}
+    </div>
+  );
+}
+
 function roleId(row: KookRole) {
   return text(row, 'role_id', 'roleId', 'id');
 }
@@ -160,14 +196,10 @@ function orderedEntries(user: KookUser) {
 function UserInfo({ user, roleMap }: { user: KookUser | null; roleMap: Record<string, KookRole> }) {
   if (!user) return <Empty image={Empty.PRESENTED_IMAGE_SIMPLE} description="暂无用户信息" />;
 
-  const src = avatarURL(user);
-
   return (
     <Flex gap={18} align="start" wrap>
       <Space direction="vertical" align="center">
-        <Avatar src={src || undefined} size={96}>
-          {userTitle(user).slice(0, 1)}
-        </Avatar>
+        <KookAvatar user={user} />
         {text(user, 'banner') ? <Avatar shape="square" src={text(user, 'banner')} size={96} /> : null}
       </Space>
       <Descriptions column={1} bordered size="small" style={{ flex: 1, minWidth: 260 }}>
@@ -294,9 +326,7 @@ export default function KookUsers() {
           }
         >
           <Space size={16} align="center">
-            <Avatar src={avatarURL(bot) || undefined} size={64}>
-              {userTitle(bot).slice(0, 1)}
-            </Avatar>
+            <KookAvatar user={bot} size={64} />
             <Space direction="vertical" size={8}>
               <Typography.Title level={3} style={{ margin: 0 }}>{renderOnline(botStatus)}</Typography.Title>
               <Typography.Text>{userTitle(bot)}</Typography.Text>
