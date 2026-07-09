@@ -132,6 +132,7 @@ export default function KookMembers() {
         keyword: values.keyword,
         memberStatus: values.memberStatus,
         isBlacklisted: values.isBlacklisted,
+        hasPermission: values.hasPermission,
       });
       const nextRows = (res.list || res.items || []) as KookMemberRow[];
       setRows(nextRows);
@@ -332,6 +333,9 @@ export default function KookMembers() {
           </Form.Item>
           <Form.Item name="isBlacklisted">
             <Select placeholder="黑名单" allowClear style={{ width: 120 }} options={boolOptions} />
+          </Form.Item>
+          <Form.Item name="hasPermission">
+            <Select placeholder="是否有权限" allowClear style={{ width: 140 }} options={boolOptions} />
           </Form.Item>
           <Space>
             <Button type="primary" htmlType="submit">
