@@ -90,6 +90,12 @@ export function batchPublishWhitelist(openids: string[]) {
   );
 }
 
+export function batchTakeoverView(userIds: React.Key[], canViewAllTakeovers: boolean) {
+  return unwrap<{ count: number }>(
+    http.post('/admin/takeover-view/batch', { userIds, canViewAllTakeovers }),
+  );
+}
+
 export function listFeedbacks(params: Query) {
   return unwrap<PageResult<Record<string, unknown>>>(
     http.get('/admin/user-feedbacks', { params }),
@@ -264,6 +270,26 @@ export function grantKookRole(id: React.Key, userId: string) {
 
 export function revokeKookRole(id: React.Key, userId: string) {
   return unwrap<Record<string, unknown>>(http.post(`/admin/kook-roles/${id}/revoke`, { userId }));
+}
+
+export function getKookUserMe() {
+  return unwrap<Record<string, unknown>>(http.get('/admin/kook-users/me'));
+}
+
+export function getKookUser(userId: string) {
+  return unwrap<Record<string, unknown>>(http.get(`/admin/kook-users/view/${userId}`));
+}
+
+export function offlineKookBot() {
+  return unwrap<Record<string, unknown>>(http.post('/admin/kook-users/bot/offline'));
+}
+
+export function onlineKookBot() {
+  return unwrap<Record<string, unknown>>(http.post('/admin/kook-users/bot/online'));
+}
+
+export function getKookBotOnlineStatus() {
+  return unwrap<Record<string, unknown>>(http.get('/admin/kook-users/bot/online-status'));
 }
 
 export function uploadAdminImage(file: File) {

@@ -22,12 +22,15 @@ import {
   createKookMember,
   deleteKookMember,
   getKookMember,
+  grantKookRole,
   listKookMembers,
   listKookRoles,
+  revokeKookRole,
   syncKookMembers,
   unblacklistKookMember,
   updateKookMember,
 } from '../api/admin';
+import KookRoleSelect from '../components/KookRoleSelect';
 import PageHeader from '../components/PageHeader';
 import { permissionText } from '../constants/kookPermissions';
 import { pageSizeOptions, responsePageSize } from '../utils/pagination';
@@ -99,6 +102,11 @@ function roleId(row: RoleRow) {
 
 function roleItems(data: Record<string, unknown>) {
   return ((data.items || data.list || []) as RoleRow[]).map((item) => ({ ...item, id: roleId(item) }));
+}
+
+function uniqueRoleIds(value: unknown) {
+  const list = Array.isArray(value) ? value : value ? [value] : [];
+  return Array.from(new Set(list.map((item) => String(item).trim()).filter(Boolean)));
 }
 
 export default function KookMembers() {
@@ -197,13 +205,28 @@ export default function KookMembers() {
     setSubmitting(true);
     try {
       if (editing) {
-        await updateKookMember(editing.id, values);
+        const nextRoleIds = uniqueRoleIds(values.roleIds);
+        const oldRoleIds = uniqueRoleIds(editing.roleIds);
+        const grants = nextRoleIds.filter((id) => !oldRoleIds.includes(id));
+        const revokes = oldRoleIds.filter((id) => !nextRoleIds.includes(id));
+        const kookUserId = String(editing.kookUserId || '');
+
+        if ((grants.length || revokes.length) && !kookUserId) {
+          throw new Error('缺少 KOOK 用户 ID，无法同步角色');
+        }
+        await Promise.all([
+          ...grants.map((id) => grantKookRole(id, kookUserId)),
+          ...revokes.map((id) => revokeKookRole(id, kookUserId)),
+        ]);
+        await updateKookMember(editing.id, { ...values, roleIds: nextRoleIds });
       } else {
         await createKookMember(values);
       }
       message.success('KOOK 成员已保存');
       setDrawerOpen(false);
       await load(editing ? page : 1);
+    } catch (error) {
+      message.error(getErrorMessage(error));
     } finally {
       setSubmitting(false);
     }
@@ -395,6 +418,11 @@ export default function KookMembers() {
           <Form.Item label="成员状态" name="memberStatus">
             <Select options={memberStatusOptions} />
           </Form.Item>
+          {editing && (
+            <Form.Item label="角色" name="roleIds">
+              <KookRoleSelect mode="multiple" />
+            </Form.Item>
+          )}
           <Form.Item label="加入时间" name="joinedAt" extra="格式：YYYY-MM-DD HH:mm:ss">
             <Input className="mono" placeholder="2026-07-08 10:00:00" />
           </Form.Item>

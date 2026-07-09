@@ -52,6 +52,7 @@ const menuItems: MenuItem[] = [
       { key: '/kook-channels', icon: <AppstoreOutlined />, label: 'KOOK 频道' },
       { key: '/kook-roles', icon: <CrownOutlined />, label: 'KOOK 角色' },
       { key: '/kook-members', icon: <TeamOutlined />, label: 'KOOK 成员' },
+      { key: '/kook-users', icon: <UserOutlined />, label: 'KOOK 用户' },
     ],
   },
   {
@@ -79,6 +80,7 @@ const openKeyByPath: Record<string, string> = {
   '/kook-channels': 'kook-group',
   '/kook-roles': 'kook-group',
   '/kook-members': 'kook-group',
+  '/kook-users': 'kook-group',
   '/feedbacks': 'content-group',
   '/announcements': 'content-group',
 };

@@ -1,4 +1,5 @@
 import { Select } from 'antd';
+import type { SelectProps } from 'antd';
 import type { CSSProperties } from 'react';
 import { useEffect, useRef, useState } from 'react';
 import { listKookRoles } from '../api/admin';
@@ -10,8 +11,9 @@ type RoleRow = Record<string, unknown> & {
 };
 
 type Props = {
-  value?: string;
-  onChange?: (value: string) => void;
+  value?: string | string[];
+  onChange?: (value: string | string[]) => void;
+  mode?: SelectProps['mode'];
   style?: CSSProperties;
 };
 
@@ -23,7 +25,7 @@ function roleItems(data: Record<string, unknown>) {
   return ((data.items || data.list || []) as RoleRow[]).map((row) => ({ ...row, id: roleId(row) }));
 }
 
-export default function KookRoleSelect({ value, onChange, style }: Props) {
+export default function KookRoleSelect({ value, onChange, mode, style }: Props) {
   const [options, setOptions] = useState<{ value: string; label: string }[]>([]);
   const [loading, setLoading] = useState(false);
   const timer = useRef<number | undefined>(undefined);
@@ -54,6 +56,7 @@ export default function KookRoleSelect({ value, onChange, style }: Props) {
       allowClear
       filterOption={false}
       loading={loading}
+      mode={mode}
       onChange={onChange}
       onSearch={(keyword) => {
         window.clearTimeout(timer.current);

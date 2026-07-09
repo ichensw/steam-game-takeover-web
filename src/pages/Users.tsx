@@ -19,6 +19,7 @@ import { useEffect, useState } from 'react';
 import {
   banUser,
   batchPublishWhitelist,
+  batchTakeoverView,
   getUser,
   listUsers,
   restoreUserCredit,
@@ -38,6 +39,7 @@ type UserRow = Record<string, unknown> & {
   banReason?: string;
   bannedAt?: string;
   publishWhitelisted?: boolean;
+  canViewAllTakeovers?: boolean;
   creditScore?: number;
   creditStatus?: string;
 };
@@ -144,6 +146,18 @@ export default function Users() {
     load();
   };
 
+  const setTakeoverView = async (canViewAllTakeovers: boolean) => {
+    const userIds = selectedRowKeys.map(Number).filter(Boolean);
+    if (userIds.length === 0) {
+      message.warning('请选择用户');
+      return;
+    }
+    const res = await batchTakeoverView(userIds, canViewAllTakeovers);
+    message.success(`${canViewAllTakeovers ? '已开放' : '已关闭'} ${res.count} 个用户查看全部接龙`);
+    setSelectedRowKeys([]);
+    load();
+  };
+
   const onTableChange = (
     pagination: TablePaginationConfig,
     _filters: unknown,
@@ -177,6 +191,12 @@ export default function Users() {
       width: 120,
       render: (value) => (value ? <Tag color="green">已加白</Tag> : <Tag>未加白</Tag>),
       sorter: true,
+    },
+    {
+      title: '查看全部接龙',
+      dataIndex: 'canViewAllTakeovers',
+      width: 130,
+      render: (value) => (value ? <Tag color="blue">已开放</Tag> : <Tag>未开放</Tag>),
     },
     {
       title: '封禁',
@@ -239,9 +259,17 @@ export default function Users() {
         title="用户管理"
         description="查询小程序用户、白名单、封禁和信誉状态。"
         extra={
-          <Button type="primary" disabled={!selectedRowKeys.length} onClick={addWhitelist}>
-            批量加发布白名单
-          </Button>
+          <Space>
+            <Button disabled={!selectedRowKeys.length} onClick={() => setTakeoverView(true)}>
+              开放查看全部接龙
+            </Button>
+            <Button disabled={!selectedRowKeys.length} onClick={() => setTakeoverView(false)}>
+              关闭查看全部接龙
+            </Button>
+            <Button type="primary" disabled={!selectedRowKeys.length} onClick={addWhitelist}>
+              批量加发布白名单
+            </Button>
+          </Space>
         }
       />
       <Card className="filter-card">
@@ -298,7 +326,7 @@ export default function Users() {
         columns={columns}
         dataSource={rows}
         onChange={onTableChange}
-        scroll={{ x: 1180 }}
+        scroll={{ x: 1310 }}
         pagination={{
           total,
           current: page,
@@ -329,6 +357,9 @@ export default function Users() {
             </Descriptions.Item>
             <Descriptions.Item label="发布白名单">
               {detail.publishWhitelisted ? <Tag color="green">已加白</Tag> : <Tag>未加白</Tag>}
+            </Descriptions.Item>
+            <Descriptions.Item label="查看全部接龙">
+              {detail.canViewAllTakeovers ? <Tag color="blue">已开放</Tag> : <Tag>未开放</Tag>}
             </Descriptions.Item>
             <Descriptions.Item label="封禁状态">
               {detail.isBanned ? <Tag color="red">已封禁</Tag> : <Tag color="green">正常</Tag>}
