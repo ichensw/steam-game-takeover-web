@@ -186,10 +186,11 @@ export default function KookChannels() {
   const save = async (values: Record<string, unknown>) => {
     setSaving(true);
     try {
-      const payload = { ...values };
+      let payload = Object.fromEntries(
+        Object.entries(values).filter(([, value]) => value !== undefined && value !== null && value !== ''),
+      );
       if (payload.type === 0) {
-        payload.isCategory = 1;
-        delete payload.type;
+        payload = { name: payload.name, isCategory: 1 };
       } else {
         delete payload.isCategory;
       }
