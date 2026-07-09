@@ -14,6 +14,7 @@ import {
   UserOutlined,
 } from '@ant-design/icons';
 import { Avatar, Badge, Button, Drawer, Flex, Form, Input, Layout, Menu, Modal, Space, Typography, Upload, App as AntApp } from 'antd';
+import type { MenuProps } from 'antd';
 import type { RcFile, UploadProps } from 'antd/es/upload/interface';
 import { useState } from 'react';
 import { Outlet, useLocation, useNavigate } from 'react-router-dom';
@@ -21,19 +22,71 @@ import { adminLogout, getAdminMe, updateAdminMe, updateAdminPassword, uploadAdmi
 import { clearSession, getAdmin, getToken, setSession } from '../auth';
 import type { AdminUser } from '../auth';
 
-const menuItems = [
+type MenuItem = Required<MenuProps>['items'][number];
+
+const menuItems: MenuItem[] = [
   { key: '/dashboard', icon: <DashboardOutlined />, label: '控制台' },
-  { key: '/takeovers', icon: <TeamOutlined />, label: '接龙管理' },
-  { key: '/users', icon: <UserOutlined />, label: '用户管理' },
-  { key: '/admin-users', icon: <UserOutlined />, label: '管理员账号' },
-  { key: '/reports', icon: <AlertOutlined />, label: '举报审核' },
-  { key: '/kook-channels', icon: <AppstoreOutlined />, label: 'KOOK 频道' },
-  { key: '/kook-roles', icon: <CrownOutlined />, label: 'KOOK 角色' },
-  { key: '/kook-members', icon: <TeamOutlined />, label: 'KOOK 成员' },
-  { key: '/feedbacks', icon: <FormOutlined />, label: '反馈管理' },
-  { key: '/announcements', icon: <BellOutlined />, label: '公告管理' },
+  {
+    key: 'takeover-group',
+    icon: <TeamOutlined />,
+    label: '接龙',
+    children: [
+      { key: '/takeovers', icon: <TeamOutlined />, label: '接龙管理' },
+      { key: '/reports', icon: <AlertOutlined />, label: '举报审核' },
+    ],
+  },
+  {
+    key: 'user-group',
+    icon: <UserOutlined />,
+    label: '用户',
+    children: [
+      { key: '/users', icon: <UserOutlined />, label: '用户管理' },
+      { key: '/admin-users', icon: <UserOutlined />, label: '管理员账号' },
+    ],
+  },
+  {
+    key: 'kook-group',
+    icon: <AppstoreOutlined />,
+    label: 'KOOK',
+    children: [
+      { key: '/kook-channels', icon: <AppstoreOutlined />, label: 'KOOK 频道' },
+      { key: '/kook-roles', icon: <CrownOutlined />, label: 'KOOK 角色' },
+      { key: '/kook-members', icon: <TeamOutlined />, label: 'KOOK 成员' },
+    ],
+  },
+  {
+    key: 'content-group',
+    icon: <BellOutlined />,
+    label: '内容',
+    children: [
+      { key: '/feedbacks', icon: <FormOutlined />, label: '反馈管理' },
+      { key: '/announcements', icon: <BellOutlined />, label: '公告管理' },
+    ],
+  },
   { key: '/settings', icon: <SettingOutlined />, label: '系统设置' },
 ];
+
+const flatMenuItems = menuItems.flatMap((item) => {
+  if (item && 'children' in item && item.children) return item.children;
+  return item ? [item] : [];
+});
+
+const openKeyByPath: Record<string, string> = {
+  '/takeovers': 'takeover-group',
+  '/reports': 'takeover-group',
+  '/users': 'user-group',
+  '/admin-users': 'user-group',
+  '/kook-channels': 'kook-group',
+  '/kook-roles': 'kook-group',
+  '/kook-members': 'kook-group',
+  '/feedbacks': 'content-group',
+  '/announcements': 'content-group',
+};
+
+const menuItemLabel = (item: MenuItem | undefined) => {
+  if (item && 'label' in item) return item.label;
+  return undefined;
+};
 
 const allowedAvatarTypes = ['image/jpeg', 'image/png', 'image/gif', 'image/webp'];
 const maxAvatarSize = 5 * 1024 * 1024;
@@ -52,7 +105,7 @@ export default function AdminLayout() {
   const [passwordForm] = Form.useForm();
   const avatarUrl = Form.useWatch('avatarUrl', profileForm) as string | undefined;
   const selectedKey = `/${location.pathname.split('/')[1] || 'dashboard'}`;
-  const current = menuItems.find((item) => item.key === selectedKey);
+  const currentLabel = menuItemLabel(flatMenuItems.find((item) => item?.key === selectedKey));
   const adminName = admin?.nickname || admin?.username || 'admin';
 
   const onLogout = async () => {
@@ -141,9 +194,10 @@ export default function AdminLayout() {
     <Menu
       mode="inline"
       selectedKeys={[selectedKey]}
+      defaultOpenKeys={openKeyByPath[selectedKey] ? [openKeyByPath[selectedKey]] : []}
       items={menuItems}
       onClick={({ key }) => {
-        navigate(key);
+        navigate(String(key));
         setMobileNavOpen(false);
       }}
       className="admin-menu"
@@ -185,7 +239,7 @@ export default function AdminLayout() {
               <div>
                 <Typography.Text className="topbar-copy">深色社区运营台</Typography.Text>
                 <Typography.Title level={3} className="topbar-title">
-                  {current?.label || '控制台'}
+                  {currentLabel || '控制台'}
                 </Typography.Title>
               </div>
             </Flex>

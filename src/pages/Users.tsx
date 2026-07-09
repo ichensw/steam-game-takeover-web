@@ -26,6 +26,7 @@ import {
 } from '../api/admin';
 import PageHeader from '../components/PageHeader';
 import StatusTag from '../components/StatusTag';
+import { pageSizeOptions, responsePageSize } from '../utils/pagination';
 
 type UserRow = Record<string, unknown> & {
   id: React.Key;
@@ -53,6 +54,7 @@ export default function Users() {
   const [total, setTotal] = useState(0);
   const [loading, setLoading] = useState(false);
   const [page, setPage] = useState(1);
+  const [pageSize, setPageSize] = useState(20);
   const [sort, setSort] = useState<{ field?: string; order?: string }>({
     field: 'createdAt',
     order: 'desc',
@@ -67,12 +69,13 @@ export default function Users() {
 
   const buildParams = (
     targetPage: number,
+    targetPageSize: number,
     nextSort: { field?: string; order?: string } = sort,
   ) => {
     const values = form.getFieldsValue();
     return {
       page: targetPage,
-      pageSize: 20,
+      pageSize: targetPageSize,
       keyword: values.keyword,
       status: values.status,
       sortField: values.sortField || nextSort.field,
@@ -80,13 +83,14 @@ export default function Users() {
     };
   };
 
-  const load = async (targetPage = page, nextSort = sort) => {
+  const load = async (targetPage = page, targetPageSize = pageSize, nextSort = sort) => {
     setLoading(true);
     try {
-      const res = await listUsers(buildParams(targetPage, nextSort));
+      const res = await listUsers(buildParams(targetPage, targetPageSize, nextSort));
       setRows((res.list || res.items || []) as UserRow[]);
       setTotal(res.total || 0);
       setPage(targetPage);
+      setPageSize(responsePageSize(res, targetPageSize));
     } finally {
       setLoading(false);
     }
@@ -153,7 +157,7 @@ export default function Users() {
     };
     form.setFieldsValue({ sortField: nextSort.field, sortOrder: nextSort.order });
     setSort(nextSort);
-    load(pagination.current || 1, nextSort);
+    load(pagination.current || 1, pagination.pageSize || pageSize, nextSort);
   };
 
   const reset = () => {
@@ -295,7 +299,14 @@ export default function Users() {
         dataSource={rows}
         onChange={onTableChange}
         scroll={{ x: 1180 }}
-        pagination={{ total, current: page, pageSize: 20, showTotal: (n) => `共 ${n} 条` }}
+        pagination={{
+          total,
+          current: page,
+          pageSize,
+          pageSizeOptions,
+          showSizeChanger: true,
+          showTotal: (n) => `共 ${n} 条`,
+        }}
       />
       <Drawer
         title="用户详情"

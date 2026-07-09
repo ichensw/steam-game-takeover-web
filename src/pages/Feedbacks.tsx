@@ -20,6 +20,7 @@ import { useEffect, useState } from 'react';
 import { getFeedback, listFeedbacks, updateFeedbackStatus } from '../api/admin';
 import PageHeader from '../components/PageHeader';
 import StatusTag from '../components/StatusTag';
+import { pageSizeOptions, responsePageSize } from '../utils/pagination';
 
 type DateLike = { format: (template: string) => string };
 type FeedbackRow = Record<string, unknown> & {
@@ -63,17 +64,18 @@ export default function Feedbacks() {
   const [total, setTotal] = useState(0);
   const [loading, setLoading] = useState(false);
   const [page, setPage] = useState(1);
+  const [pageSize, setPageSize] = useState(20);
   const [detail, setDetail] = useState<FeedbackRow | null>(null);
   const [detailLoading, setDetailLoading] = useState(false);
   const [form] = Form.useForm();
   const { message } = AntApp.useApp();
 
-  const buildParams = (targetPage: number) => {
+  const buildParams = (targetPage: number, targetPageSize: number) => {
     const values = form.getFieldsValue();
     const range = values.createdRange as DateLike[] | undefined;
     const params: Record<string, string | number | undefined> = {
       page: targetPage,
-      page_size: 20,
+      page_size: targetPageSize,
       keyword: values.keyword,
       status: values.status,
       feedback_type: values.feedback_type,
@@ -85,13 +87,14 @@ export default function Feedbacks() {
     return params;
   };
 
-  const load = async (targetPage = page) => {
+  const load = async (targetPage = page, targetPageSize = pageSize) => {
     setLoading(true);
     try {
-      const res = await listFeedbacks(buildParams(targetPage));
+      const res = await listFeedbacks(buildParams(targetPage, targetPageSize));
       setRows((res.items || res.list || []) as FeedbackRow[]);
       setTotal(res.total || 0);
       setPage(targetPage);
+      setPageSize(responsePageSize(res, targetPageSize));
     } finally {
       setLoading(false);
     }
@@ -257,7 +260,9 @@ export default function Feedbacks() {
         pagination={{
           total,
           current: page,
-          pageSize: 20,
+          pageSize,
+          pageSizeOptions,
+          showSizeChanger: true,
           onChange: load,
           showTotal: (n) => `共 ${n} 条`,
         }}

@@ -3,6 +3,7 @@ import type { ColumnsType } from 'antd/es/table';
 import { useEffect, useState } from 'react';
 import { createAdminUser, listAdminUsers } from '../api/admin';
 import PageHeader from '../components/PageHeader';
+import { pageSizeOptions, responsePageSize } from '../utils/pagination';
 
 type AdminUserRow = Record<string, unknown> & {
   id: React.Key;
@@ -18,6 +19,7 @@ export default function AdminUsers() {
   const [rows, setRows] = useState<AdminUserRow[]>([]);
   const [total, setTotal] = useState(0);
   const [page, setPage] = useState(1);
+  const [pageSize, setPageSize] = useState(20);
   const [loading, setLoading] = useState(false);
   const [drawerOpen, setDrawerOpen] = useState(false);
   const [submitting, setSubmitting] = useState(false);
@@ -25,13 +27,13 @@ export default function AdminUsers() {
   const [form] = Form.useForm();
   const { message } = AntApp.useApp();
 
-  const load = async (targetPage = page) => {
+  const load = async (targetPage = page, targetPageSize = pageSize) => {
     setLoading(true);
     try {
       const values = filterForm.getFieldsValue();
       const res = await listAdminUsers({
         page: targetPage,
-        pageSize: 20,
+        pageSize: targetPageSize,
         keyword: values.keyword,
         sortField: values.sortField,
         sortOrder: values.sortOrder,
@@ -39,6 +41,7 @@ export default function AdminUsers() {
       setRows((res.list || res.items || []) as AdminUserRow[]);
       setTotal(res.total || 0);
       setPage(targetPage);
+      setPageSize(responsePageSize(res, targetPageSize));
     } finally {
       setLoading(false);
     }
@@ -156,7 +159,15 @@ export default function AdminUsers() {
         columns={columns}
         dataSource={rows}
         scroll={{ x: 920 }}
-        pagination={{ total, current: page, pageSize: 20, onChange: load, showTotal: (n) => `共 ${n} 条` }}
+        pagination={{
+          total,
+          current: page,
+          pageSize,
+          pageSizeOptions,
+          showSizeChanger: true,
+          onChange: load,
+          showTotal: (n) => `共 ${n} 条`,
+        }}
       />
       <Drawer title="新增管理员" width={520} open={drawerOpen} onClose={() => setDrawerOpen(false)}>
         <Form form={form} layout="vertical" onFinish={save} disabled={submitting}>

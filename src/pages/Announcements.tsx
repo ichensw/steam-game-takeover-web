@@ -30,6 +30,7 @@ import {
 } from '../api/admin';
 import PageHeader from '../components/PageHeader';
 import StatusTag from '../components/StatusTag';
+import { pageSizeOptions, responsePageSize } from '../utils/pagination';
 
 type AnnouncementRow = Record<string, unknown> & {
   id: React.Key;
@@ -68,6 +69,7 @@ export default function Announcements() {
   const [rows, setRows] = useState<AnnouncementRow[]>([]);
   const [total, setTotal] = useState(0);
   const [page, setPage] = useState(1);
+  const [pageSize, setPageSize] = useState(20);
   const [loading, setLoading] = useState(false);
   const [drawerOpen, setDrawerOpen] = useState(false);
   const [editing, setEditing] = useState<AnnouncementRow | null>(null);
@@ -78,19 +80,20 @@ export default function Announcements() {
   const { message } = AntApp.useApp();
   const imageUrl = Form.useWatch('image_url', form) as string | undefined;
 
-  const load = async (targetPage = page) => {
+  const load = async (targetPage = page, targetPageSize = pageSize) => {
     setLoading(true);
     try {
       const values = filterForm.getFieldsValue();
       const res = await listAnnouncements({
         page: targetPage,
-        page_size: 20,
+        page_size: targetPageSize,
         keyword: values.keyword,
         status: values.status,
       });
       setRows((res.items || res.list || []) as AnnouncementRow[]);
       setTotal(res.total || 0);
       setPage(targetPage);
+      setPageSize(responsePageSize(res, targetPageSize));
     } finally {
       setLoading(false);
     }
@@ -258,7 +261,15 @@ export default function Announcements() {
         columns={columns}
         dataSource={rows}
         scroll={{ x: 1080 }}
-        pagination={{ total, current: page, pageSize: 20, onChange: load, showTotal: (n) => `共 ${n} 条` }}
+        pagination={{
+          total,
+          current: page,
+          pageSize,
+          pageSizeOptions,
+          showSizeChanger: true,
+          onChange: load,
+          showTotal: (n) => `共 ${n} 条`,
+        }}
       />
       <Drawer
         title={editing ? '编辑公告' : '新增公告'}

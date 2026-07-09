@@ -28,6 +28,7 @@ import {
   updateKookMember,
 } from '../api/admin';
 import PageHeader from '../components/PageHeader';
+import { pageSizeOptions, responsePageSize } from '../utils/pagination';
 
 type KookMemberRow = Record<string, unknown> & {
   id: React.Key;
@@ -86,6 +87,7 @@ export default function KookMembers() {
   const [rows, setRows] = useState<KookMemberRow[]>([]);
   const [total, setTotal] = useState(0);
   const [page, setPage] = useState(1);
+  const [pageSize, setPageSize] = useState(20);
   const [loading, setLoading] = useState(false);
   const [syncing, setSyncing] = useState(false);
   const [lastSyncTime, setLastSyncTime] = useState('');
@@ -101,13 +103,13 @@ export default function KookMembers() {
   const [blacklistForm] = Form.useForm<{ reason?: string; delMsgDays?: number }>();
   const { message } = AntApp.useApp();
 
-  const load = async (targetPage = page) => {
+  const load = async (targetPage = page, targetPageSize = pageSize) => {
     setLoading(true);
     try {
       const values = filterForm.getFieldsValue();
       const res = await listKookMembers({
         page: targetPage,
-        pageSize: 20,
+        pageSize: targetPageSize,
         keyword: values.keyword,
         memberStatus: values.memberStatus,
         isBlacklisted: values.isBlacklisted,
@@ -116,6 +118,7 @@ export default function KookMembers() {
       setRows(nextRows);
       setTotal(res.total || 0);
       setPage(targetPage);
+      setPageSize(responsePageSize(res, targetPageSize));
       setLastUpdateTime(String(latestUpdateTime(nextRows) || ''));
     } finally {
       setLoading(false);
@@ -308,7 +311,15 @@ export default function KookMembers() {
         columns={columns}
         dataSource={rows}
         scroll={{ x: 1480 }}
-        pagination={{ total, current: page, pageSize: 20, onChange: load, showTotal: (n) => `共 ${n} 条` }}
+        pagination={{
+          total,
+          current: page,
+          pageSize,
+          pageSizeOptions,
+          showSizeChanger: true,
+          onChange: load,
+          showTotal: (n) => `共 ${n} 条`,
+        }}
       />
       <Drawer
         title={editing ? '编辑 KOOK 成员' : '新增 KOOK 成员'}

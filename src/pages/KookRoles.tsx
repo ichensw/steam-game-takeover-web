@@ -26,6 +26,7 @@ import {
 } from '../api/admin';
 import PageHeader from '../components/PageHeader';
 import { kookPermissionOptions, permissionBits, permissionText, permissionValue } from '../constants/kookPermissions';
+import { pageSizeOptions, responsePageSize } from '../utils/pagination';
 
 type RoleRow = Record<string, unknown> & {
   role_id?: React.Key;
@@ -63,6 +64,7 @@ export default function KookRoles() {
   const [rows, setRows] = useState<RoleRow[]>([]);
   const [total, setTotal] = useState(0);
   const [page, setPage] = useState(1);
+  const [pageSize, setPageSize] = useState(100);
   const [loading, setLoading] = useState(false);
   const [drawerOpen, setDrawerOpen] = useState(false);
   const [editing, setEditing] = useState<RoleRow | null>(null);
@@ -74,14 +76,15 @@ export default function KookRoles() {
   const [grantForm] = Form.useForm<{ userId: string }>();
   const { message } = AntApp.useApp();
 
-  const load = async (targetPage = page) => {
+  const load = async (targetPage = page, targetPageSize = pageSize) => {
     setLoading(true);
     try {
-      const data = await listKookRoles({ page: targetPage, pageSize: 100 });
+      const data = await listKookRoles({ page: targetPage, pageSize: targetPageSize });
       const nextMeta = meta(data);
       setRows(roleItems(data));
       setTotal(nextMeta.total || 0);
       setPage(nextMeta.page || targetPage);
+      setPageSize(responsePageSize(nextMeta, targetPageSize));
     } finally {
       setLoading(false);
     }
@@ -228,7 +231,15 @@ export default function KookRoles() {
         columns={columns}
         dataSource={filteredRows}
         scroll={{ x: 1320 }}
-        pagination={{ total, current: page, pageSize: 100, onChange: load, showTotal: (n) => `共 ${n} 条` }}
+        pagination={{
+          total,
+          current: page,
+          pageSize,
+          pageSizeOptions,
+          showSizeChanger: true,
+          onChange: load,
+          showTotal: (n) => `共 ${n} 条`,
+        }}
       />
       <Drawer title={editing ? '编辑 KOOK 角色' : '创建 KOOK 角色'} width={680} open={drawerOpen} onClose={() => setDrawerOpen(false)}>
         <Form form={form} layout="vertical" onFinish={save} disabled={submitting}>

@@ -19,6 +19,7 @@ import { useEffect, useState } from 'react';
 import { deleteTakeover, getTakeover, listTakeovers } from '../api/admin';
 import PageHeader from '../components/PageHeader';
 import StatusTag from '../components/StatusTag';
+import { pageSizeOptions, responsePageSize } from '../utils/pagination';
 
 type DateLike = { format: (template: string) => string };
 type TakeoverRow = Record<string, unknown> & {
@@ -50,6 +51,7 @@ export default function Takeovers() {
   const [total, setTotal] = useState(0);
   const [loading, setLoading] = useState(false);
   const [page, setPage] = useState(1);
+  const [pageSize, setPageSize] = useState(20);
   const [sort, setSort] = useState<{ field?: string; order?: string }>({
     field: 'createdAt',
     order: 'desc',
@@ -62,13 +64,14 @@ export default function Takeovers() {
 
   const buildParams = (
     targetPage: number,
+    targetPageSize: number,
     nextSort: { field?: string; order?: string } = sort,
   ) => {
     const values = form.getFieldsValue();
     const dateRange = values.dateRange as DateLike[] | undefined;
     const params: Record<string, string | number | undefined> = {
       page: targetPage,
-      pageSize: 20,
+      pageSize: targetPageSize,
       keyword: values.keyword,
       status: values.status,
       timeFilter: values.timeFilter,
@@ -82,13 +85,14 @@ export default function Takeovers() {
     return params;
   };
 
-  const load = async (targetPage = page, nextSort = sort) => {
+  const load = async (targetPage = page, targetPageSize = pageSize, nextSort = sort) => {
     setLoading(true);
     try {
-      const res = await listTakeovers(buildParams(targetPage, nextSort));
+      const res = await listTakeovers(buildParams(targetPage, targetPageSize, nextSort));
       setRows((res.list || res.items || []) as TakeoverRow[]);
       setTotal(res.total || 0);
       setPage(targetPage);
+      setPageSize(responsePageSize(res, targetPageSize));
     } finally {
       setLoading(false);
     }
@@ -132,7 +136,7 @@ export default function Takeovers() {
       order: singleSorter?.order === 'ascend' ? 'asc' : 'desc',
     };
     setSort(nextSort);
-    load(pagination.current || 1, nextSort);
+    load(pagination.current || 1, pagination.pageSize || pageSize, nextSort);
   };
 
   const reset = () => {
@@ -247,7 +251,14 @@ export default function Takeovers() {
         dataSource={rows}
         onChange={onTableChange}
         scroll={{ x: 980 }}
-        pagination={{ total, current: page, pageSize: 20, showTotal: (n) => `共 ${n} 条` }}
+        pagination={{
+          total,
+          current: page,
+          pageSize,
+          pageSizeOptions,
+          showSizeChanger: true,
+          showTotal: (n) => `共 ${n} 条`,
+        }}
       />
       <Drawer
         title="接龙详情"

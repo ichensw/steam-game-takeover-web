@@ -20,6 +20,7 @@ import type { ColumnsType } from 'antd/es/table';
 import { useEffect, useState } from 'react';
 import { approveReport, getReport, listReports, rejectReport } from '../api/admin';
 import PageHeader from '../components/PageHeader';
+import { pageSizeOptions, responsePageSize } from '../utils/pagination';
 
 type DateLike = { format: (template: string) => string };
 
@@ -88,6 +89,7 @@ export default function Reports() {
   const [rows, setRows] = useState<ReportRow[]>([]);
   const [total, setTotal] = useState(0);
   const [page, setPage] = useState(1);
+  const [pageSize, setPageSize] = useState(20);
   const [loading, setLoading] = useState(false);
   const [detail, setDetail] = useState<ReportRow | null>(null);
   const [detailLoading, setDetailLoading] = useState(false);
@@ -98,12 +100,12 @@ export default function Reports() {
   const [handleForm] = Form.useForm();
   const { message } = AntApp.useApp();
 
-  const buildParams = (targetPage: number) => {
+  const buildParams = (targetPage: number, targetPageSize: number) => {
     const values = form.getFieldsValue();
     const range = values.createdRange as DateLike[] | undefined;
     const params: Record<string, string | number | undefined> = {
       page: targetPage,
-      pageSize: 20,
+      pageSize: targetPageSize,
       keyword: values.keyword,
       state: values.state,
     };
@@ -114,13 +116,14 @@ export default function Reports() {
     return params;
   };
 
-  const load = async (targetPage = page) => {
+  const load = async (targetPage = page, targetPageSize = pageSize) => {
     setLoading(true);
     try {
-      const res = await listReports(buildParams(targetPage));
+      const res = await listReports(buildParams(targetPage, targetPageSize));
       setRows((res.list || res.items || []) as ReportRow[]);
       setTotal(res.total || 0);
       setPage(targetPage);
+      setPageSize(responsePageSize(res, targetPageSize));
     } finally {
       setLoading(false);
     }
@@ -234,7 +237,15 @@ export default function Reports() {
         columns={columns}
         dataSource={rows}
         scroll={{ x: 1480 }}
-        pagination={{ total, current: page, pageSize: 20, onChange: load, showTotal: (n) => `共 ${n} 条` }}
+        pagination={{
+          total,
+          current: page,
+          pageSize,
+          pageSizeOptions,
+          showSizeChanger: true,
+          onChange: load,
+          showTotal: (n) => `共 ${n} 条`,
+        }}
       />
       <Drawer
         title="举报详情"
