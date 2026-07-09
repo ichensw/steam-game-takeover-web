@@ -106,6 +106,24 @@ export function updateFeedbackStatus(id: React.Key, status: number) {
   );
 }
 
+export function listReports(params: Query) {
+  return unwrap<PageResult<Record<string, unknown>>>(
+    http.get('/admin/reports', { params }),
+  );
+}
+
+export function getReport(id: React.Key) {
+  return unwrap<Record<string, unknown>>(http.get(`/admin/reports/${id}`));
+}
+
+export function approveReport(id: React.Key, values: { content?: string; penaltyScore: number }) {
+  return unwrap<null>(http.post(`/admin/reports/${id}/approve`, values));
+}
+
+export function rejectReport(id: React.Key, values: { reason?: string }) {
+  return unwrap<null>(http.post(`/admin/reports/${id}/reject`, values));
+}
+
 export function listAnnouncements(params: Query) {
   return unwrap<PageResult<Record<string, unknown>>>(
     http.get('/admin/announcements', { params }),

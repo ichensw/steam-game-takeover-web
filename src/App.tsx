@@ -10,6 +10,7 @@ const Feedbacks = lazy(() => import('./pages/Feedbacks'));
 const KookChannels = lazy(() => import('./pages/KookChannels'));
 const KookMembers = lazy(() => import('./pages/KookMembers'));
 const Login = lazy(() => import('./pages/Login'));
+const Reports = lazy(() => import('./pages/Reports'));
 const Settings = lazy(() => import('./pages/Settings'));
 const Takeovers = lazy(() => import('./pages/Takeovers'));
 const Users = lazy(() => import('./pages/Users'));
@@ -45,6 +46,7 @@ export default function App() {
             <Route path="takeovers" element={<Takeovers />} />
             <Route path="users" element={<Users />} />
             <Route path="admin-users" element={<AdminUsers />} />
+            <Route path="reports" element={<Reports />} />
             <Route path="kook-channels" element={<KookChannels />} />
             <Route path="kook-members" element={<KookMembers />} />
             <Route path="feedbacks" element={<Feedbacks />} />

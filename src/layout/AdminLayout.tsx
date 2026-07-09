@@ -1,4 +1,5 @@
 import {
+  AlertOutlined,
   AppstoreOutlined,
   BellOutlined,
   DashboardOutlined,
@@ -24,6 +25,7 @@ const menuItems = [
   { key: '/takeovers', icon: <TeamOutlined />, label: '接龙管理' },
   { key: '/users', icon: <UserOutlined />, label: '用户管理' },
   { key: '/admin-users', icon: <UserOutlined />, label: '管理员账号' },
+  { key: '/reports', icon: <AlertOutlined />, label: '举报审核' },
   { key: '/kook-channels', icon: <AppstoreOutlined />, label: 'KOOK 频道' },
   { key: '/kook-members', icon: <TeamOutlined />, label: 'KOOK 成员' },
   { key: '/feedbacks', icon: <FormOutlined />, label: '反馈管理' },
