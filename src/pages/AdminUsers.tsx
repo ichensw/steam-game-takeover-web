@@ -1,7 +1,8 @@
-import { Button, Card, Drawer, Form, Input, Select, Space, Table, Tag, App as AntApp } from 'antd';
+import { Button, Card, Drawer, Form, Input, Select, Space, Switch, Table, Tag, App as AntApp } from 'antd';
 import type { ColumnsType } from 'antd/es/table';
 import { useEffect, useState } from 'react';
-import { createAdminUser, listAdminUsers } from '../api/admin';
+import { createAdminUser, listAdminUsers, updateAdminUser } from '../api/admin';
+import { ADMIN_PERMISSION_KOOK_MANAGE } from '../auth';
 import PageHeader from '../components/PageHeader';
 import { pageSizeOptions, responsePageSize } from '../utils/pagination';
 
@@ -11,6 +12,8 @@ type AdminUserRow = Record<string, unknown> & {
   nickname?: string;
   avatarUrl?: string;
   enabled?: boolean;
+  role?: string;
+  permissions?: string[];
   lastLoginTime?: string;
   createdAt?: string;
 };
@@ -26,6 +29,9 @@ export default function AdminUsers() {
   const [filterForm] = Form.useForm();
   const [form] = Form.useForm();
   const { message } = AntApp.useApp();
+  const editingId = Form.useWatch('id', form);
+  const editingUsername = Form.useWatch('username', form);
+  const editingDefaultAdmin = editingUsername === 'admin';
 
   const load = async (targetPage = page, targetPageSize = pageSize) => {
     setLoading(true);
@@ -52,20 +58,36 @@ export default function AdminUsers() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
-  const openCreate = () => {
+  const openCreate = (row?: AdminUserRow) => {
     form.resetFields();
+    form.setFieldsValue(row ? {
+      id: row.id,
+      username: row.username,
+      nickname: row.nickname,
+      enabled: row.enabled,
+      role: row.username === 'admin' ? 'super_admin' : row.role || 'admin',
+      permissions: row.username === 'admin' ? [] : row.permissions || [],
+    } : { role: 'admin', permissions: [], enabled: true });
     setDrawerOpen(true);
   };
 
-  const save = async (values: { username: string; password: string; nickname?: string }) => {
+  const save = async (values: { id?: React.Key; username: string; password?: string; nickname?: string; role?: string; permissions?: string[]; enabled?: boolean }) => {
     setSubmitting(true);
     try {
-      await createAdminUser({
-        username: values.username.trim(),
-        password: values.password.trim(),
+      const payload = {
+        password: values.password?.trim() || '',
         nickname: values.nickname?.trim() || '',
-      });
-      message.success('管理员已新增');
+        role: values.role || 'admin',
+        permissions: values.permissions || [],
+        enabled: values.enabled ?? true,
+      };
+      if (values.id) {
+        await updateAdminUser(values.id, payload);
+        message.success('管理员已保存');
+      } else {
+        await createAdminUser({ username: values.username.trim(), ...payload, password: payload.password });
+        message.success('管理员已新增');
+      }
       setDrawerOpen(false);
       await load(1);
     } finally {
@@ -89,6 +111,18 @@ export default function AdminUsers() {
       render: (value) => (value ? <Tag color="green">启用</Tag> : <Tag color="red">停用</Tag>),
     },
     {
+      title: '角色',
+      dataIndex: 'role',
+      width: 120,
+      render: (_, row) => (row.role === 'super_admin' || row.username === 'admin' ? <Tag color="gold">最高权限</Tag> : <Tag>管理员</Tag>),
+    },
+    {
+      title: '权限',
+      dataIndex: 'permissions',
+      width: 180,
+      render: (value) => (Array.isArray(value) && value.includes(ADMIN_PERMISSION_KOOK_MANAGE) ? <Tag color="blue">KOOK 管理</Tag> : '-'),
+    },
+    {
       title: '最后登录',
       dataIndex: 'lastLoginTime',
       width: 180,
@@ -102,15 +136,21 @@ export default function AdminUsers() {
       className: 'mono',
       render: (value) => value || '-',
     },
+    {
+      title: '操作',
+      width: 100,
+      fixed: 'right',
+      render: (_, row) => <Button type="link" onClick={() => openCreate(row)}>编辑</Button>,
+    },
   ];
 
   return (
     <>
       <PageHeader
         title="管理员账号"
-        description="查看后台管理员账号并新增登录账号。"
+        description="查看后台管理员账号并分配后台权限。"
         extra={
-          <Button type="primary" onClick={openCreate}>
+          <Button type="primary" onClick={() => openCreate()}>
             新增管理员
           </Button>
         }
@@ -158,7 +198,7 @@ export default function AdminUsers() {
         loading={loading}
         columns={columns}
         dataSource={rows}
-        scroll={{ x: 920 }}
+        scroll={{ x: 1220 }}
         pagination={{
           total,
           current: page,
@@ -169,30 +209,49 @@ export default function AdminUsers() {
           showTotal: (n) => `共 ${n} 条`,
         }}
       />
-      <Drawer title="新增管理员" width={520} open={drawerOpen} onClose={() => setDrawerOpen(false)}>
+      <Drawer title={editingId ? '编辑管理员' : '新增管理员'} width={520} open={drawerOpen} onClose={() => setDrawerOpen(false)}>
         <Form form={form} layout="vertical" onFinish={save} disabled={submitting}>
+          <Form.Item name="id" hidden>
+            <Input />
+          </Form.Item>
           <Form.Item
             label="用户名"
             name="username"
-            rules={[
-              { required: true, message: '请输入用户名' },
-              { max: 64, message: '用户名最多 64 字' },
-            ]}
+            rules={[{ required: true, message: '请输入用户名' }, { max: 64, message: '用户名最多 64 字' }]}
           >
-            <Input className="mono" maxLength={64} autoComplete="off" />
+            <Input className="mono" maxLength={64} autoComplete="off" disabled={Boolean(editingId)} />
           </Form.Item>
           <Form.Item
-            label="密码"
+            label={editingId ? '新密码' : '密码'}
             name="password"
             rules={[
-              { required: true, message: '请输入密码' },
+              () => ({ required: !editingId, message: '请输入密码' }),
               { min: 6, max: 64, message: '密码长度为 6-64 位' },
             ]}
           >
-            <Input.Password autoComplete="new-password" />
+            <Input.Password autoComplete="new-password" placeholder={editingId ? '留空则不修改' : ''} />
           </Form.Item>
           <Form.Item label="昵称" name="nickname" rules={[{ max: 64, message: '昵称最多 64 字' }]}>
             <Input maxLength={64} showCount />
+          </Form.Item>
+          <Form.Item label="角色" name="role">
+            <Select
+              options={[
+                { value: 'admin', label: '管理员' },
+                { value: 'super_admin', label: '最高权限' },
+              ]}
+              disabled={editingDefaultAdmin}
+            />
+          </Form.Item>
+          <Form.Item label="权限" name="permissions">
+            <Select
+              mode="multiple"
+              options={[{ value: ADMIN_PERMISSION_KOOK_MANAGE, label: 'KOOK 频道管理' }]}
+              disabled={editingDefaultAdmin}
+            />
+          </Form.Item>
+          <Form.Item label="启用" name="enabled" valuePropName="checked">
+            <Switch disabled={editingDefaultAdmin} />
           </Form.Item>
           <Space>
             <Button type="primary" htmlType="submit" loading={submitting}>

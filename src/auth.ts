@@ -7,7 +7,15 @@ export type AdminUser = {
   nickname?: string;
   avatarUrl?: string;
   role?: string;
+  permissions?: string[];
+  isSuperAdmin?: boolean;
 };
+
+export const ADMIN_PERMISSION_KOOK_MANAGE = 'kook:manage';
+
+export function hasAdminPermission(admin: AdminUser | null, permission: string) {
+  return Boolean(admin?.isSuperAdmin || admin?.username === 'admin' || admin?.permissions?.includes(permission));
+}
 
 export function getToken() {
   return localStorage.getItem(TOKEN_KEY) || '';

@@ -19,12 +19,12 @@ import type { RcFile, UploadProps } from 'antd/es/upload/interface';
 import { useState } from 'react';
 import { Outlet, useLocation, useNavigate } from 'react-router-dom';
 import { adminLogout, getAdminMe, updateAdminMe, updateAdminPassword, uploadAdminImage } from '../api/admin';
-import { clearSession, getAdmin, getToken, setSession } from '../auth';
+import { ADMIN_PERMISSION_KOOK_MANAGE, clearSession, getAdmin, getToken, hasAdminPermission, setSession } from '../auth';
 import type { AdminUser } from '../auth';
 
 type MenuItem = Required<MenuProps>['items'][number];
 
-const menuItems: MenuItem[] = [
+const buildMenuItems = (canManageKook: boolean, isSuperAdmin: boolean): MenuItem[] => [
   { key: '/dashboard', icon: <DashboardOutlined />, label: '控制台' },
   {
     key: 'takeover-group',
@@ -41,20 +41,22 @@ const menuItems: MenuItem[] = [
     label: '用户',
     children: [
       { key: '/users', icon: <UserOutlined />, label: '用户管理' },
-      { key: '/admin-users', icon: <UserOutlined />, label: '管理员账号' },
+      ...(isSuperAdmin ? [{ key: '/admin-users', icon: <UserOutlined />, label: '管理员账号' }] : []),
     ],
   },
-  {
-    key: 'kook-group',
-    icon: <AppstoreOutlined />,
-    label: 'KOOK',
-    children: [
-      { key: '/kook-channels', icon: <AppstoreOutlined />, label: 'KOOK 频道' },
-      { key: '/kook-roles', icon: <CrownOutlined />, label: 'KOOK 角色' },
-      { key: '/kook-members', icon: <TeamOutlined />, label: 'KOOK 成员' },
-      { key: '/kook-users', icon: <UserOutlined />, label: 'KOOK 用户' },
-    ],
-  },
+  ...(canManageKook
+    ? [{
+        key: 'kook-group',
+        icon: <AppstoreOutlined />,
+        label: 'KOOK',
+        children: [
+          { key: '/kook-channels', icon: <AppstoreOutlined />, label: 'KOOK 频道' },
+          { key: '/kook-roles', icon: <CrownOutlined />, label: 'KOOK 角色' },
+          { key: '/kook-members', icon: <TeamOutlined />, label: 'KOOK 成员' },
+          { key: '/kook-users', icon: <UserOutlined />, label: 'KOOK 用户' },
+        ],
+      } as MenuItem]
+    : []),
   {
     key: 'content-group',
     icon: <BellOutlined />,
@@ -67,7 +69,7 @@ const menuItems: MenuItem[] = [
   { key: '/settings', icon: <SettingOutlined />, label: '系统设置' },
 ];
 
-const flatMenuItems = menuItems.flatMap((item) => {
+const flatMenuItems = (items: MenuItem[]) => items.flatMap((item) => {
   if (item && 'children' in item && item.children) return item.children;
   return item ? [item] : [];
 });
@@ -106,8 +108,10 @@ export default function AdminLayout() {
   const [profileForm] = Form.useForm();
   const [passwordForm] = Form.useForm();
   const avatarUrl = Form.useWatch('avatarUrl', profileForm) as string | undefined;
+  const menuItems = buildMenuItems(hasAdminPermission(admin, ADMIN_PERMISSION_KOOK_MANAGE), Boolean(admin?.isSuperAdmin || admin?.username === 'admin'));
+  const availableItems = flatMenuItems(menuItems);
   const selectedKey = `/${location.pathname.split('/')[1] || 'dashboard'}`;
-  const currentLabel = menuItemLabel(flatMenuItems.find((item) => item?.key === selectedKey));
+  const currentLabel = menuItemLabel(availableItems.find((item) => item?.key === selectedKey));
   const adminName = admin?.nickname || admin?.username || 'admin';
 
   const onLogout = async () => {
