@@ -6,17 +6,19 @@ import {
   Drawer,
   Form,
   Input,
+  Modal,
   Popconfirm,
   Select,
   Space,
   Table,
+  Tag,
   Typography,
   App as AntApp,
 } from 'antd';
 import type { ColumnsType, TablePaginationConfig } from 'antd/es/table';
 import type { SorterResult } from 'antd/es/table/interface';
 import { useEffect, useState } from 'react';
-import { deleteTakeover, getTakeover, listTakeovers } from '../api/admin';
+import { deleteTakeover, getTakeover, listTakeovers, updateTakeover } from '../api/admin';
 import PageHeader from '../components/PageHeader';
 import StatusTag from '../components/StatusTag';
 import { tableCellTooltip, useTableColumnSettings } from '../components/tableColumnSettings';
@@ -34,6 +36,14 @@ type TakeoverRow = Record<string, unknown> & {
   description?: string;
   kookChannelName?: string;
   kookInviteUrl?: string;
+  summaryName?: string;
+  summarySource?: string;
+  summaryUpdatedAt?: string;
+  summaryError?: string;
+  scheduleType?: number;
+  startDate?: string;
+  endDate?: string;
+  playTime?: string;
   members?: MemberRow[];
 };
 type MemberRow = Record<string, unknown> & {
@@ -59,7 +69,10 @@ export default function Takeovers() {
   });
   const [detail, setDetail] = useState<TakeoverRow | null>(null);
   const [detailLoading, setDetailLoading] = useState(false);
+  const [summaryModalOpen, setSummaryModalOpen] = useState(false);
+  const [summarySubmitting, setSummarySubmitting] = useState(false);
   const [form] = Form.useForm();
+  const [summaryForm] = Form.useForm();
   const timeFilter = Form.useWatch('timeFilter', form);
   const { message } = AntApp.useApp();
 
@@ -120,6 +133,37 @@ export default function Takeovers() {
     load();
   };
 
+  const openSummaryModal = () => {
+    summaryForm.setFieldsValue({ summaryName: detail?.summaryName || '' });
+    setSummaryModalOpen(true);
+  };
+
+  const saveSummaryName = async () => {
+    if (!detail) return;
+    const values = await summaryForm.validateFields();
+    setSummarySubmitting(true);
+    try {
+      const updated = await updateTakeover(detail.id, {
+        title: detail.title,
+        participantLimit: detail.participantLimit,
+        scheduleType: detail.scheduleType,
+        startDate: detail.startDate,
+        endDate: detail.endDate,
+        playTime: detail.playTime?.slice(0, 5),
+        description: detail.description || '',
+        kookChannelId: detail.kookChannelId || '',
+        kookChannelName: detail.kookChannelName || '',
+        summaryName: values.summaryName,
+      });
+      setDetail(updated as TakeoverRow);
+      setSummaryModalOpen(false);
+      message.success('汇总展示词已保存');
+      load();
+    } finally {
+      setSummarySubmitting(false);
+    }
+  };
+
   const onTableChange = (
     pagination: TablePaginationConfig,
     _filters: unknown,
@@ -149,6 +193,17 @@ export default function Takeovers() {
   const columns: ColumnsType<TakeoverRow> = [
     { title: 'ID', dataIndex: 'id', width: 84, className: 'mono', sorter: true },
     { title: '标题', dataIndex: 'title', ellipsis: true, sorter: true },
+    {
+      title: '汇总词',
+      dataIndex: 'summaryName',
+      width: 170,
+      render: (_, row) => (
+        <Space size={6}>
+          <Typography.Text>{row.summaryName || '-'}</Typography.Text>
+          {row.summarySource && <Tag>{summarySourceText(row.summarySource)}</Tag>}
+        </Space>
+      ),
+    },
     {
       title: '状态',
       dataIndex: 'takeoverState',
@@ -292,6 +347,23 @@ export default function Takeovers() {
               <Descriptions.Item label="标题" span={2}>
                 {detail.title || '-'}
               </Descriptions.Item>
+              <Descriptions.Item label="汇总词">
+                <Space>
+                  <Typography.Text>{detail.summaryName || '-'}</Typography.Text>
+                  {detail.summarySource && <Tag>{summarySourceText(detail.summarySource)}</Tag>}
+                  <Button size="small" onClick={openSummaryModal}>
+                    修改
+                  </Button>
+                </Space>
+              </Descriptions.Item>
+              <Descriptions.Item label="汇总更新时间">
+                <span className="mono">{detail.summaryUpdatedAt || '-'}</span>
+              </Descriptions.Item>
+              {detail.summaryError && (
+                <Descriptions.Item label="汇总错误" span={2}>
+                  <Typography.Text type="danger">{detail.summaryError}</Typography.Text>
+                </Descriptions.Item>
+              )}
               <Descriptions.Item label="人数">
                 {detail.joinedCount ?? 0}/{detail.participantLimit ?? '-'}
               </Descriptions.Item>
@@ -328,6 +400,38 @@ export default function Takeovers() {
           </Space>
         )}
       </Drawer>
+      <Modal
+        title="修改汇总展示词"
+        open={summaryModalOpen}
+        onOk={saveSummaryName}
+        onCancel={() => setSummaryModalOpen(false)}
+        confirmLoading={summarySubmitting}
+        okText="保存"
+        cancelText="取消"
+      >
+        <Form form={summaryForm} layout="vertical">
+          <Form.Item
+            label="汇总展示词"
+            name="summaryName"
+            rules={[
+              { required: true, message: '请输入汇总展示词' },
+              { max: 12, message: '最多 12 个字' },
+            ]}
+          >
+            <Input placeholder="例如：幻兽帕鲁" />
+          </Form.Item>
+          <Typography.Paragraph type="secondary">
+            保存后来源会变为“人工”，后续 AI 不会自动覆盖。
+          </Typography.Paragraph>
+        </Form>
+      </Modal>
     </>
   );
+}
+
+function summarySourceText(source?: string) {
+  if (source === 'ai') return 'AI';
+  if (source === 'manual') return '人工';
+  if (source === 'fallback') return '兜底';
+  return source || '-';
 }

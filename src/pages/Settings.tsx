@@ -1,6 +1,6 @@
 import { Button, Card, Form, Input, Space, Switch, Typography, App as AntApp } from 'antd';
 import { useEffect, useState } from 'react';
-import { getSettings, updateSettings } from '../api/admin';
+import { getSettings, refreshTakeoverSummaries, updateSettings } from '../api/admin';
 import PageHeader from '../components/PageHeader';
 
 type SettingsValues = {
@@ -11,6 +11,10 @@ type SettingsValues = {
   kookGuildId?: string;
   kookVerifyToken?: string;
   kookEncryptKey?: string;
+  aiExtractEnabled?: boolean;
+  aiExtractApiKey?: string;
+  aiExtractBaseUrl?: string;
+  aiExtractModel?: string;
 };
 
 const sensitiveKeys: Array<keyof SettingsValues> = [
@@ -19,6 +23,7 @@ const sensitiveKeys: Array<keyof SettingsValues> = [
   'kookBotToken',
   'kookVerifyToken',
   'kookEncryptKey',
+  'aiExtractApiKey',
 ];
 
 function normalizeSettings(values: SettingsValues) {
@@ -30,6 +35,10 @@ function normalizeSettings(values: SettingsValues) {
     kookGuildId: values.kookGuildId?.trim() || '',
     kookVerifyToken: values.kookVerifyToken?.trim() || '',
     kookEncryptKey: values.kookEncryptKey?.trim() || '',
+    aiExtractEnabled: Boolean(values.aiExtractEnabled),
+    aiExtractApiKey: values.aiExtractApiKey?.trim() || '',
+    aiExtractBaseUrl: values.aiExtractBaseUrl?.trim().replace(/\/+$/, '') || '',
+    aiExtractModel: values.aiExtractModel?.trim() || '',
   };
 }
 
@@ -42,6 +51,7 @@ export default function Settings() {
   const [loading, setLoading] = useState(true);
   const [submitting, setSubmitting] = useState(false);
   const [testingWebhook, setTestingWebhook] = useState(false);
+  const [refreshingSummaries, setRefreshingSummaries] = useState(false);
   const [initialValues, setInitialValues] = useState<SettingsValues>({});
   const { message, modal } = AntApp.useApp();
   const currentValues = normalizeSettings(Form.useWatch([], form) || initialValues);
@@ -127,11 +137,29 @@ export default function Settings() {
     }
   };
 
+  const refreshSummaries = () => {
+    modal.confirm({
+      title: '生成历史未结束接龙汇总词？',
+      content: '会为未结束且非人工汇总词的接龙重新生成展示词，可能触发多次 AI 调用。',
+      okText: '开始生成',
+      cancelText: '取消',
+      onOk: async () => {
+        setRefreshingSummaries(true);
+        try {
+          const result = await refreshTakeoverSummaries();
+          message.success(`已处理 ${result.count} 个接龙`);
+        } finally {
+          setRefreshingSummaries(false);
+        }
+      },
+    });
+  };
+
   return (
     <>
       <PageHeader
         title="系统设置"
-        description="维护发布开关、Steam 校验和 KOOK 机器人配置。"
+        description="维护发布开关、Steam 校验、KOOK 和 AI 汇总配置。"
         extra={
           <Button onClick={refresh} loading={loading}>
             刷新配置
@@ -243,6 +271,49 @@ export default function Settings() {
               </Typography.Text>
               <Typography.Text type={webhookUrl.includes('?compress=0') ? 'success' : 'danger'}>
                 Webhook 地址{webhookUrl.includes('?compress=0') ? '包含' : '缺少'} ?compress=0
+              </Typography.Text>
+            </Space>
+          </Form.Item>
+          <Form.Item
+            label="AI 汇总词提取"
+            name="aiExtractEnabled"
+            valuePropName="checked"
+            extra="开启后，创建或编辑接龙时会尝试提取接龙汇总展示词；失败会自动使用规则兜底。"
+          >
+            <Switch checkedChildren="开启" unCheckedChildren="关闭" />
+          </Form.Item>
+          <Form.Item label="AI OpenAI Compatible Base URL" name="aiExtractBaseUrl">
+            <Input placeholder="https://xxx/compatible-mode/v1" className="mono" />
+          </Form.Item>
+          <Form.Item label="AI 模型 / Agent ID" name="aiExtractModel">
+            <Input placeholder="模型名或 Agent ID" className="mono" />
+          </Form.Item>
+          <Form.Item label="AI API Key" name="aiExtractApiKey">
+            <Input.Password placeholder="AI API Key" autoComplete="off" />
+          </Form.Item>
+          <Form.Item label="AI 配置状态检查">
+            <Space wrap>
+              <Typography.Text type={currentValues.aiExtractEnabled ? 'success' : 'secondary'}>
+                AI 提取 {currentValues.aiExtractEnabled ? '已开启' : '未开启'}
+              </Typography.Text>
+              <Typography.Text type={currentValues.aiExtractBaseUrl ? 'success' : 'danger'}>
+                Base URL {currentValues.aiExtractBaseUrl ? '已填写' : '未填写'}
+              </Typography.Text>
+              <Typography.Text type={currentValues.aiExtractModel ? 'success' : 'danger'}>
+                模型 {currentValues.aiExtractModel ? '已填写' : '未填写'}
+              </Typography.Text>
+              <Typography.Text type={currentValues.aiExtractApiKey ? 'success' : 'danger'}>
+                API Key {currentValues.aiExtractApiKey ? '已填写' : '未填写'}
+              </Typography.Text>
+            </Space>
+          </Form.Item>
+          <Form.Item label="历史接龙汇总词">
+            <Space wrap>
+              <Button onClick={refreshSummaries} loading={refreshingSummaries}>
+                生成未结束接龙汇总词
+              </Button>
+              <Typography.Text type="secondary">
+                仅处理未结束且非人工汇总词的接龙。
               </Typography.Text>
             </Space>
           </Form.Item>
