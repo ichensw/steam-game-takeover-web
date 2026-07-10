@@ -72,6 +72,10 @@ export function getTakeover(id: React.Key) {
   return unwrap<Record<string, unknown>>(http.get(`/admin/takeovers/${id}`));
 }
 
+export function createTakeover(values: Record<string, unknown>) {
+  return unwrap<Record<string, unknown>>(http.post('/admin/takeovers', values));
+}
+
 export function updateTakeover(id: React.Key, values: Record<string, unknown>) {
   return unwrap<Record<string, unknown>>(http.put(`/admin/takeovers/${id}`, values));
 }

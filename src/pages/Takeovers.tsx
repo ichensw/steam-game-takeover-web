@@ -6,19 +6,22 @@ import {
   Drawer,
   Form,
   Input,
+  InputNumber,
   Modal,
   Popconfirm,
   Select,
   Space,
   Table,
   Tag,
+  TimePicker,
   Typography,
   App as AntApp,
 } from 'antd';
+import dayjs from 'dayjs';
 import type { ColumnsType, TablePaginationConfig } from 'antd/es/table';
 import type { SorterResult } from 'antd/es/table/interface';
 import { useEffect, useState } from 'react';
-import { deleteTakeover, getTakeover, listTakeovers, updateTakeover } from '../api/admin';
+import { createTakeover, deleteTakeover, getTakeover, listKookChannels, listTakeovers, updateTakeover } from '../api/admin';
 import PageHeader from '../components/PageHeader';
 import StatusTag from '../components/StatusTag';
 import { tableCellTooltip, useTableColumnSettings } from '../components/tableColumnSettings';
@@ -35,6 +38,7 @@ type TakeoverRow = Record<string, unknown> & {
   creatorName?: string;
   description?: string;
   kookChannelName?: string;
+  kookChannelId?: string;
   kookInviteUrl?: string;
   summaryName?: string;
   summarySource?: string;
@@ -56,6 +60,7 @@ type MemberRow = Record<string, unknown> & {
   remark?: string;
   joinedAt?: string;
 };
+type ChannelOption = { value: string; label: string };
 
 export default function Takeovers() {
   const [rows, setRows] = useState<TakeoverRow[]>([]);
@@ -69,11 +74,17 @@ export default function Takeovers() {
   });
   const [detail, setDetail] = useState<TakeoverRow | null>(null);
   const [detailLoading, setDetailLoading] = useState(false);
+  const [editorOpen, setEditorOpen] = useState(false);
+  const [editing, setEditing] = useState<TakeoverRow | null>(null);
+  const [editorSubmitting, setEditorSubmitting] = useState(false);
   const [summaryModalOpen, setSummaryModalOpen] = useState(false);
   const [summarySubmitting, setSummarySubmitting] = useState(false);
+  const [channels, setChannels] = useState<ChannelOption[]>([]);
   const [form] = Form.useForm();
+  const [editorForm] = Form.useForm();
   const [summaryForm] = Form.useForm();
   const timeFilter = Form.useWatch('timeFilter', form);
+  const editorScheduleType = Form.useWatch('scheduleType', editorForm);
   const { message } = AntApp.useApp();
 
   const buildParams = (
@@ -114,8 +125,22 @@ export default function Takeovers() {
 
   useEffect(() => {
     load();
+    loadChannels();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
+
+  const loadChannels = async () => {
+    try {
+      const data = await listKookChannels({ page: 1, pageSize: 500 });
+      const rows = ((data.items || data.list || []) as Record<string, unknown>[]);
+      setChannels(rows.map((row) => {
+        const value = String(row.id || row.channel_id || row.channelId || '');
+        return { value, label: String(row.name || row.channelName || row.channel_name || value) };
+      }).filter((item) => item.value));
+    } catch {
+      setChannels([]);
+    }
+  };
 
   const openDetail = async (id: React.Key) => {
     setDetailLoading(true);
@@ -131,6 +156,77 @@ export default function Takeovers() {
     await deleteTakeover(id);
     message.success('接龙已删除');
     load();
+  };
+
+  const openCreate = () => {
+    setEditing(null);
+    editorForm.resetFields();
+    editorForm.setFieldsValue({
+      participantLimit: 4,
+      scheduleType: 1,
+      playTime: dayjs('20:00', 'HH:mm'),
+      description: '',
+      summaryName: '',
+    });
+    setEditorOpen(true);
+  };
+
+  const openEdit = async (id: React.Key) => {
+    setEditorSubmitting(true);
+    try {
+      const row = (await getTakeover(id)) as TakeoverRow;
+      setEditing(row);
+      editorForm.resetFields();
+      editorForm.setFieldsValue({
+        title: row.title,
+        participantLimit: row.participantLimit,
+        scheduleType: row.scheduleType || 1,
+        startDate: row.startDate ? dayjs(row.startDate) : undefined,
+        endDate: row.endDate ? dayjs(row.endDate) : undefined,
+        playTime: row.playTime ? dayjs(row.playTime.slice(0, 5), 'HH:mm') : undefined,
+        description: row.description || '',
+        kookChannelId: row.kookChannelId || '',
+        summaryName: row.summaryName || '',
+      });
+      setEditorOpen(true);
+    } finally {
+      setEditorSubmitting(false);
+    }
+  };
+
+  const takeoverPayload = (values: Record<string, unknown>) => {
+    const scheduleType = Number(values.scheduleType || 1);
+    const kookChannelId = String(values.kookChannelId || '');
+    return {
+      title: String(values.title || '').trim(),
+      creatorUserId: values.creatorUserId ? Number(values.creatorUserId) : undefined,
+      participantLimit: Number(values.participantLimit || 0),
+      scheduleType,
+      startDate: scheduleType === 2 ? undefined : (values.startDate as DateLike | undefined)?.format('YYYY-MM-DD'),
+      endDate: scheduleType === 3 ? (values.endDate as DateLike | undefined)?.format('YYYY-MM-DD') : undefined,
+      playTime: (values.playTime as DateLike | undefined)?.format('HH:mm') || String(values.playTime || '').slice(0, 5),
+      description: String(values.description || '').trim(),
+      kookChannelId,
+      kookChannelName: channels.find((item) => item.value === kookChannelId)?.label || '',
+      summaryName: String(values.summaryName || '').trim() || undefined,
+    };
+  };
+
+  const saveTakeover = async (values: Record<string, unknown>) => {
+    setEditorSubmitting(true);
+    try {
+      if (editing) {
+        await updateTakeover(editing.id, takeoverPayload(values));
+        message.success('接龙已保存');
+      } else {
+        await createTakeover(takeoverPayload(values));
+        message.success('接龙已新增');
+      }
+      setEditorOpen(false);
+      await load(editing ? page : 1);
+    } finally {
+      setEditorSubmitting(false);
+    }
   };
 
   const openSummaryModal = () => {
@@ -229,13 +325,18 @@ export default function Takeovers() {
     { title: '创建人', dataIndex: 'creatorName', width: 140 },
     {
       title: '操作',
-      width: 150,
+      width: 210,
       fixed: 'right',
       render: (_, row) => (
         <Space>
           <Button size="small" onClick={() => openDetail(row.id)}>
             详情
           </Button>
+          {Number(row.takeoverState) !== 2 && (
+            <Button size="small" onClick={() => openEdit(row.id)}>
+              编辑
+            </Button>
+          )}
           <Popconfirm
             title="删除接龙"
             description="确认删除该接龙？此操作会从列表隐藏。"
@@ -269,7 +370,16 @@ export default function Takeovers() {
 
   return (
     <>
-      <PageHeader title="接龙管理" description="查询、筛选和维护管理员侧接龙数据。" extra={tableColumns.button} />
+      <PageHeader
+        title="接龙管理"
+        description="查询、筛选和维护管理员侧接龙数据。"
+        extra={(
+          <Space>
+            {tableColumns.button}
+            <Button type="primary" onClick={openCreate}>新增接龙</Button>
+          </Space>
+        )}
+      />
       <Card className="filter-card">
         <Form form={form} layout="inline" onFinish={() => load(1)}>
           <Form.Item name="keyword">
@@ -354,6 +464,11 @@ export default function Takeovers() {
                   <Button size="small" onClick={openSummaryModal}>
                     修改
                   </Button>
+                  {Number(detail.takeoverState) !== 2 && (
+                    <Button size="small" onClick={() => openEdit(detail.id)}>
+                      编辑接龙
+                    </Button>
+                  )}
                 </Space>
               </Descriptions.Item>
               <Descriptions.Item label="汇总更新时间">
@@ -399,6 +514,61 @@ export default function Takeovers() {
             />
           </Space>
         )}
+      </Drawer>
+      <Drawer
+        title={editing ? '编辑接龙' : '新增接龙'}
+        width={640}
+        open={editorOpen}
+        onClose={() => setEditorOpen(false)}
+      >
+        <Form form={editorForm} layout="vertical" disabled={editorSubmitting} onFinish={saveTakeover}>
+          {!editing && (
+            <Form.Item label="创建人用户 ID" name="creatorUserId" rules={[{ required: true, message: '请输入创建人用户 ID' }]}>
+              <InputNumber min={1} precision={0} className="mono" style={{ width: '100%' }} />
+            </Form.Item>
+          )}
+          <Form.Item label="标题" name="title" rules={[{ required: true, message: '请输入标题' }, { max: 30, message: '最多 30 个字' }]}>
+            <Input maxLength={30} showCount />
+          </Form.Item>
+          <Form.Item label="人数上限" name="participantLimit" rules={[{ required: true, message: '请输入人数上限' }]}>
+            <InputNumber min={2} max={99} precision={0} style={{ width: '100%' }} />
+          </Form.Item>
+          <Form.Item label="时间类型" name="scheduleType" rules={[{ required: true, message: '请选择时间类型' }]}>
+            <Select
+              options={[
+                { value: 1, label: '指定日期' },
+                { value: 2, label: '每日固定' },
+                { value: 3, label: '日期范围' },
+              ]}
+            />
+          </Form.Item>
+          {Number(editorScheduleType || 1) !== 2 && (
+            <Form.Item label={Number(editorScheduleType) === 3 ? '开始日期' : '日期'} name="startDate" rules={[{ required: true, message: '请选择日期' }]}>
+              <DatePicker style={{ width: '100%' }} />
+            </Form.Item>
+          )}
+          {Number(editorScheduleType) === 3 && (
+            <Form.Item label="结束日期" name="endDate" rules={[{ required: true, message: '请选择结束日期' }]}>
+              <DatePicker style={{ width: '100%' }} />
+            </Form.Item>
+          )}
+          <Form.Item label="固定时间" name="playTime" rules={[{ required: true, message: '请选择固定时间' }]}>
+            <TimePicker format="HH:mm" style={{ width: '100%' }} />
+          </Form.Item>
+          <Form.Item label="KOOK 频道" name="kookChannelId">
+            <Select allowClear showSearch optionFilterProp="label" options={channels} />
+          </Form.Item>
+          <Form.Item label="汇总展示词" name="summaryName" rules={[{ max: 12, message: '最多 12 个字' }]}>
+            <Input maxLength={12} showCount placeholder="留空则自动提取或兜底" />
+          </Form.Item>
+          <Form.Item label="介绍" name="description" rules={[{ max: 500, message: '最多 500 个字' }]}>
+            <Input.TextArea rows={4} maxLength={500} showCount />
+          </Form.Item>
+          <Space>
+            <Button type="primary" htmlType="submit" loading={editorSubmitting}>保存</Button>
+            <Button onClick={() => setEditorOpen(false)}>取消</Button>
+          </Space>
+        </Form>
       </Drawer>
       <Modal
         title="修改汇总展示词"
