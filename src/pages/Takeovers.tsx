@@ -2,7 +2,6 @@ import {
   Button,
   Card,
   DatePicker,
-  Descriptions,
   Drawer,
   Form,
   Input,
@@ -533,61 +532,81 @@ export default function Takeovers() {
       >
         {detail && (
           <Space direction="vertical" size={18} className="detail-stack">
-            <Descriptions column={2} bordered size="small" className="takeover-detail-descriptions">
-              <Descriptions.Item label="ID">{detail.id}</Descriptions.Item>
-              <Descriptions.Item label="状态">
-                <StatusTag value={detail.statusLabel} />
-              </Descriptions.Item>
-              <Descriptions.Item label="标题" span={2}>
-                {detail.title || '-'}
-              </Descriptions.Item>
-              <Descriptions.Item label="汇总词">
-                <Space>
-                  <Typography.Text>{detail.summaryName || '-'}</Typography.Text>
-                  {detail.summarySource && <Tag>{summarySourceText(detail.summarySource)}</Tag>}
-                  <Button size="small" onClick={openSummaryModal}>
-                    修改
-                  </Button>
-                  {Number(detail.takeoverState) !== 2 && (
-                    <Button size="small" onClick={() => openEdit(detail.id)}>
-                      编辑接龙
+            <div className="takeover-detail-table">
+              <div className="takeover-detail-row takeover-detail-row--pair">
+                <div className="takeover-detail-label">ID</div>
+                <div className="takeover-detail-value">{detail.id}</div>
+                <div className="takeover-detail-label">状态</div>
+                <div className="takeover-detail-value">
+                  <StatusTag value={detail.statusLabel} />
+                </div>
+              </div>
+              <div className="takeover-detail-row">
+                <div className="takeover-detail-label">标题</div>
+                <div className="takeover-detail-value takeover-detail-value--full">{detail.title || '-'}</div>
+              </div>
+              <div className="takeover-detail-row takeover-detail-row--pair">
+                <div className="takeover-detail-label">汇总词</div>
+                <div className="takeover-detail-value">
+                  <Space wrap>
+                    <Typography.Text>{detail.summaryName || '-'}</Typography.Text>
+                    {detail.summarySource && <Tag>{summarySourceText(detail.summarySource)}</Tag>}
+                    <Button size="small" onClick={openSummaryModal}>
+                      修改
                     </Button>
-                  )}
-                </Space>
-              </Descriptions.Item>
-              <Descriptions.Item label="汇总更新时间">
-                <span className="mono">{detail.summaryUpdatedAt || '-'}</span>
-              </Descriptions.Item>
+                    {Number(detail.takeoverState) !== 2 && (
+                      <Button size="small" onClick={() => openEdit(detail.id)}>
+                        编辑接龙
+                      </Button>
+                    )}
+                  </Space>
+                </div>
+                <div className="takeover-detail-label">汇总更新时间</div>
+                <div className="takeover-detail-value">
+                  <span className="mono">{detail.summaryUpdatedAt || '-'}</span>
+                </div>
+              </div>
               {detail.summaryError && (
-                <Descriptions.Item label="汇总错误" span={2}>
-                  <Typography.Text type="danger">{detail.summaryError}</Typography.Text>
-                </Descriptions.Item>
+                <div className="takeover-detail-row">
+                  <div className="takeover-detail-label">汇总错误</div>
+                  <div className="takeover-detail-value takeover-detail-value--full">
+                    <Typography.Text type="danger">{detail.summaryError}</Typography.Text>
+                  </div>
+                </div>
               )}
-              <Descriptions.Item label="创建人" span={2}>
-                {detail.creatorName || '-'}
-              </Descriptions.Item>
-              <Descriptions.Item label="人数">
-                {detail.joinedCount ?? 0}/{detail.participantLimit ?? '-'}
-              </Descriptions.Item>
-              <Descriptions.Item label="时间">
-                <span className="mono">{detail.scheduleText || '-'}</span>
-              </Descriptions.Item>
-              <Descriptions.Item label="KOOK频道" span={2}>
-                {detail.kookChannelName || '-'}
-              </Descriptions.Item>
-              <Descriptions.Item label="KOOK邀请" span={2}>
-                {detail.kookInviteUrl ? (
-                  <Typography.Link copyable href={detail.kookInviteUrl} target="_blank">
-                    {detail.kookInviteUrl}
-                  </Typography.Link>
-                ) : (
-                  '-'
-                )}
-              </Descriptions.Item>
-              <Descriptions.Item label="介绍" span={2}>
-                {detail.description || '-'}
-              </Descriptions.Item>
-            </Descriptions>
+              <div className="takeover-detail-row">
+                <div className="takeover-detail-label">创建人</div>
+                <div className="takeover-detail-value takeover-detail-value--full">{detail.creatorName || '-'}</div>
+              </div>
+              <div className="takeover-detail-row takeover-detail-row--pair">
+                <div className="takeover-detail-label">人数</div>
+                <div className="takeover-detail-value">{detail.joinedCount ?? 0}/{detail.participantLimit ?? '-'}</div>
+                <div className="takeover-detail-label">时间</div>
+                <div className="takeover-detail-value">
+                  <span className="mono">{detail.scheduleText || '-'}</span>
+                </div>
+              </div>
+              <div className="takeover-detail-row">
+                <div className="takeover-detail-label">KOOK频道</div>
+                <div className="takeover-detail-value takeover-detail-value--full">{detail.kookChannelName || '-'}</div>
+              </div>
+              <div className="takeover-detail-row">
+                <div className="takeover-detail-label">KOOK邀请</div>
+                <div className="takeover-detail-value takeover-detail-value--full">
+                  {detail.kookInviteUrl ? (
+                    <Typography.Link copyable href={detail.kookInviteUrl} target="_blank">
+                      {detail.kookInviteUrl}
+                    </Typography.Link>
+                  ) : (
+                    '-'
+                  )}
+                </div>
+              </div>
+              <div className="takeover-detail-row">
+                <div className="takeover-detail-label">介绍</div>
+                <div className="takeover-detail-value takeover-detail-value--full">{detail.description || '-'}</div>
+              </div>
+            </div>
             <Tabs
               items={[
                 {
