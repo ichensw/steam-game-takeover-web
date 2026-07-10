@@ -563,13 +563,13 @@ export default function Takeovers() {
                   <Typography.Text type="danger">{detail.summaryError}</Typography.Text>
                 </Descriptions.Item>
               )}
-              <Descriptions.Item label="创建人">
+              <Descriptions.Item label="创建人" span={2}>
                 {detail.creatorName || '-'}
               </Descriptions.Item>
               <Descriptions.Item label="人数">
                 {detail.joinedCount ?? 0}/{detail.participantLimit ?? '-'}
               </Descriptions.Item>
-              <Descriptions.Item label="时间" span={2}>
+              <Descriptions.Item label="时间">
                 <span className="mono">{detail.scheduleText || '-'}</span>
               </Descriptions.Item>
               <Descriptions.Item label="KOOK频道" span={2}>
