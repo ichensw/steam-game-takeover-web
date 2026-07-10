@@ -2,6 +2,7 @@ import {
   App as AntApp,
   Button,
   Card,
+  Checkbox,
   DatePicker,
   Descriptions,
   Drawer,
@@ -15,8 +16,10 @@ import {
   Table,
   Tabs,
   Tag,
+  Tooltip,
   Typography,
 } from 'antd';
+import { ArrowDownOutlined, ArrowUpOutlined, SettingOutlined } from '@ant-design/icons';
 import type { ColumnsType } from 'antd/es/table';
 import { useEffect, useMemo, useState } from 'react';
 import {
@@ -74,8 +77,19 @@ type RoleRow = Record<string, unknown> & {
 };
 
 type DateLike = { format: (template: string) => string };
+type ColumnKey = 'id' | 'name' | 'type' | 'activeUserCount' | 'durationSeconds' | 'sessionCount' | 'level' | 'limitAmount';
+type ColumnPreference = { order: ColumnKey[]; visible: ColumnKey[] };
+type ColumnDefinition = {
+  key: ColumnKey;
+  title: string;
+  defaultVisible: boolean;
+  column: ColumnsType<Row>[number];
+};
 
 const dateTimeFormat = 'YYYY-MM-DD HH:mm:ss';
+const columnPreferenceKey = 'ttw_kook_channel_columns';
+const defaultColumnOrder: ColumnKey[] = ['id', 'name', 'type', 'activeUserCount', 'durationSeconds', 'sessionCount', 'level', 'limitAmount'];
+const defaultVisibleColumns: ColumnKey[] = [...defaultColumnOrder];
 
 const channelTypeOptions = [
   { value: 0, label: '分组' },
@@ -175,6 +189,47 @@ function durationText(seconds: number) {
   return `${secs}秒`;
 }
 
+function cellTooltip(value: unknown) {
+  const text = String(value || '-');
+  return (
+    <Tooltip title={text}>
+      <span>{text}</span>
+    </Tooltip>
+  );
+}
+
+function readColumnPreference(): ColumnPreference {
+  try {
+    const saved = JSON.parse(localStorage.getItem(columnPreferenceKey) || '{}') as Partial<ColumnPreference>;
+    const order = normalizeColumnOrder(saved.order);
+    const visible = normalizeVisibleColumns(saved.visible);
+    return { order, visible };
+  } catch {
+    return { order: defaultColumnOrder, visible: defaultVisibleColumns };
+  }
+}
+
+function normalizeColumnOrder(value?: ColumnKey[]) {
+  const valid = new Set(defaultColumnOrder);
+  const ordered = (value || []).filter((key) => valid.has(key));
+  return [...ordered, ...defaultColumnOrder.filter((key) => !ordered.includes(key))];
+}
+
+function normalizeVisibleColumns(value?: ColumnKey[]) {
+  const valid = new Set(defaultColumnOrder);
+  const visible = (value || defaultVisibleColumns).filter((key) => valid.has(key));
+  return visible.length ? visible : defaultVisibleColumns;
+}
+
+function moveColumn(keys: ColumnKey[], key: ColumnKey, direction: -1 | 1) {
+  const index = keys.indexOf(key);
+  const nextIndex = index + direction;
+  if (index < 0 || nextIndex < 0 || nextIndex >= keys.length) return keys;
+  const next = [...keys];
+  [next[index], next[nextIndex]] = [next[nextIndex], next[index]];
+  return next;
+}
+
 function roleKey(row: RoleRow, index?: number) {
   return String(row.role_id || row.user_id || row.user?.id || index);
 }
@@ -193,6 +248,8 @@ export default function KookChannels() {
   const [usageLoading, setUsageLoading] = useState(false);
   const [filters, setFilters] = useState<{ keyword?: string }>({});
   const [loading, setLoading] = useState(false);
+  const [columnPreference, setColumnPreference] = useState<ColumnPreference>(() => readColumnPreference());
+  const [columnSettingOpen, setColumnSettingOpen] = useState(false);
   const [drawerOpen, setDrawerOpen] = useState(false);
   const [editing, setEditing] = useState<Row | null>(null);
   const [detail, setDetail] = useState<Record<string, unknown> | null>(null);
@@ -402,30 +459,57 @@ export default function KookChannels() {
     await refreshRoles();
   };
 
-  const columns: ColumnsType<Row> = [
-    { title: '频道 ID', dataIndex: 'id', width: 170, className: 'mono', ellipsis: true },
-    { title: '名称', dataIndex: 'name', width: 180, ellipsis: true },
-    { title: '类型', dataIndex: 'type', width: 90, render: channelType },
+  const saveColumnPreference = (next: ColumnPreference) => {
+    setColumnPreference(next);
+    localStorage.setItem(columnPreferenceKey, JSON.stringify(next));
+  };
+
+  const columnDefinitions: ColumnDefinition[] = [
+    { key: 'id', title: '频道 ID', defaultVisible: true, column: { title: '频道 ID', dataIndex: 'id', width: 170, className: 'mono', ellipsis: true, render: cellTooltip } },
+    { key: 'name', title: '名称', defaultVisible: true, column: { title: '名称', dataIndex: 'name', width: 180, ellipsis: true, render: cellTooltip } },
+    { key: 'type', title: '类型', defaultVisible: true, column: { title: '类型', dataIndex: 'type', width: 90, render: channelType } },
     {
+      key: 'activeUserCount',
       title: '在线人数',
-      width: 110,
-      render: (_, row) => {
-        const count = rowActiveUserCount(row);
-        return count > 0 ? <Tag color="green">{count} 人在线</Tag> : <Tag>0 人</Tag>;
+      defaultVisible: true,
+      column: {
+        title: '在线人数',
+        width: 110,
+        render: (_, row) => {
+          const count = rowActiveUserCount(row);
+          return count > 0 ? <Tag color="green">{count} 人在线</Tag> : <Tag>0 人</Tag>;
+        },
       },
     },
     {
+      key: 'durationSeconds',
       title: '使用时长',
-      width: 130,
-      render: (_, row) => durationText(rowDurationSeconds(row)),
+      defaultVisible: true,
+      column: {
+        title: '使用时长',
+        width: 130,
+        render: (_, row) => durationText(rowDurationSeconds(row)),
+      },
     },
     {
+      key: 'sessionCount',
       title: '会话数',
-      width: 100,
-      render: (_, row) => rowSessionCount(row),
+      defaultVisible: true,
+      column: {
+        title: '会话数',
+        width: 100,
+        render: (_, row) => rowSessionCount(row),
+      },
     },
-    { title: '排序', dataIndex: 'level', width: 90 },
-    { title: '人数限制', width: 100, render: (_, row) => row.limit_amount || row.limitAmount || '-' },
+    { key: 'level', title: '排序', defaultVisible: true, column: { title: '排序', dataIndex: 'level', width: 90 } },
+    { key: 'limitAmount', title: '人数限制', defaultVisible: true, column: { title: '人数限制', width: 100, render: (_, row) => row.limit_amount || row.limitAmount || '-' } },
+  ];
+
+  const columns: ColumnsType<Row> = [
+    ...columnPreference.order
+      .filter((key) => columnPreference.visible.includes(key))
+      .map((key) => columnDefinitions.find((item) => item.key === key)?.column)
+      .filter(Boolean) as ColumnsType<Row>,
     {
       title: '操作',
       width: 340,
@@ -450,6 +534,7 @@ export default function KookChannels() {
       ),
     },
   ];
+  const scrollX = columns.reduce((sum, column) => sum + (Number(column?.width) || 160), 0);
 
   const userColumns: ColumnsType<UserRow> = [
     { title: '用户 ID', dataIndex: 'id', width: 150, className: 'mono', ellipsis: true },
@@ -509,7 +594,12 @@ export default function KookChannels() {
       <PageHeader
         title="KOOK 频道"
         description="管理 KOOK 频道、语音成员移动和频道权限。"
-        extra={<Button type="primary" onClick={openCreate}>创建频道</Button>}
+        extra={(
+          <Space>
+            <Button icon={<SettingOutlined />} onClick={() => setColumnSettingOpen(true)}>列设置</Button>
+            <Button type="primary" onClick={openCreate}>创建频道</Button>
+          </Space>
+        )}
       />
 
       <Card className="filter-card">
@@ -536,10 +626,68 @@ export default function KookChannels() {
         loading={loading || usageLoading}
         columns={columns}
         dataSource={treeRows}
-        scroll={{ x: 1260 }}
+        scroll={{ x: scrollX }}
         pagination={false}
         expandable={{ defaultExpandAllRows: true }}
       />
+
+      <Modal
+        title="自定义展示列"
+        open={columnSettingOpen}
+        onCancel={() => setColumnSettingOpen(false)}
+        footer={[
+          <Button
+            key="reset"
+            onClick={() => saveColumnPreference({ order: defaultColumnOrder, visible: defaultVisibleColumns })}
+          >
+            恢复默认
+          </Button>,
+          <Button key="close" type="primary" onClick={() => setColumnSettingOpen(false)}>
+            完成
+          </Button>,
+        ]}
+      >
+        <Space direction="vertical" style={{ width: '100%' }}>
+          {columnPreference.order.map((key, index) => {
+            const definition = columnDefinitions.find((item) => item.key === key);
+            if (!definition) return null;
+            const checked = columnPreference.visible.includes(key);
+            const onlyVisible = checked && columnPreference.visible.length === 1;
+            return (
+              <Card key={key} size="small">
+                <Space style={{ width: '100%', justifyContent: 'space-between' }}>
+                  <Checkbox
+                    checked={checked}
+                    disabled={onlyVisible}
+                    onChange={(event) => {
+                      const visible = event.target.checked
+                        ? [...columnPreference.visible, key]
+                        : columnPreference.visible.filter((item) => item !== key);
+                      saveColumnPreference({ ...columnPreference, visible: normalizeVisibleColumns(visible) });
+                    }}
+                  >
+                    {definition.title}
+                  </Checkbox>
+                  <Space>
+                    <Button
+                      aria-label={`${definition.title}上移`}
+                      disabled={index === 0}
+                      icon={<ArrowUpOutlined />}
+                      onClick={() => saveColumnPreference({ ...columnPreference, order: moveColumn(columnPreference.order, key, -1) })}
+                    />
+                    <Button
+                      aria-label={`${definition.title}下移`}
+                      disabled={index === columnPreference.order.length - 1}
+                      icon={<ArrowDownOutlined />}
+                      onClick={() => saveColumnPreference({ ...columnPreference, order: moveColumn(columnPreference.order, key, 1) })}
+                    />
+                  </Space>
+                </Space>
+              </Card>
+            );
+          })}
+        </Space>
+      </Modal>
 
       <Drawer title={editing ? '编辑 KOOK 频道' : '创建 KOOK 频道'} width={620} open={drawerOpen} onClose={() => setDrawerOpen(false)}>
         <Form form={form} layout="vertical" disabled={saving} onFinish={save}>
