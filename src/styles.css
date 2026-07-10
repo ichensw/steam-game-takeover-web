@@ -412,6 +412,195 @@ select {
   gap: 16px;
 }
 
+.dashboard-v2 {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 360px;
+  gap: 16px;
+}
+
+.dashboard-command {
+  overflow: hidden;
+  border-color: rgb(255 106 26 / 24%) !important;
+  background:
+    radial-gradient(circle at 82% 24%, rgb(255 106 26 / 24%), transparent 28%),
+    linear-gradient(135deg, rgb(255 106 26 / 16%), transparent 45%),
+    var(--panel) !important;
+}
+
+.dashboard-command .ant-card-body {
+  min-height: 252px;
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 210px;
+  gap: 24px;
+  align-items: center;
+}
+
+.dashboard-command h2 {
+  max-width: 760px;
+  margin: 12px 0 !important;
+  color: var(--text) !important;
+  font-size: 34px !important;
+  line-height: 1.12 !important;
+}
+
+.dashboard-command .ant-typography {
+  color: var(--muted);
+}
+
+.dashboard-pulse {
+  width: 184px;
+  height: 184px;
+  justify-self: end;
+  display: grid;
+  place-items: center;
+  align-content: center;
+  border: 1px solid rgb(255 106 26 / 30%);
+  border-radius: 50%;
+  background:
+    radial-gradient(circle, rgb(255 106 26 / 26%), transparent 58%),
+    #10131a;
+}
+
+.dashboard-pulse span {
+  color: var(--text);
+  font-size: 54px;
+  font-weight: 820;
+  line-height: 1;
+}
+
+.dashboard-pulse small {
+  margin-top: 12px;
+  color: var(--muted);
+}
+
+.dashboard-workbench {
+  min-height: 252px;
+}
+
+.queue-link {
+  min-height: 58px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  padding: 12px 14px;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: var(--panel-2);
+  color: inherit;
+}
+
+.queue-link + .queue-link {
+  margin-top: 10px;
+}
+
+.queue-link:hover {
+  border-color: rgb(255 106 26 / 34%);
+  background: var(--panel-3);
+}
+
+.queue-link span {
+  color: var(--muted);
+}
+
+.queue-link strong {
+  color: var(--text);
+  font-size: 22px;
+}
+
+.queue-link.danger {
+  border-color: rgb(255 83 107 / 30%);
+  background: rgb(255 83 107 / 12%);
+}
+
+.dashboard-metrics,
+.dashboard-main-row {
+  grid-column: 1 / -1;
+}
+
+.metric-link {
+  display: block;
+  color: inherit;
+}
+
+.metric-link:hover .summary-card {
+  border-color: rgb(255 106 26 / 30%) !important;
+  transform: translateY(-1px);
+}
+
+.dashboard-section {
+  height: 100%;
+}
+
+.dashboard-section .ant-card-head {
+  border-bottom-color: var(--line) !important;
+}
+
+.dashboard-section .ant-card-head-title {
+  color: var(--text);
+  font-weight: 760;
+}
+
+.dashboard-rank-list {
+  width: 100%;
+}
+
+.rank-row {
+  min-height: 62px;
+  display: grid;
+  grid-template-columns: 30px minmax(0, 1fr) auto;
+  gap: 12px;
+  align-items: center;
+  padding: 10px 0;
+  border-bottom: 1px solid rgb(38 43 54 / 70%);
+}
+
+.rank-row:last-child {
+  border-bottom: 0;
+}
+
+.rank-index {
+  width: 26px;
+  height: 26px;
+  display: grid;
+  place-items: center;
+  border-radius: 8px;
+  background: rgb(255 106 26 / 14%);
+  color: var(--orange);
+  font-size: 12px;
+  font-weight: 800;
+}
+
+.rank-main {
+  min-width: 0;
+}
+
+.rank-title {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  margin-bottom: 8px;
+}
+
+.rank-title .ant-typography {
+  max-width: 100%;
+  color: var(--text);
+}
+
+.rank-row strong {
+  color: var(--text);
+  white-space: nowrap;
+}
+
+.dashboard-rank-list.compact .rank-row {
+  min-height: 56px;
+}
+
+.dashboard-section .ant-progress-bg {
+  background: linear-gradient(90deg, var(--orange), var(--green)) !important;
+}
+
 .dashboard-hero {
   border-color: rgb(255 106 26 / 24%) !important;
   background:
@@ -812,6 +1001,7 @@ select {
 }
 
 @media (max-width: 1120px) {
+  .dashboard-v2,
   .dashboard-grid,
   .dashboard-hero .ant-card-body {
     grid-template-columns: 1fr;
@@ -820,6 +1010,14 @@ select {
   .hero-orbit {
     width: 160px;
     height: 160px;
+  }
+
+  .dashboard-command .ant-card-body {
+    grid-template-columns: 1fr;
+  }
+
+  .dashboard-pulse {
+    justify-self: start;
   }
 }
 
@@ -905,6 +1103,32 @@ select {
     height: calc(100dvh - 68px);
     min-height: 0;
     padding: 16px;
+  }
+
+  .dashboard-command .ant-card-body {
+    min-height: 0;
+    gap: 18px;
+  }
+
+  .dashboard-command h2 {
+    font-size: 26px !important;
+  }
+
+  .dashboard-pulse {
+    width: 136px;
+    height: 136px;
+  }
+
+  .dashboard-pulse span {
+    font-size: 40px;
+  }
+
+  .rank-row {
+    grid-template-columns: 28px minmax(0, 1fr);
+  }
+
+  .rank-row > strong {
+    grid-column: 2;
   }
 
   .mobile-nav-drawer .ant-drawer-content-wrapper {
