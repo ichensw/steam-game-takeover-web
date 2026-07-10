@@ -1,7 +1,7 @@
-import { Button, Card, Drawer, Form, Input, Select, Space, Switch, Table, Tag, App as AntApp } from 'antd';
+import { Button, Card, Checkbox, Drawer, Form, Input, Modal, Select, Space, Switch, Table, Tag, App as AntApp } from 'antd';
 import type { ColumnsType } from 'antd/es/table';
 import { useEffect, useState } from 'react';
-import { createAdminUser, listAdminUsers, updateAdminUser } from '../api/admin';
+import { createAdminUser, listAdminUsers, listRoleMenus, updateAdminUser, updateRoleMenus } from '../api/admin';
 import { ADMIN_ROLE_ADMIN, ADMIN_ROLE_KOOK_ADMIN, ADMIN_ROLE_SUPER_ADMIN } from '../auth';
 import PageHeader from '../components/PageHeader';
 import { pageSizeOptions, responsePageSize } from '../utils/pagination';
@@ -32,7 +32,10 @@ export default function AdminUsers() {
   const [pageSize, setPageSize] = useState(20);
   const [loading, setLoading] = useState(false);
   const [drawerOpen, setDrawerOpen] = useState(false);
+  const [roleMenuOpen, setRoleMenuOpen] = useState(false);
+  const [roleMenus, setRoleMenus] = useState<{ allMenus: { key: string; label: string }[]; roles: { role: string; label: string; menuKeys: string[] }[] } | null>(null);
   const [submitting, setSubmitting] = useState(false);
+  const [roleMenuSaving, setRoleMenuSaving] = useState(false);
   const [filterForm] = Form.useForm();
   const [form] = Form.useForm();
   const { message } = AntApp.useApp();
@@ -103,6 +106,23 @@ export default function AdminUsers() {
     setTimeout(() => load(1), 0);
   };
 
+  const openRoleMenus = async () => {
+    setRoleMenuOpen(true);
+    setRoleMenus(await listRoleMenus());
+  };
+
+  const saveRoleMenus = async () => {
+    if (!roleMenus) return;
+    setRoleMenuSaving(true);
+    try {
+      await updateRoleMenus(roleMenus.roles.map(({ role, menuKeys }) => ({ role, menuKeys })));
+      message.success('角色菜单已保存，当前登录账号重新登录后生效');
+      setRoleMenuOpen(false);
+    } finally {
+      setRoleMenuSaving(false);
+    }
+  };
+
   const columns: ColumnsType<AdminUserRow> = [
     { title: 'ID', dataIndex: 'id', width: 90, className: 'mono' },
     { title: '用户名', dataIndex: 'username', width: 180, className: 'mono', ellipsis: true },
@@ -150,9 +170,12 @@ export default function AdminUsers() {
         title="管理员账号"
         description="查看后台管理员账号并分配后台权限。"
         extra={
-          <Button type="primary" onClick={() => openCreate()}>
-            新增管理员
-          </Button>
+          <Space>
+            <Button onClick={openRoleMenus}>角色菜单</Button>
+            <Button type="primary" onClick={() => openCreate()}>
+              新增管理员
+            </Button>
+          </Space>
         }
       />
       <Card className="filter-card">
@@ -252,6 +275,31 @@ export default function AdminUsers() {
           </Space>
         </Form>
       </Drawer>
+      <Modal
+        title="角色菜单"
+        open={roleMenuOpen}
+        onCancel={() => setRoleMenuOpen(false)}
+        onOk={saveRoleMenus}
+        confirmLoading={roleMenuSaving}
+        width={720}
+      >
+        <Space direction="vertical" size={18} style={{ width: '100%' }}>
+          {(roleMenus?.roles || []).map((role) => (
+            <Card key={role.role} size="small" title={role.label}>
+              <Checkbox.Group
+                value={role.menuKeys}
+                options={(roleMenus?.allMenus || []).map((menu) => ({ label: menu.label, value: menu.key }))}
+                onChange={(checked) => {
+                  setRoleMenus((current) => current && {
+                    ...current,
+                    roles: current.roles.map((item) => item.role === role.role ? { ...item, menuKeys: checked.map(String) } : item),
+                  });
+                }}
+              />
+            </Card>
+          ))}
+        </Space>
+      </Modal>
     </>
   );
 }

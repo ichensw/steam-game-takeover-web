@@ -7,6 +7,7 @@ export type AdminUser = {
   nickname?: string;
   avatarUrl?: string;
   role?: string;
+  menuKeys?: string[];
 };
 
 export const ADMIN_ROLE_SUPER_ADMIN = 'super_admin';

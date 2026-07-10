@@ -24,50 +24,52 @@ import type { AdminUser } from '../auth';
 
 type MenuItem = Required<MenuProps>['items'][number];
 
-const buildMenuItems = (canManageKook: boolean, isSuperAdmin: boolean): MenuItem[] => [
+const buildMenuItems = (visibleKeys?: string[]): MenuItem[] => {
+  const visible = new Set(visibleKeys || []);
+  const can = (key: string) => visible.size === 0 || visible.has(key);
+  return [
   { key: '/dashboard', icon: <DashboardOutlined />, label: '控制台' },
-  {
+  ...((can('takeovers') || can('reports')) ? [{
     key: 'takeover-group',
     icon: <TeamOutlined />,
     label: '接龙',
     children: [
-      { key: '/takeovers', icon: <TeamOutlined />, label: '接龙管理' },
-      { key: '/reports', icon: <AlertOutlined />, label: '举报审核' },
+      ...(can('takeovers') ? [{ key: '/takeovers', icon: <TeamOutlined />, label: '接龙管理' }] : []),
+      ...(can('reports') ? [{ key: '/reports', icon: <AlertOutlined />, label: '举报审核' }] : []),
     ],
-  },
-  {
+  } as MenuItem] : []),
+  ...((can('users') || can('admin-users')) ? [{
     key: 'user-group',
     icon: <UserOutlined />,
     label: '用户',
     children: [
-      { key: '/users', icon: <UserOutlined />, label: '用户管理' },
-      ...(isSuperAdmin ? [{ key: '/admin-users', icon: <UserOutlined />, label: '管理员账号' }] : []),
+      ...(can('users') ? [{ key: '/users', icon: <UserOutlined />, label: '用户管理' }] : []),
+      ...(can('admin-users') ? [{ key: '/admin-users', icon: <UserOutlined />, label: '管理员账号' }] : []),
     ],
-  },
-  ...(canManageKook
-    ? [{
+  } as MenuItem] : []),
+  ...((can('kook-channels') || can('kook-roles') || can('kook-members') || can('kook-users')) ? [{
         key: 'kook-group',
         icon: <AppstoreOutlined />,
         label: 'KOOK',
         children: [
-          { key: '/kook-channels', icon: <AppstoreOutlined />, label: 'KOOK 频道' },
-          { key: '/kook-roles', icon: <CrownOutlined />, label: 'KOOK 角色' },
-          { key: '/kook-members', icon: <TeamOutlined />, label: 'KOOK 成员' },
-          { key: '/kook-users', icon: <UserOutlined />, label: 'KOOK 用户' },
+          ...(can('kook-channels') ? [{ key: '/kook-channels', icon: <AppstoreOutlined />, label: 'KOOK 频道' }] : []),
+          ...(can('kook-roles') ? [{ key: '/kook-roles', icon: <CrownOutlined />, label: 'KOOK 角色' }] : []),
+          ...(can('kook-members') ? [{ key: '/kook-members', icon: <TeamOutlined />, label: 'KOOK 成员' }] : []),
+          ...(can('kook-users') ? [{ key: '/kook-users', icon: <UserOutlined />, label: 'KOOK 用户' }] : []),
         ],
-      } as MenuItem]
-    : []),
-  {
+      } as MenuItem] : []),
+  ...((can('feedbacks') || can('announcements')) ? [{
     key: 'content-group',
     icon: <BellOutlined />,
     label: '内容',
     children: [
-      { key: '/feedbacks', icon: <FormOutlined />, label: '反馈管理' },
-      { key: '/announcements', icon: <BellOutlined />, label: '公告管理' },
+      ...(can('feedbacks') ? [{ key: '/feedbacks', icon: <FormOutlined />, label: '反馈管理' }] : []),
+      ...(can('announcements') ? [{ key: '/announcements', icon: <BellOutlined />, label: '公告管理' }] : []),
     ],
-  },
-  { key: '/settings', icon: <SettingOutlined />, label: '系统设置' },
+  } as MenuItem] : []),
+  ...(can('settings') ? [{ key: '/settings', icon: <SettingOutlined />, label: '系统设置' }] : []),
 ];
+};
 
 const flatMenuItems = (items: MenuItem[]) => items.flatMap((item) => {
   if (item && 'children' in item && item.children) return item.children;
@@ -108,7 +110,7 @@ export default function AdminLayout() {
   const [profileForm] = Form.useForm();
   const [passwordForm] = Form.useForm();
   const avatarUrl = Form.useWatch('avatarUrl', profileForm) as string | undefined;
-  const menuItems = buildMenuItems(hasAdminRole(admin, ADMIN_ROLE_KOOK_ADMIN), hasAdminRole(admin, ADMIN_ROLE_SUPER_ADMIN));
+  const menuItems = buildMenuItems(admin?.menuKeys);
   const availableItems = flatMenuItems(menuItems);
   const selectedKey = `/${location.pathname.split('/')[1] || 'dashboard'}`;
   const currentLabel = menuItemLabel(availableItems.find((item) => item?.key === selectedKey));

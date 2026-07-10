@@ -40,6 +40,16 @@ export function updateAdminUser(id: React.Key, values: { password?: string; nick
   return unwrap<Record<string, unknown>>(http.put(`/admin/admin-users/${id}`, values));
 }
 
+export function listRoleMenus() {
+  return unwrap<{ allMenus: { key: string; label: string }[]; roles: { role: string; label: string; menuKeys: string[] }[] }>(
+    http.get('/admin/role-menus'),
+  );
+}
+
+export function updateRoleMenus(roles: { role: string; menuKeys: string[] }[]) {
+  return unwrap<null>(http.put('/admin/role-menus', { roles }));
+}
+
 export function updateAdminMe(values: { nickname?: string; avatarUrl?: string }) {
   return unwrap<AdminUser>(http.put('/admin/me', values));
 }
