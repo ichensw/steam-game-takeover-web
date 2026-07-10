@@ -2,6 +2,7 @@ import {
   App as AntApp,
   Button,
   Card,
+  DatePicker,
   Descriptions,
   Drawer,
   Form,
@@ -17,7 +18,7 @@ import {
   Typography,
 } from 'antd';
 import type { ColumnsType } from 'antd/es/table';
-import { useEffect, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import {
   createKookChannel,
   createKookChannelRole,
@@ -26,6 +27,8 @@ import {
   getKookChannel,
   getKookChannelRoles,
   kickoutKookChannelUser,
+  listKookChannelUsageSummary,
+  type KookChannelUsage,
   listKookChannelUsers,
   listKookChannels,
   moveKookChannelUsers,
@@ -47,6 +50,10 @@ type Row = Record<string, unknown> & {
   level?: number;
   limit_amount?: number;
   limitAmount?: number;
+  durationSeconds?: number;
+  durationText?: string;
+  sessionCount?: number;
+  activeUserCount?: number;
   children?: Row[];
 };
 
@@ -65,6 +72,10 @@ type RoleRow = Record<string, unknown> & {
   allow?: number;
   deny?: number;
 };
+
+type DateLike = { format: (template: string) => string };
+
+const dateTimeFormat = 'YYYY-MM-DD HH:mm:ss';
 
 const channelTypeOptions = [
   { value: 0, label: '分组' },
@@ -144,6 +155,28 @@ function buildChannelTree(rows: Row[], filters: { keyword?: string; type?: numbe
   return tree.map(trimEmptyChildren);
 }
 
+function rowDurationSeconds(row: Row): number {
+  return Number(row.durationSeconds || 0) + (row.children || []).reduce((sum, child) => sum + rowDurationSeconds(child), 0);
+}
+
+function rowSessionCount(row: Row): number {
+  return Number(row.sessionCount || 0) + (row.children || []).reduce((sum, child) => sum + rowSessionCount(child), 0);
+}
+
+function rowActiveUserCount(row: Row): number {
+  return Number(row.activeUserCount || 0) + (row.children || []).reduce((sum, child) => sum + rowActiveUserCount(child), 0);
+}
+
+function durationText(seconds: number) {
+  if (seconds <= 0) return '0秒';
+  const hours = Math.floor(seconds / 3600);
+  const minutes = Math.floor((seconds % 3600) / 60);
+  const secs = seconds % 60;
+  if (hours > 0) return `${hours}小时${minutes}分钟`;
+  if (minutes > 0) return `${minutes}分钟${secs}秒`;
+  return `${secs}秒`;
+}
+
 function roleKey(row: RoleRow, index?: number) {
   return String(row.role_id || row.user_id || row.user?.id || index);
 }
@@ -157,6 +190,9 @@ function getErrorMessage(error: unknown) {
 
 export default function KookChannels() {
   const [rows, setRows] = useState<Row[]>([]);
+  const [usageByChannel, setUsageByChannel] = useState<Record<string, KookChannelUsage>>({});
+  const [usageRange, setUsageRange] = useState<{ startTime: string; endTime: string } | null>(null);
+  const [usageLoading, setUsageLoading] = useState(false);
   const [filters, setFilters] = useState<{ keyword?: string; type?: number; parentId?: string }>({});
   const [loading, setLoading] = useState(false);
   const [drawerOpen, setDrawerOpen] = useState(false);
@@ -176,6 +212,14 @@ export default function KookChannels() {
   const roleValueType = Form.useWatch('type', roleForm);
   const { message, modal } = AntApp.useApp();
 
+  const buildUsageParams = () => {
+    const range = filterForm.getFieldValue('usageRange') as DateLike[] | undefined;
+    return {
+      startTime: range?.[0]?.format(dateTimeFormat),
+      endTime: range?.[1]?.format(dateTimeFormat),
+    };
+  };
+
   const load = async () => {
     setLoading(true);
     try {
@@ -186,8 +230,31 @@ export default function KookChannels() {
     }
   };
 
+  const loadUsage = async () => {
+    setUsageLoading(true);
+    try {
+      const data = await listKookChannelUsageSummary(buildUsageParams());
+      setUsageRange(data.range);
+      setUsageByChannel(Object.fromEntries((data.list || []).map((item) => [item.channelId, item])));
+    } finally {
+      setUsageLoading(false);
+    }
+  };
+
+  const applyFilters = async (values: Record<string, unknown>) => {
+    setFilters({
+      keyword: values.keyword as string | undefined,
+      type: values.type as number | undefined,
+      parentId: values.parentId as string | undefined,
+    });
+    await loadUsage();
+  };
+
   useEffect(() => {
     load();
+    loadUsage();
+    const timer = window.setInterval(loadUsage, 15000);
+    return () => window.clearInterval(timer);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
@@ -352,6 +419,24 @@ export default function KookChannels() {
     { title: '排序', dataIndex: 'level', width: 90 },
     { title: '人数限制', width: 100, render: (_, row) => row.limit_amount || row.limitAmount || '-' },
     {
+      title: '在线人数',
+      width: 110,
+      render: (_, row) => {
+        const count = rowActiveUserCount(row);
+        return count > 0 ? <Tag color="green">{count} 人在线</Tag> : <Tag>0 人</Tag>;
+      },
+    },
+    {
+      title: '使用时长',
+      width: 130,
+      render: (_, row) => durationText(rowDurationSeconds(row)),
+    },
+    {
+      title: '会话数',
+      width: 100,
+      render: (_, row) => rowSessionCount(row),
+    },
+    {
       title: '操作',
       width: 340,
       fixed: 'right',
@@ -423,7 +508,11 @@ export default function KookChannels() {
     ...((roles?.permission_overwrites || []) as RoleRow[]),
     ...((roles?.permission_users || []) as RoleRow[]),
   ];
-  const treeRows = buildChannelTree(rows, filters);
+  const enrichedRows = useMemo(() => rows.map((row) => ({
+    ...row,
+    ...usageByChannel[String(row.id)],
+  })), [rows, usageByChannel]);
+  const treeRows = buildChannelTree(enrichedRows, filters);
 
   return (
     <>
@@ -434,7 +523,7 @@ export default function KookChannels() {
       />
 
       <Card className="filter-card">
-        <Form form={filterForm} layout="inline" onFinish={(values) => setFilters(values)}>
+        <Form form={filterForm} layout="inline" onFinish={applyFilters}>
           <Form.Item name="keyword">
             <Input.Search placeholder="搜索频道名称" allowClear />
           </Form.Item>
@@ -444,22 +533,26 @@ export default function KookChannels() {
           <Form.Item name="parentId">
             <Input placeholder="父分组 ID" allowClear className="mono" />
           </Form.Item>
+          <Form.Item name="usageRange">
+            <DatePicker.RangePicker showTime format={dateTimeFormat} />
+          </Form.Item>
           <Space>
             <Button type="primary" htmlType="submit">查询</Button>
-            <Button onClick={() => { filterForm.resetFields(); setFilters({}); }}>重置</Button>
+            <Button onClick={() => { filterForm.resetFields(); setFilters({}); loadUsage(); }}>重置</Button>
+            <Button onClick={() => { load(); loadUsage(); }} loading={loading || usageLoading}>刷新</Button>
           </Space>
         </Form>
       </Card>
       <Typography.Paragraph type="secondary">
-        {`共 ${treeRows.length} 个顶层频道，${rows.length} 个频道`}
+        {`共 ${treeRows.length} 个顶层频道，${rows.length} 个频道。统计区间：${usageRange?.startTime || '-'} 至 ${usageRange?.endTime || '-'}，在线人数每 15 秒刷新。`}
       </Typography.Paragraph>
 
       <Table
         rowKey={(row) => String(row.id)}
-        loading={loading}
+        loading={loading || usageLoading}
         columns={columns}
         dataSource={treeRows}
-        scroll={{ x: 1180 }}
+        scroll={{ x: 1520 }}
         pagination={false}
         expandable={{ defaultExpandAllRows: true }}
       />

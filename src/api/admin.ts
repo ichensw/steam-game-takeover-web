@@ -212,6 +212,20 @@ export function listKookChannels(params: Query) {
   return unwrap<Record<string, unknown>>(http.get('/admin/kook-channels', { params }));
 }
 
+export type KookChannelUsage = {
+  channelId: string;
+  durationSeconds: number;
+  durationText: string;
+  sessionCount: number;
+  activeUserCount: number;
+};
+
+export function listKookChannelUsageSummary(params: Query) {
+  return unwrap<{ range: { startTime: string; endTime: string }; list: KookChannelUsage[] }>(
+    http.get('/admin/kook-channels/usage-summary', { params }),
+  );
+}
+
 export function getKookChannel(id: React.Key, params?: Query) {
   return unwrap<Record<string, unknown>>(http.get(`/admin/kook-channels/${id}`, { params }));
 }
