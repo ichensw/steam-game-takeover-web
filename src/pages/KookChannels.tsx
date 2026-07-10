@@ -78,7 +78,8 @@ type RoleRow = Record<string, unknown> & {
 
 type DateLike = { format: (template: string) => string };
 type ColumnKey = 'id' | 'name' | 'type' | 'activeUserCount' | 'durationSeconds' | 'sessionCount' | 'level' | 'limitAmount';
-type ColumnPreference = { order: ColumnKey[]; visible: ColumnKey[] };
+type ColumnWidths = Partial<Record<ColumnKey, number>>;
+type ColumnPreference = { order: ColumnKey[]; visible: ColumnKey[]; widths: ColumnWidths };
 type ColumnDefinition = {
   key: ColumnKey;
   title: string;
@@ -90,6 +91,16 @@ const dateTimeFormat = 'YYYY-MM-DD HH:mm:ss';
 const columnPreferenceKey = 'ttw_kook_channel_columns';
 const defaultColumnOrder: ColumnKey[] = ['id', 'name', 'type', 'activeUserCount', 'durationSeconds', 'sessionCount', 'level', 'limitAmount'];
 const defaultVisibleColumns: ColumnKey[] = [...defaultColumnOrder];
+const defaultColumnWidths: Record<ColumnKey, number> = {
+  id: 170,
+  name: 180,
+  type: 90,
+  activeUserCount: 110,
+  durationSeconds: 130,
+  sessionCount: 100,
+  level: 90,
+  limitAmount: 100,
+};
 
 const channelTypeOptions = [
   { value: 0, label: '分组' },
@@ -193,7 +204,7 @@ function cellTooltip(value: unknown) {
   const text = String(value || '-');
   return (
     <Tooltip title={text}>
-      <span>{text}</span>
+      <span className="table-cell-ellipsis">{text}</span>
     </Tooltip>
   );
 }
@@ -203,9 +214,10 @@ function readColumnPreference(): ColumnPreference {
     const saved = JSON.parse(localStorage.getItem(columnPreferenceKey) || '{}') as Partial<ColumnPreference>;
     const order = normalizeColumnOrder(saved.order);
     const visible = normalizeVisibleColumns(saved.visible);
-    return { order, visible };
+    const widths = normalizeColumnWidths(saved.widths);
+    return { order, visible, widths };
   } catch {
-    return { order: defaultColumnOrder, visible: defaultVisibleColumns };
+    return { order: defaultColumnOrder, visible: defaultVisibleColumns, widths: defaultColumnWidths };
   }
 }
 
@@ -219,6 +231,14 @@ function normalizeVisibleColumns(value?: ColumnKey[]) {
   const valid = new Set(defaultColumnOrder);
   const visible = (value || defaultVisibleColumns).filter((key) => valid.has(key));
   return visible.length ? visible : defaultVisibleColumns;
+}
+
+function normalizeColumnWidths(value?: ColumnWidths): ColumnWidths {
+  return defaultColumnOrder.reduce<ColumnWidths>((widths, key) => {
+    const width = Number(value?.[key]);
+    widths[key] = Number.isFinite(width) && width >= 72 ? Math.min(width, 520) : defaultColumnWidths[key];
+    return widths;
+  }, {});
 }
 
 function moveColumn(keys: ColumnKey[], key: ColumnKey, direction: -1 | 1) {
@@ -465,16 +485,15 @@ export default function KookChannels() {
   };
 
   const columnDefinitions: ColumnDefinition[] = [
-    { key: 'id', title: '频道 ID', defaultVisible: true, column: { title: '频道 ID', dataIndex: 'id', width: 170, className: 'mono', ellipsis: true, render: cellTooltip } },
-    { key: 'name', title: '名称', defaultVisible: true, column: { title: '名称', dataIndex: 'name', width: 180, ellipsis: true, render: cellTooltip } },
-    { key: 'type', title: '类型', defaultVisible: true, column: { title: '类型', dataIndex: 'type', width: 90, render: channelType } },
+    { key: 'id', title: '频道 ID', defaultVisible: true, column: { title: '频道 ID', dataIndex: 'id', className: 'mono', ellipsis: true, render: cellTooltip } },
+    { key: 'name', title: '名称', defaultVisible: true, column: { title: '名称', dataIndex: 'name', ellipsis: true, render: cellTooltip } },
+    { key: 'type', title: '类型', defaultVisible: true, column: { title: '类型', dataIndex: 'type', render: channelType } },
     {
       key: 'activeUserCount',
       title: '在线人数',
       defaultVisible: true,
       column: {
         title: '在线人数',
-        width: 110,
         render: (_, row) => {
           const count = rowActiveUserCount(row);
           return count > 0 ? <Tag color="green">{count} 人在线</Tag> : <Tag>0 人</Tag>;
@@ -487,7 +506,6 @@ export default function KookChannels() {
       defaultVisible: true,
       column: {
         title: '使用时长',
-        width: 130,
         render: (_, row) => durationText(rowDurationSeconds(row)),
       },
     },
@@ -497,18 +515,20 @@ export default function KookChannels() {
       defaultVisible: true,
       column: {
         title: '会话数',
-        width: 100,
         render: (_, row) => rowSessionCount(row),
       },
     },
-    { key: 'level', title: '排序', defaultVisible: true, column: { title: '排序', dataIndex: 'level', width: 90 } },
-    { key: 'limitAmount', title: '人数限制', defaultVisible: true, column: { title: '人数限制', width: 100, render: (_, row) => row.limit_amount || row.limitAmount || '-' } },
+    { key: 'level', title: '排序', defaultVisible: true, column: { title: '排序', dataIndex: 'level' } },
+    { key: 'limitAmount', title: '人数限制', defaultVisible: true, column: { title: '人数限制', render: (_, row) => row.limit_amount || row.limitAmount || '-' } },
   ];
 
   const columns: ColumnsType<Row> = [
     ...columnPreference.order
       .filter((key) => columnPreference.visible.includes(key))
-      .map((key) => columnDefinitions.find((item) => item.key === key)?.column)
+      .map((key) => {
+        const definition = columnDefinitions.find((item) => item.key === key);
+        return definition ? { ...definition.column, width: columnPreference.widths[key] || defaultColumnWidths[key] } : undefined;
+      })
       .filter(Boolean) as ColumnsType<Row>,
     {
       title: '操作',
@@ -638,7 +658,7 @@ export default function KookChannels() {
         footer={[
           <Button
             key="reset"
-            onClick={() => saveColumnPreference({ order: defaultColumnOrder, visible: defaultVisibleColumns })}
+            onClick={() => saveColumnPreference({ order: defaultColumnOrder, visible: defaultVisibleColumns, widths: defaultColumnWidths })}
           >
             恢复默认
           </Button>,
@@ -669,6 +689,21 @@ export default function KookChannels() {
                     {definition.title}
                   </Checkbox>
                   <Space>
+                    <InputNumber
+                      aria-label={`${definition.title}列宽`}
+                      addonAfter="px"
+                      min={72}
+                      max={520}
+                      step={10}
+                      value={columnPreference.widths[key] || defaultColumnWidths[key]}
+                      onChange={(value) => {
+                        const widths = normalizeColumnWidths({
+                          ...columnPreference.widths,
+                          [key]: Number(value) || defaultColumnWidths[key],
+                        });
+                        saveColumnPreference({ ...columnPreference, widths });
+                      }}
+                    />
                     <Button
                       aria-label={`${definition.title}上移`}
                       disabled={index === 0}

@@ -196,6 +196,30 @@ select {
   display: none;
 }
 
+.admin-menu .ant-menu-title-content {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.ant-tooltip {
+  max-width: min(82vw, 560px);
+}
+
+.ant-tooltip .ant-tooltip-inner {
+  overflow: hidden;
+  max-width: inherit;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.table-cell-ellipsis {
+  display: block;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
 .sider-footer {
   position: absolute;
   right: 12px;
