@@ -12,6 +12,7 @@ import {
   Select,
   Space,
   Table,
+  Tabs,
   Tag,
   TimePicker,
   Typography,
@@ -21,7 +22,15 @@ import dayjs from 'dayjs';
 import type { ColumnsType, TablePaginationConfig } from 'antd/es/table';
 import type { SorterResult } from 'antd/es/table/interface';
 import { useEffect, useState } from 'react';
-import { createTakeover, deleteTakeover, getTakeover, listKookChannels, listTakeovers, updateTakeover } from '../api/admin';
+import {
+  createTakeover,
+  deleteTakeover,
+  getTakeover,
+  listKookChannels,
+  listTakeoverMemberActivities,
+  listTakeovers,
+  updateTakeover,
+} from '../api/admin';
 import PageHeader from '../components/PageHeader';
 import StatusTag from '../components/StatusTag';
 import { tableCellTooltip, useTableColumnSettings } from '../components/tableColumnSettings';
@@ -49,6 +58,7 @@ type TakeoverRow = Record<string, unknown> & {
   endDate?: string;
   playTime?: string;
   members?: MemberRow[];
+  memberActivities?: MemberActivityRow[];
 };
 type MemberRow = Record<string, unknown> & {
   userId: React.Key;
@@ -59,6 +69,19 @@ type MemberRow = Record<string, unknown> & {
   steamId?: string;
   remark?: string;
   joinedAt?: string;
+};
+type MemberActivityRow = Record<string, unknown> & {
+  id: React.Key;
+  userId: React.Key;
+  nickname?: string;
+  openid?: string;
+  openId?: string;
+  open_id?: string;
+  steamId?: string;
+  remark?: string;
+  action?: number;
+  actionText?: string;
+  createdAt?: string;
 };
 type ChannelOption = { value: string; label: string };
 
@@ -74,6 +97,11 @@ export default function Takeovers() {
   });
   const [detail, setDetail] = useState<TakeoverRow | null>(null);
   const [detailLoading, setDetailLoading] = useState(false);
+  const [activityRows, setActivityRows] = useState<MemberActivityRow[]>([]);
+  const [activityTotal, setActivityTotal] = useState(0);
+  const [activityPage, setActivityPage] = useState(1);
+  const [activityPageSize, setActivityPageSize] = useState(20);
+  const [activityLoading, setActivityLoading] = useState(false);
   const [editorOpen, setEditorOpen] = useState(false);
   const [editing, setEditing] = useState<TakeoverRow | null>(null);
   const [editorSubmitting, setEditorSubmitting] = useState(false);
@@ -144,11 +172,44 @@ export default function Takeovers() {
 
   const openDetail = async (id: React.Key) => {
     setDetailLoading(true);
+    setActivityRows([]);
+    setActivityTotal(0);
+    setActivityPage(1);
     setDetail({ id });
     try {
-      setDetail((await getTakeover(id)) as TakeoverRow);
+      const row = (await getTakeover(id)) as TakeoverRow;
+      setDetail(row);
+      await loadActivities(id, 1, activityPageSize, row.memberActivities || []);
     } finally {
       setDetailLoading(false);
+    }
+  };
+
+  const loadActivities = async (
+    id: React.Key,
+    targetPage = activityPage,
+    targetPageSize = activityPageSize,
+    fallback?: MemberActivityRow[],
+  ) => {
+    setActivityLoading(true);
+    try {
+      const res = await listTakeoverMemberActivities(id, {
+        page: targetPage,
+        pageSize: targetPageSize,
+      });
+      setActivityRows((res.list || res.items || []) as MemberActivityRow[]);
+      setActivityTotal(res.total || 0);
+      setActivityPage(targetPage);
+      setActivityPageSize(responsePageSize(res, targetPageSize));
+    } catch (error) {
+      if (fallback) {
+        setActivityRows(fallback);
+        setActivityTotal(fallback.length);
+      } else {
+        throw error;
+      }
+    } finally {
+      setActivityLoading(false);
     }
   };
 
@@ -365,8 +426,31 @@ export default function Takeovers() {
     { title: '备注', dataIndex: 'remark', ellipsis: true },
     { title: '加入时间', dataIndex: 'joinedAt', width: 170, className: 'mono' },
   ];
+  const activityColumns: ColumnsType<MemberActivityRow> = [
+    { title: '用户', dataIndex: 'nickname', width: 120 },
+    {
+      title: '动作',
+      dataIndex: 'actionText',
+      width: 90,
+      render: (_, row) => (
+        <Tag color={Number(row.action) === 2 ? 'default' : 'blue'}>
+          {row.actionText || (Number(row.action) === 2 ? '退出' : '加入')}
+        </Tag>
+      ),
+    },
+    {
+      title: 'openid',
+      ellipsis: true,
+      className: 'mono',
+      render: (_, row) => tableCellTooltip(row.openid || row.openId || row.open_id || '-'),
+    },
+    { title: 'SteamID', dataIndex: 'steamId', width: 140, className: 'mono' },
+    { title: '备注', dataIndex: 'remark', ellipsis: true },
+    { title: '时间', dataIndex: 'createdAt', width: 170, className: 'mono' },
+  ];
   const tableColumns = useTableColumnSettings('takeovers', columns);
   const memberTableColumns = useTableColumnSettings('takeover-members', memberColumns);
+  const activityTableColumns = useTableColumnSettings('takeover-member-activities', activityColumns);
 
   return (
     <>
@@ -442,14 +526,14 @@ export default function Takeovers() {
       />
       <Drawer
         title="接龙详情"
-        width={720}
+        width={820}
         open={!!detail}
         onClose={() => setDetail(null)}
         loading={detailLoading}
       >
         {detail && (
           <Space direction="vertical" size={18} className="detail-stack">
-            <Descriptions column={2} bordered size="small">
+            <Descriptions column={2} bordered size="small" className="takeover-detail-descriptions">
               <Descriptions.Item label="ID">{detail.id}</Descriptions.Item>
               <Descriptions.Item label="状态">
                 <StatusTag value={detail.statusLabel} />
@@ -474,6 +558,9 @@ export default function Takeovers() {
               <Descriptions.Item label="汇总更新时间">
                 <span className="mono">{detail.summaryUpdatedAt || '-'}</span>
               </Descriptions.Item>
+              <Descriptions.Item label="创建人">
+                {detail.creatorName || '-'}
+              </Descriptions.Item>
               {detail.summaryError && (
                 <Descriptions.Item label="汇总错误" span={2}>
                   <Typography.Text type="danger">{detail.summaryError}</Typography.Text>
@@ -482,10 +569,7 @@ export default function Takeovers() {
               <Descriptions.Item label="人数">
                 {detail.joinedCount ?? 0}/{detail.participantLimit ?? '-'}
               </Descriptions.Item>
-              <Descriptions.Item label="创建人">
-                {detail.creatorName || '-'}
-              </Descriptions.Item>
-              <Descriptions.Item label="时间" span={2}>
+              <Descriptions.Item label="时间">
                 <span className="mono">{detail.scheduleText || '-'}</span>
               </Descriptions.Item>
               <Descriptions.Item label="KOOK频道" span={2}>
@@ -504,13 +588,51 @@ export default function Takeovers() {
                 {detail.description || '-'}
               </Descriptions.Item>
             </Descriptions>
-            <Table<MemberRow>
-              rowKey={(row) => String(row.userId)}
-              size="small"
-              pagination={false}
-              dataSource={detail.members || []}
-              columns={memberTableColumns.columns}
-              scroll={{ x: memberTableColumns.scrollX }}
+            <Tabs
+              items={[
+                {
+                  key: 'members',
+                  label: `成员列表 ${detail.members?.length || 0}`,
+                  children: (
+                    <Table<MemberRow>
+                      rowKey={(row) => String(row.userId)}
+                      size="small"
+                      pagination={false}
+                      dataSource={detail.members || []}
+                      columns={memberTableColumns.columns}
+                      scroll={{ x: memberTableColumns.scrollX }}
+                    />
+                  ),
+                },
+                {
+                  key: 'activities',
+                  label: `进出记录 ${activityTotal || activityRows.length}`,
+                  children: (
+                    <Space direction="vertical" size={10} className="detail-stack">
+                      <div className="table-toolbar">
+                        {activityTableColumns.button}
+                      </div>
+                      <Table<MemberActivityRow>
+                        rowKey={(row) => String(row.id)}
+                        size="small"
+                        loading={activityLoading}
+                        dataSource={activityRows}
+                        columns={activityTableColumns.columns}
+                        scroll={{ x: activityTableColumns.scrollX }}
+                        pagination={{
+                          total: activityTotal,
+                          current: activityPage,
+                          pageSize: activityPageSize,
+                          pageSizeOptions,
+                          showSizeChanger: true,
+                          showTotal: (n) => `共 ${n} 条`,
+                          onChange: (nextPage, nextPageSize) => loadActivities(detail.id, nextPage, nextPageSize),
+                        }}
+                      />
+                    </Space>
+                  ),
+                },
+              ]}
             />
           </Space>
         )}
