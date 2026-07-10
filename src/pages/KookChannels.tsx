@@ -624,10 +624,10 @@ export default function KookChannels() {
 
       <Card className="filter-card">
         <Form form={filterForm} layout="inline" onFinish={applyFilters}>
-          <Form.Item name="keyword">
+          <Form.Item name="keyword" label="频道名称">
             <Input.Search placeholder="搜索频道名称" allowClear />
           </Form.Item>
-          <Form.Item name="usageRange">
+          <Form.Item name="usageRange" label="使用时长区间">
             <DatePicker.RangePicker showTime format={dateTimeFormat} />
           </Form.Item>
           <Space>
