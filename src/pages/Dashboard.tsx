@@ -16,6 +16,7 @@ import {
   getDashboardSummary,
   getKookVoiceStats,
   listFeedbacks,
+  listKookChannels,
   listKookChannelUsageSummary,
   listKookMembers,
   listReports,
@@ -36,6 +37,7 @@ type DashboardData = {
   pendingFeedbacks: PlainRow[];
   kookMemberTotal: number;
   kookUsage: KookChannelUsage[];
+  kookChannelNames: Record<string, string>;
   voiceStats: KookVoiceStats | null;
 };
 
@@ -46,6 +48,7 @@ const emptyData: DashboardData = {
   pendingFeedbacks: [],
   kookMemberTotal: 0,
   kookUsage: [],
+  kookChannelNames: {},
   voiceStats: null,
 };
 
@@ -89,6 +92,18 @@ function topUsagePercent(value: number, max: number) {
   return Math.max(4, Math.round((value / max) * 100));
 }
 
+function listRows(data: Record<string, unknown>) {
+  return ((data.list || data.items || []) as PlainRow[]);
+}
+
+function channelId(row: PlainRow) {
+  return String(row.id || row.channel_id || row.channelId || '');
+}
+
+function channelName(row: PlainRow) {
+  return String(row.name || row.channelName || row.channel_name || channelId(row));
+}
+
 export default function Dashboard() {
   const [data, setData] = useState<DashboardData>(emptyData);
   const [loading, setLoading] = useState(true);
@@ -103,6 +118,7 @@ export default function Dashboard() {
         reports,
         feedbacks,
         kookMembers,
+        kookChannels,
         kookUsage,
         voiceStats,
       ] = await Promise.allSettled([
@@ -111,6 +127,7 @@ export default function Dashboard() {
         listReports({ page: 1, pageSize: 5, state: 'pending' }),
         listFeedbacks({ page: 1, page_size: 5, status: 1 }),
         listKookMembers({ page: 1, pageSize: 1 }),
+        listKookChannels({ page: 1, pageSize: 500 }),
         listKookChannelUsageSummary({}),
         getKookVoiceStats({ page: 1, pageSize: 6 }),
       ]);
@@ -121,6 +138,9 @@ export default function Dashboard() {
         pendingReports: reports.status === 'fulfilled' ? pageItems(reports.value) : [],
         pendingFeedbacks: feedbacks.status === 'fulfilled' ? pageItems(feedbacks.value) : [],
         kookMemberTotal: kookMembers.status === 'fulfilled' ? pageTotal(kookMembers.value) : 0,
+        kookChannelNames: kookChannels.status === 'fulfilled'
+          ? Object.fromEntries(listRows(kookChannels.value).map((row) => [channelId(row), channelName(row)]).filter(([id]) => id))
+          : {},
         kookUsage: kookUsage.status === 'fulfilled' ? kookUsage.value.list || [] : [],
         voiceStats: voiceStats.status === 'fulfilled' ? voiceStats.value : null,
       });
@@ -247,7 +267,10 @@ export default function Dashboard() {
                       <span className="rank-index">{index + 1}</span>
                       <div className="rank-main">
                         <div className="rank-title">
-                          <Typography.Text>{item.channelId}</Typography.Text>
+                          <Space direction="vertical" size={0}>
+                            <Typography.Text>{data.kookChannelNames[item.channelId] || item.channelId}</Typography.Text>
+                            {data.kookChannelNames[item.channelId] && <Typography.Text type="secondary" className="mono">{item.channelId}</Typography.Text>}
+                          </Space>
                           <Space size={6}>
                             <Tag color={item.activeUserCount ? 'green' : undefined}>{item.activeUserCount || 0} 人在线</Tag>
                             <Tag>{item.sessionCount || 0} 次</Tag>
