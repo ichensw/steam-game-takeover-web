@@ -147,16 +147,22 @@ export function useTableColumnSettings<T extends object>(
   baseColumns: ColumnsType<T>,
   options?: { actionWidth?: number },
 ): ColumnSettings<T> {
-  const definitions = useMemo(() => baseColumns.map((column, index) => {
-    const key = columnKey(column, index);
-    return {
-      key,
-      title: columnTitle(column, key),
-      column,
-      defaultVisible: true,
-      defaultWidth: normalizeWidth(column.width, options?.actionWidth || 160),
-    };
-  }), [baseColumns, options?.actionWidth]);
+  const definitions = useMemo(() => {
+    const keyCounts = new Map<string, number>();
+    return baseColumns.map((column, index) => {
+      const baseKey = columnKey(column, index);
+      const count = keyCounts.get(baseKey) || 0;
+      keyCounts.set(baseKey, count + 1);
+      const key = count > 0 ? `${baseKey}_${index}` : baseKey;
+      return {
+        key,
+        title: columnTitle(column, key),
+        column,
+        defaultVisible: true,
+        defaultWidth: normalizeWidth(column.width, options?.actionWidth || 160),
+      };
+    });
+  }, [baseColumns, options?.actionWidth]);
   const storageKey = `ttw_table_columns_${tableKey}`;
   const [open, setOpen] = useState(false);
   const [preference, setPreference] = useState<ColumnPreference>(() => readPreference(storageKey, definitions as ColumnDefinition<object>[]));
