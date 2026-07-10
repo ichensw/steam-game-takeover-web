@@ -558,18 +558,18 @@ export default function Takeovers() {
               <Descriptions.Item label="汇总更新时间">
                 <span className="mono">{detail.summaryUpdatedAt || '-'}</span>
               </Descriptions.Item>
-              <Descriptions.Item label="创建人">
-                {detail.creatorName || '-'}
-              </Descriptions.Item>
               {detail.summaryError && (
                 <Descriptions.Item label="汇总错误" span={2}>
                   <Typography.Text type="danger">{detail.summaryError}</Typography.Text>
                 </Descriptions.Item>
               )}
+              <Descriptions.Item label="创建人">
+                {detail.creatorName || '-'}
+              </Descriptions.Item>
               <Descriptions.Item label="人数">
                 {detail.joinedCount ?? 0}/{detail.participantLimit ?? '-'}
               </Descriptions.Item>
-              <Descriptions.Item label="时间">
+              <Descriptions.Item label="时间" span={2}>
                 <span className="mono">{detail.scheduleText || '-'}</span>
               </Descriptions.Item>
               <Descriptions.Item label="KOOK频道" span={2}>
