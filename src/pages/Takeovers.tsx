@@ -554,11 +554,6 @@ export default function Takeovers() {
                     <Button size="small" onClick={openSummaryModal}>
                       修改
                     </Button>
-                    {Number(detail.takeoverState) !== 2 && (
-                      <Button size="small" onClick={() => openEdit(detail.id)}>
-                        编辑接龙
-                      </Button>
-                    )}
                   </Space>
                 </div>
                 <div className="takeover-detail-label">汇总更新时间</div>
