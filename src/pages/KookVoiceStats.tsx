@@ -15,6 +15,7 @@ import {
   type KookVoiceUsage,
 } from '../api/admin';
 import PageHeader from '../components/PageHeader';
+import { useTableColumnSettings } from '../components/tableColumnSettings';
 import { pageSizeOptions } from '../utils/pagination';
 
 type DateLike = { format: (template: string) => string };
@@ -127,6 +128,10 @@ export default function KookVoiceStats() {
     { title: '本筛选段时长', dataIndex: 'durationText' },
     { title: '状态', dataIndex: 'status', render: sessionStatus },
   ];
+  const userTableColumns = useTableColumnSettings('kook-voice-users', userColumns);
+  const channelTableColumns = useTableColumnSettings('kook-voice-channels', channelColumns);
+  const dailyTableColumns = useTableColumnSettings('kook-voice-daily', dailyColumns);
+  const sessionTableColumns = useTableColumnSettings('kook-voice-sessions', sessionColumns);
 
   const totals = useMemo(() => {
     const channelSeconds = data?.channelStats?.reduce((sum, item) => sum + item.durationSeconds, 0) || 0;
@@ -202,28 +207,28 @@ export default function KookVoiceStats() {
 
       <Row gutter={[16, 16]}>
         <Col xs={24} xl={12}>
-          <Card title="用户维度使用时长">
-            <Table rowKey={(row) => row.kookUserId || displayName(row)} loading={loading} columns={userColumns} dataSource={data?.userStats || []} pagination={false} scroll={{ x: 720 }} />
+          <Card title="用户维度使用时长" extra={userTableColumns.button}>
+            <Table rowKey={(row) => row.kookUserId || displayName(row)} loading={loading} columns={userTableColumns.columns} dataSource={data?.userStats || []} pagination={false} scroll={{ x: userTableColumns.scrollX }} />
           </Card>
         </Col>
         <Col xs={24} xl={12}>
-          <Card title="频道维度总使用时长">
-            <Table rowKey={(row) => row.channelId || channelName(row)} loading={loading} columns={channelColumns} dataSource={data?.channelStats || []} pagination={false} scroll={{ x: 620 }} />
+          <Card title="频道维度总使用时长" extra={channelTableColumns.button}>
+            <Table rowKey={(row) => row.channelId || channelName(row)} loading={loading} columns={channelTableColumns.columns} dataSource={data?.channelStats || []} pagination={false} scroll={{ x: channelTableColumns.scrollX }} />
           </Card>
         </Col>
         <Col xs={24}>
-          <Card title="每日排行榜">
-            <Table rowKey={(row) => `${row.date}-${row.kookUserId}`} loading={loading} columns={dailyColumns} dataSource={data?.dailyRanking || []} pagination={false} scroll={{ x: 760 }} />
+          <Card title="每日排行榜" extra={dailyTableColumns.button}>
+            <Table rowKey={(row) => `${row.date}-${row.kookUserId}`} loading={loading} columns={dailyTableColumns.columns} dataSource={data?.dailyRanking || []} pagination={false} scroll={{ x: dailyTableColumns.scrollX }} />
           </Card>
         </Col>
         <Col xs={24}>
-          <Card title="某个频道某天 / 某时间段在线记录">
+          <Card title="某个频道某天 / 某时间段在线记录" extra={sessionTableColumns.button}>
             <Table
               rowKey={(row) => String(row.id)}
               loading={loading}
-              columns={sessionColumns}
+              columns={sessionTableColumns.columns}
               dataSource={data?.sessions || []}
-              scroll={{ x: 980 }}
+              scroll={{ x: sessionTableColumns.scrollX }}
               pagination={{
                 total: data?.total || 0,
                 current: page,

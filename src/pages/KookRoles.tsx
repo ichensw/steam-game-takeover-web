@@ -26,6 +26,7 @@ import {
 } from '../api/admin';
 import KookMemberSelect from '../components/KookMemberSelect';
 import PageHeader from '../components/PageHeader';
+import { useTableColumnSettings } from '../components/tableColumnSettings';
 import { kookPermissionOptions, permissionBits, permissionText, permissionValue } from '../constants/kookPermissions';
 import { pageSizeOptions, responsePageSize } from '../utils/pagination';
 
@@ -210,13 +211,19 @@ export default function KookRoles() {
       ),
     },
   ];
+  const tableColumns = useTableColumnSettings('kook-roles', columns);
 
   return (
     <>
       <PageHeader
         title="KOOK 角色"
         description="管理 KOOK 服务器角色、权限和成员角色绑定。"
-        extra={<Button type="primary" onClick={openCreate}>创建角色</Button>}
+        extra={(
+          <Space>
+            {tableColumns.button}
+            <Button type="primary" onClick={openCreate}>创建角色</Button>
+          </Space>
+        )}
       />
       <Card className="filter-card">
         <Form form={filterForm} layout="inline" onValuesChange={() => setRows([...rows])}>
@@ -229,9 +236,9 @@ export default function KookRoles() {
       <Table
         rowKey={(row) => String(roleId(row))}
         loading={loading}
-        columns={columns}
+        columns={tableColumns.columns}
         dataSource={filteredRows}
-        scroll={{ x: 1320 }}
+        scroll={{ x: tableColumns.scrollX }}
         pagination={{
           total,
           current: page,

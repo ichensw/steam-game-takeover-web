@@ -20,6 +20,7 @@ import type { ColumnsType } from 'antd/es/table';
 import { useEffect, useState } from 'react';
 import { approveReport, getReport, listReports, rejectReport } from '../api/admin';
 import PageHeader from '../components/PageHeader';
+import { useTableColumnSettings } from '../components/tableColumnSettings';
 import { pageSizeOptions, responsePageSize } from '../utils/pagination';
 
 type DateLike = { format: (template: string) => string };
@@ -210,10 +211,11 @@ export default function Reports() {
       ),
     },
   ];
+  const tableColumns = useTableColumnSettings('reports', columns);
 
   return (
     <>
-      <PageHeader title="举报审核" description="查看接龙成员举报，审核后扣除信誉分或驳回。" />
+      <PageHeader title="举报审核" description="查看接龙成员举报，审核后扣除信誉分或驳回。" extra={tableColumns.button} />
       <Card className="filter-card">
         <Form form={form} layout="inline" onFinish={() => load(1)}>
           <Form.Item name="keyword">
@@ -234,9 +236,9 @@ export default function Reports() {
       <Table
         rowKey={(row) => String(row.id)}
         loading={loading}
-        columns={columns}
+        columns={tableColumns.columns}
         dataSource={rows}
-        scroll={{ x: 1480 }}
+        scroll={{ x: tableColumns.scrollX }}
         pagination={{
           total,
           current: page,

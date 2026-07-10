@@ -42,6 +42,7 @@ import {
 import KookMemberSelect from '../components/KookMemberSelect';
 import KookRoleSelect from '../components/KookRoleSelect';
 import PageHeader from '../components/PageHeader';
+import { useTableColumnSettings } from '../components/tableColumnSettings';
 import { kookPermissionOptions, permissionText, permissionValue } from '../constants/kookPermissions';
 
 type Row = Record<string, unknown> & {
@@ -598,6 +599,8 @@ export default function KookChannels() {
       ),
     },
   ];
+  const userTableColumns = useTableColumnSettings('kook-channel-users', userColumns);
+  const roleTableColumns = useTableColumnSettings('kook-channel-roles', roleColumns);
 
   const roleRows = [
     ...((roles?.permission_overwrites || []) as RoleRow[]),
@@ -777,20 +780,23 @@ export default function KookChannels() {
       </Drawer>
 
       <Drawer title={`语音成员 - ${usersTarget ? rowName(usersTarget) : ''}`} width={760} open={!!usersTarget} onClose={() => setUsersTarget(null)}>
-        <Form form={moveForm} layout="inline" onFinish={moveUsers}>
-          <Form.Item name="userIds" rules={[{ required: true, message: '请输入用户 ID' }]}>
-            <KookMemberSelect mode="multiple" placeholder="搜索并选择用户" style={{ width: 360 }} />
-          </Form.Item>
-          <Button type="primary" htmlType="submit">移动到当前频道</Button>
-        </Form>
+        <Space align="start" wrap>
+          {userTableColumns.button}
+          <Form form={moveForm} layout="inline" onFinish={moveUsers}>
+            <Form.Item name="userIds" rules={[{ required: true, message: '请输入用户 ID' }]}>
+              <KookMemberSelect mode="multiple" placeholder="搜索并选择用户" style={{ width: 360 }} />
+            </Form.Item>
+            <Button type="primary" htmlType="submit">移动到当前频道</Button>
+          </Form>
+        </Space>
         <Table
           style={{ marginTop: 16 }}
           rowKey={(row) => String(row.id)}
           loading={usersLoading}
-          columns={userColumns}
+          columns={userTableColumns.columns}
           dataSource={users}
           pagination={false}
-          scroll={{ x: 760 }}
+          scroll={{ x: userTableColumns.scrollX }}
         />
       </Drawer>
 
@@ -809,6 +815,7 @@ export default function KookChannels() {
               children: (
                 <>
                   <Space style={{ marginBottom: 12 }}>
+                    {roleTableColumns.button}
                     <Button onClick={refreshRoles} loading={rolesLoading}>刷新</Button>
                     <Button onClick={syncRoles}>同步分组权限</Button>
                     <Typography.Text type="secondary">同步状态：{String(roles?.permission_sync ?? '-')}</Typography.Text>
@@ -816,9 +823,10 @@ export default function KookChannels() {
                   <Table
                     rowKey={roleKey}
                     loading={rolesLoading}
-                    columns={roleColumns}
+                    columns={roleTableColumns.columns}
                     dataSource={roleRows}
                     pagination={false}
+                    scroll={{ x: roleTableColumns.scrollX }}
                   />
                 </>
               ),

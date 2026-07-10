@@ -30,6 +30,7 @@ import {
 } from '../api/admin';
 import PageHeader from '../components/PageHeader';
 import StatusTag from '../components/StatusTag';
+import { useTableColumnSettings } from '../components/tableColumnSettings';
 import { pageSizeOptions, responsePageSize } from '../utils/pagination';
 
 type AnnouncementRow = Record<string, unknown> & {
@@ -225,17 +226,21 @@ export default function Announcements() {
       ),
     },
   ];
+  const tableColumns = useTableColumnSettings('announcements', columns);
 
   return (
     <>
       <PageHeader
         title="公告管理"
         description="发布站内公告，用户进入小程序时会看到未读公告。"
-        extra={
-          <Button type="primary" onClick={openCreate}>
-            新增公告
-          </Button>
-        }
+        extra={(
+          <Space>
+            {tableColumns.button}
+            <Button type="primary" onClick={openCreate}>
+              新增公告
+            </Button>
+          </Space>
+        )}
       />
       <Card className="filter-card">
         <Form form={filterForm} layout="inline" onFinish={() => load(1)}>
@@ -258,9 +263,9 @@ export default function Announcements() {
       <Table
         rowKey={(row) => String(row.id)}
         loading={loading}
-        columns={columns}
+        columns={tableColumns.columns}
         dataSource={rows}
-        scroll={{ x: 1080 }}
+        scroll={{ x: tableColumns.scrollX }}
         pagination={{
           total,
           current: page,

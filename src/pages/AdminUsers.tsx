@@ -4,6 +4,7 @@ import { useEffect, useState } from 'react';
 import { createAdminUser, listAdminUsers, listRoleMenus, updateAdminUser, updateRoleMenus } from '../api/admin';
 import { ADMIN_ROLE_ADMIN, ADMIN_ROLE_KOOK_ADMIN, ADMIN_ROLE_SUPER_ADMIN } from '../auth';
 import PageHeader from '../components/PageHeader';
+import { useTableColumnSettings } from '../components/tableColumnSettings';
 import { pageSizeOptions, responsePageSize } from '../utils/pagination';
 
 type AdminUserRow = Record<string, unknown> & {
@@ -163,6 +164,7 @@ export default function AdminUsers() {
       render: (_, row) => <Button type="link" onClick={() => openCreate(row)}>编辑</Button>,
     },
   ];
+  const tableColumns = useTableColumnSettings('admin-users', columns);
 
   return (
     <>
@@ -171,6 +173,7 @@ export default function AdminUsers() {
         description="查看后台管理员账号并分配后台权限。"
         extra={
           <Space>
+            {tableColumns.button}
             <Button onClick={openRoleMenus}>角色菜单</Button>
             <Button type="primary" onClick={() => openCreate()}>
               新增管理员
@@ -219,9 +222,9 @@ export default function AdminUsers() {
       <Table
         rowKey={(row) => String(row.id)}
         loading={loading}
-        columns={columns}
+        columns={tableColumns.columns}
         dataSource={rows}
-        scroll={{ x: 1040 }}
+        scroll={{ x: tableColumns.scrollX }}
         pagination={{
           total,
           current: page,

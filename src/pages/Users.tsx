@@ -27,6 +27,7 @@ import {
 } from '../api/admin';
 import PageHeader from '../components/PageHeader';
 import StatusTag from '../components/StatusTag';
+import { useTableColumnSettings } from '../components/tableColumnSettings';
 import { pageSizeOptions, responsePageSize } from '../utils/pagination';
 
 type UserRow = Record<string, unknown> & {
@@ -252,6 +253,7 @@ export default function Users() {
       ),
     },
   ];
+  const tableColumns = useTableColumnSettings('users', columns);
 
   return (
     <>
@@ -260,6 +262,7 @@ export default function Users() {
         description="查询小程序用户、白名单、封禁和信誉状态。"
         extra={
           <Space>
+            {tableColumns.button}
             <Button disabled={!selectedRowKeys.length} onClick={() => setTakeoverView(true)}>
               开放查看全部接龙
             </Button>
@@ -323,10 +326,10 @@ export default function Users() {
         rowKey={(row) => String(row.id)}
         rowSelection={{ selectedRowKeys, onChange: setSelectedRowKeys }}
         loading={loading}
-        columns={columns}
+        columns={tableColumns.columns}
         dataSource={rows}
         onChange={onTableChange}
-        scroll={{ x: 1310 }}
+        scroll={{ x: tableColumns.scrollX }}
         pagination={{
           total,
           current: page,

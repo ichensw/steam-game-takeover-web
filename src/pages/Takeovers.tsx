@@ -19,6 +19,7 @@ import { useEffect, useState } from 'react';
 import { deleteTakeover, getTakeover, listTakeovers } from '../api/admin';
 import PageHeader from '../components/PageHeader';
 import StatusTag from '../components/StatusTag';
+import { tableCellTooltip, useTableColumnSettings } from '../components/tableColumnSettings';
 import { pageSizeOptions, responsePageSize } from '../utils/pagination';
 
 type DateLike = { format: (template: string) => string };
@@ -196,10 +197,24 @@ export default function Takeovers() {
       ),
     },
   ];
+  const memberColumns: ColumnsType<MemberRow> = [
+    { title: '用户', dataIndex: 'nickname', width: 120 },
+    {
+      title: 'openid',
+      ellipsis: true,
+      className: 'mono',
+      render: (_, row) => tableCellTooltip(row.openid || row.openId || row.open_id || '-'),
+    },
+    { title: 'SteamID', dataIndex: 'steamId', width: 140, className: 'mono' },
+    { title: '备注', dataIndex: 'remark', ellipsis: true },
+    { title: '加入时间', dataIndex: 'joinedAt', width: 170, className: 'mono' },
+  ];
+  const tableColumns = useTableColumnSettings('takeovers', columns);
+  const memberTableColumns = useTableColumnSettings('takeover-members', memberColumns);
 
   return (
     <>
-      <PageHeader title="接龙管理" description="查询、筛选和维护管理员侧接龙数据。" />
+      <PageHeader title="接龙管理" description="查询、筛选和维护管理员侧接龙数据。" extra={tableColumns.button} />
       <Card className="filter-card">
         <Form form={form} layout="inline" onFinish={() => load(1)}>
           <Form.Item name="keyword">
@@ -247,10 +262,10 @@ export default function Takeovers() {
       <Table
         rowKey={(row) => String(row.id)}
         loading={loading}
-        columns={columns}
+        columns={tableColumns.columns}
         dataSource={rows}
         onChange={onTableChange}
-        scroll={{ x: 980 }}
+        scroll={{ x: tableColumns.scrollX }}
         pagination={{
           total,
           current: page,
@@ -307,18 +322,8 @@ export default function Takeovers() {
               size="small"
               pagination={false}
               dataSource={detail.members || []}
-              columns={[
-                { title: '用户', dataIndex: 'nickname', width: 120 },
-                {
-                  title: 'openid',
-                  ellipsis: true,
-                  className: 'mono',
-                  render: (_, row) => row.openid || row.openId || row.open_id || '-',
-                },
-                { title: 'SteamID', dataIndex: 'steamId', width: 140, className: 'mono' },
-                { title: '备注', dataIndex: 'remark', ellipsis: true },
-                { title: '加入时间', dataIndex: 'joinedAt', width: 170, className: 'mono' },
-              ]}
+              columns={memberTableColumns.columns}
+              scroll={{ x: memberTableColumns.scrollX }}
             />
           </Space>
         )}

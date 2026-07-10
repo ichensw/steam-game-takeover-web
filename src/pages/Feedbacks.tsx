@@ -20,6 +20,7 @@ import { useEffect, useState } from 'react';
 import { getFeedback, listFeedbacks, updateFeedbackStatus } from '../api/admin';
 import PageHeader from '../components/PageHeader';
 import StatusTag from '../components/StatusTag';
+import { useTableColumnSettings } from '../components/tableColumnSettings';
 import { pageSizeOptions, responsePageSize } from '../utils/pagination';
 
 type DateLike = { format: (template: string) => string };
@@ -210,10 +211,11 @@ export default function Feedbacks() {
       ),
     },
   ];
+  const tableColumns = useTableColumnSettings('feedbacks', columns);
 
   return (
     <>
-      <PageHeader title="反馈管理" description="查看用户意见反馈，并更新采纳状态。" />
+      <PageHeader title="反馈管理" description="查看用户意见反馈，并更新采纳状态。" extra={tableColumns.button} />
       <Card className="filter-card">
         <Form form={form} layout="inline" onFinish={() => load(1)}>
           <Form.Item name="keyword">
@@ -254,9 +256,9 @@ export default function Feedbacks() {
       <Table
         rowKey={(row) => String(row.id)}
         loading={loading}
-        columns={columns}
+        columns={tableColumns.columns}
         dataSource={rows}
-        scroll={{ x: 1080 }}
+        scroll={{ x: tableColumns.scrollX }}
         pagination={{
           total,
           current: page,

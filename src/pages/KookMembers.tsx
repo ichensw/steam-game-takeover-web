@@ -32,6 +32,7 @@ import {
 } from '../api/admin';
 import KookRoleSelect from '../components/KookRoleSelect';
 import PageHeader from '../components/PageHeader';
+import { useTableColumnSettings } from '../components/tableColumnSettings';
 import { permissionText } from '../constants/kookPermissions';
 import { pageSizeOptions, responsePageSize } from '../utils/pagination';
 
@@ -329,6 +330,7 @@ export default function KookMembers() {
       ),
     },
   ];
+  const tableColumns = useTableColumnSettings('kook-members', columns);
 
   return (
     <>
@@ -337,6 +339,7 @@ export default function KookMembers() {
         description="同步、查询和维护 KOOK 服务器成员及黑名单状态。"
         extra={
           <Space>
+            {tableColumns.button}
             <Button onClick={syncMembers} loading={syncing}>
               同步 KOOK 成员
             </Button>
@@ -374,9 +377,9 @@ export default function KookMembers() {
       <Table
         rowKey={(row) => String(row.id)}
         loading={loading}
-        columns={columns}
+        columns={tableColumns.columns}
         dataSource={rows}
-        scroll={{ x: 1960 }}
+        scroll={{ x: tableColumns.scrollX }}
         pagination={{
           total,
           current: page,
