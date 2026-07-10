@@ -121,7 +121,7 @@ function trimEmptyChildren(row: Row): Row {
   return children?.length ? { ...row, children } : { ...row, children: undefined };
 }
 
-function buildChannelTree(rows: Row[], filters: { keyword?: string; type?: number; parentId?: string }) {
+function buildChannelTree(rows: Row[], filters: { keyword?: string }) {
   const byId = new Map<string, Row>();
   rows.forEach((row) => byId.set(String(row.id), { ...row, children: [] }));
 
@@ -129,14 +129,12 @@ function buildChannelTree(rows: Row[], filters: { keyword?: string; type?: numbe
   const keyword = String(filters.keyword || '').trim().toLowerCase();
   rows.forEach((row) => {
     const keywordMatched = !keyword || String(row.name || '').toLowerCase().includes(keyword);
-    const typeMatched = filters.type === undefined || Number(row.type) === Number(filters.type);
-    const parentMatched = !filters.parentId || parentIdOf(row) === String(filters.parentId).trim();
-    if (!keywordMatched || !typeMatched || !parentMatched) return;
+    if (!keywordMatched) return;
     for (let current: Row | undefined = row; current; current = byId.get(parentIdOf(current))) {
       matched.add(String(current.id));
     }
   });
-  if (matched.size === 0 && filters.type === undefined && !filters.parentId) {
+  if (matched.size === 0) {
     rows.forEach((row) => matched.add(String(row.id)));
   }
 
@@ -193,7 +191,7 @@ export default function KookChannels() {
   const [usageByChannel, setUsageByChannel] = useState<Record<string, KookChannelUsage>>({});
   const [usageRange, setUsageRange] = useState<{ startTime: string; endTime: string } | null>(null);
   const [usageLoading, setUsageLoading] = useState(false);
-  const [filters, setFilters] = useState<{ keyword?: string; type?: number; parentId?: string }>({});
+  const [filters, setFilters] = useState<{ keyword?: string }>({});
   const [loading, setLoading] = useState(false);
   const [drawerOpen, setDrawerOpen] = useState(false);
   const [editing, setEditing] = useState<Row | null>(null);
@@ -244,8 +242,6 @@ export default function KookChannels() {
   const applyFilters = async (values: Record<string, unknown>) => {
     setFilters({
       keyword: values.keyword as string | undefined,
-      type: values.type as number | undefined,
-      parentId: values.parentId as string | undefined,
     });
     await loadUsage();
   };
@@ -411,14 +407,6 @@ export default function KookChannels() {
     { title: '名称', dataIndex: 'name', width: 180, ellipsis: true },
     { title: '类型', dataIndex: 'type', width: 90, render: channelType },
     {
-      title: '父分组 ID',
-      width: 170,
-      className: 'mono',
-      render: (_, row) => row.parent_id || row.parentId || '-',
-    },
-    { title: '排序', dataIndex: 'level', width: 90 },
-    { title: '人数限制', width: 100, render: (_, row) => row.limit_amount || row.limitAmount || '-' },
-    {
       title: '在线人数',
       width: 110,
       render: (_, row) => {
@@ -436,6 +424,8 @@ export default function KookChannels() {
       width: 100,
       render: (_, row) => rowSessionCount(row),
     },
+    { title: '排序', dataIndex: 'level', width: 90 },
+    { title: '人数限制', width: 100, render: (_, row) => row.limit_amount || row.limitAmount || '-' },
     {
       title: '操作',
       width: 340,
@@ -527,12 +517,6 @@ export default function KookChannels() {
           <Form.Item name="keyword">
             <Input.Search placeholder="搜索频道名称" allowClear />
           </Form.Item>
-          <Form.Item name="type">
-            <Select placeholder="频道类型" allowClear style={{ width: 130 }} options={channelTypeOptions} />
-          </Form.Item>
-          <Form.Item name="parentId">
-            <Input placeholder="父分组 ID" allowClear className="mono" />
-          </Form.Item>
           <Form.Item name="usageRange">
             <DatePicker.RangePicker showTime format={dateTimeFormat} />
           </Form.Item>
@@ -552,7 +536,7 @@ export default function KookChannels() {
         loading={loading || usageLoading}
         columns={columns}
         dataSource={treeRows}
-        scroll={{ x: 1520 }}
+        scroll={{ x: 1260 }}
         pagination={false}
         expandable={{ defaultExpandAllRows: true }}
       />
