@@ -267,10 +267,7 @@ export default function Dashboard() {
                       <span className="rank-index">{index + 1}</span>
                       <div className="rank-main">
                         <div className="rank-title">
-                          <Space direction="vertical" size={0}>
-                            <Typography.Text>{data.kookChannelNames[item.channelId] || item.channelId}</Typography.Text>
-                            {data.kookChannelNames[item.channelId] && <Typography.Text type="secondary" className="mono">{item.channelId}</Typography.Text>}
-                          </Space>
+                          <Typography.Text>{data.kookChannelNames[item.channelId] || item.channelId}</Typography.Text>
                           <Space size={6}>
                             <Tag color={item.activeUserCount ? 'green' : undefined}>{item.activeUserCount || 0} 人在线</Tag>
                             <Tag>{item.sessionCount || 0} 次</Tag>
