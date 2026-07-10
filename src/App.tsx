@@ -11,6 +11,7 @@ const KookChannels = lazy(() => import('./pages/KookChannels'));
 const KookMembers = lazy(() => import('./pages/KookMembers'));
 const KookRoles = lazy(() => import('./pages/KookRoles'));
 const KookUsers = lazy(() => import('./pages/KookUsers'));
+const KookVoiceStats = lazy(() => import('./pages/KookVoiceStats'));
 const Login = lazy(() => import('./pages/Login'));
 const Reports = lazy(() => import('./pages/Reports'));
 const Settings = lazy(() => import('./pages/Settings'));
@@ -53,6 +54,7 @@ export default function App() {
             <Route path="kook-roles" element={<KookRoles />} />
             <Route path="kook-members" element={<KookMembers />} />
             <Route path="kook-users" element={<KookUsers />} />
+            <Route path="kook-voice-stats" element={<KookVoiceStats />} />
             <Route path="feedbacks" element={<Feedbacks />} />
             <Route path="announcements" element={<Announcements />} />
             <Route path="settings" element={<Settings />} />

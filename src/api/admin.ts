@@ -306,6 +306,51 @@ export function getKookBotOnlineStatus() {
   return unwrap<Record<string, unknown>>(http.get('/admin/kook-users/bot/online-status'));
 }
 
+export type KookVoiceUsage = {
+  guildId?: string;
+  channelId?: string;
+  channelName?: string;
+  kookUserId?: string;
+  username?: string;
+  nickname?: string;
+  date?: string;
+  durationSeconds: number;
+  durationText: string;
+  sessionCount: number;
+  lastJoinedAt?: string;
+};
+
+export type KookVoiceSession = {
+  id: React.Key;
+  guildId: string;
+  channelId: string;
+  channelName?: string;
+  kookUserId: string;
+  username?: string;
+  nickname?: string;
+  joinedAt: string;
+  exitedAt?: string;
+  durationSeconds: number;
+  durationText: string;
+  status: string;
+  source: string;
+};
+
+export type KookVoiceStats = {
+  range: { startTime: string; endTime: string };
+  userStats: KookVoiceUsage[];
+  channelStats: KookVoiceUsage[];
+  dailyRanking: KookVoiceUsage[];
+  sessions: KookVoiceSession[];
+  total: number;
+  page: number;
+  pageSize: number;
+};
+
+export function getKookVoiceStats(params: Query) {
+  return unwrap<KookVoiceStats>(http.get('/admin/kook-voice/stats', { params }));
+}
+
 export function uploadAdminImage(file: File) {
   const data = new FormData();
   data.append('file', file);

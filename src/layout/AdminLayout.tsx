@@ -1,6 +1,7 @@
 import {
   AlertOutlined,
   AppstoreOutlined,
+  BarChartOutlined,
   BellOutlined,
   CrownOutlined,
   DashboardOutlined,
@@ -47,7 +48,7 @@ const buildMenuItems = (visibleKeys?: string[]): MenuItem[] => {
       ...(can('admin-users') ? [{ key: '/admin-users', icon: <UserOutlined />, label: '管理员账号' }] : []),
     ],
   } as MenuItem] : []),
-  ...((can('kook-channels') || can('kook-roles') || can('kook-members') || can('kook-users')) ? [{
+  ...((can('kook-channels') || can('kook-roles') || can('kook-members') || can('kook-users') || can('kook-voice-stats')) ? [{
         key: 'kook-group',
         icon: <AppstoreOutlined />,
         label: 'KOOK',
@@ -56,6 +57,7 @@ const buildMenuItems = (visibleKeys?: string[]): MenuItem[] => {
           ...(can('kook-roles') ? [{ key: '/kook-roles', icon: <CrownOutlined />, label: 'KOOK 角色' }] : []),
           ...(can('kook-members') ? [{ key: '/kook-members', icon: <TeamOutlined />, label: 'KOOK 成员' }] : []),
           ...(can('kook-users') ? [{ key: '/kook-users', icon: <UserOutlined />, label: 'KOOK 用户' }] : []),
+          ...(can('kook-voice-stats') ? [{ key: '/kook-voice-stats', icon: <BarChartOutlined />, label: '语音统计' }] : []),
         ],
       } as MenuItem] : []),
   ...((can('feedbacks') || can('announcements')) ? [{
@@ -85,6 +87,7 @@ const openKeyByPath: Record<string, string> = {
   '/kook-roles': 'kook-group',
   '/kook-members': 'kook-group',
   '/kook-users': 'kook-group',
+  '/kook-voice-stats': 'kook-group',
   '/feedbacks': 'content-group',
   '/announcements': 'content-group',
 };
