@@ -19,7 +19,7 @@ import type { RcFile, UploadProps } from 'antd/es/upload/interface';
 import { useState } from 'react';
 import { Outlet, useLocation, useNavigate } from 'react-router-dom';
 import { adminLogout, getAdminMe, updateAdminMe, updateAdminPassword, uploadAdminImage } from '../api/admin';
-import { ADMIN_PERMISSION_KOOK_MANAGE, clearSession, getAdmin, getToken, hasAdminPermission, setSession } from '../auth';
+import { ADMIN_ROLE_KOOK_ADMIN, ADMIN_ROLE_SUPER_ADMIN, clearSession, getAdmin, getToken, hasAdminRole, setSession } from '../auth';
 import type { AdminUser } from '../auth';
 
 type MenuItem = Required<MenuProps>['items'][number];
@@ -108,7 +108,7 @@ export default function AdminLayout() {
   const [profileForm] = Form.useForm();
   const [passwordForm] = Form.useForm();
   const avatarUrl = Form.useWatch('avatarUrl', profileForm) as string | undefined;
-  const menuItems = buildMenuItems(hasAdminPermission(admin, ADMIN_PERMISSION_KOOK_MANAGE), Boolean(admin?.isSuperAdmin || admin?.username === 'admin'));
+  const menuItems = buildMenuItems(hasAdminRole(admin, ADMIN_ROLE_KOOK_ADMIN), hasAdminRole(admin, ADMIN_ROLE_SUPER_ADMIN));
   const availableItems = flatMenuItems(menuItems);
   const selectedKey = `/${location.pathname.split('/')[1] || 'dashboard'}`;
   const currentLabel = menuItemLabel(availableItems.find((item) => item?.key === selectedKey));

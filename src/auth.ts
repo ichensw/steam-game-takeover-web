@@ -7,14 +7,14 @@ export type AdminUser = {
   nickname?: string;
   avatarUrl?: string;
   role?: string;
-  permissions?: string[];
-  isSuperAdmin?: boolean;
 };
 
-export const ADMIN_PERMISSION_KOOK_MANAGE = 'kook:manage';
+export const ADMIN_ROLE_SUPER_ADMIN = 'super_admin';
+export const ADMIN_ROLE_KOOK_ADMIN = 'kook_admin';
+export const ADMIN_ROLE_ADMIN = 'admin';
 
-export function hasAdminPermission(admin: AdminUser | null, permission: string) {
-  return Boolean(admin?.isSuperAdmin || admin?.username === 'admin' || admin?.permissions?.includes(permission));
+export function hasAdminRole(admin: AdminUser | null, ...roles: string[]) {
+  return Boolean(admin?.role === ADMIN_ROLE_SUPER_ADMIN || roles.includes(admin?.role || ''));
 }
 
 export function getToken() {

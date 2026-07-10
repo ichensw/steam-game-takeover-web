@@ -2,7 +2,7 @@ import { Button, Card, Drawer, Form, Input, Select, Space, Switch, Table, Tag, A
 import type { ColumnsType } from 'antd/es/table';
 import { useEffect, useState } from 'react';
 import { createAdminUser, listAdminUsers, updateAdminUser } from '../api/admin';
-import { ADMIN_PERMISSION_KOOK_MANAGE } from '../auth';
+import { ADMIN_ROLE_ADMIN, ADMIN_ROLE_KOOK_ADMIN, ADMIN_ROLE_SUPER_ADMIN } from '../auth';
 import PageHeader from '../components/PageHeader';
 import { pageSizeOptions, responsePageSize } from '../utils/pagination';
 
@@ -13,10 +13,17 @@ type AdminUserRow = Record<string, unknown> & {
   avatarUrl?: string;
   enabled?: boolean;
   role?: string;
-  permissions?: string[];
   lastLoginTime?: string;
   createdAt?: string;
 };
+
+const roleOptions = [
+  { value: ADMIN_ROLE_SUPER_ADMIN, label: '超级管理员' },
+  { value: ADMIN_ROLE_KOOK_ADMIN, label: 'Kook 管理员' },
+  { value: ADMIN_ROLE_ADMIN, label: '普通管理员' },
+];
+
+const roleLabel = (role?: string) => roleOptions.find((item) => item.value === role)?.label || '普通管理员';
 
 export default function AdminUsers() {
   const [rows, setRows] = useState<AdminUserRow[]>([]);
@@ -30,8 +37,6 @@ export default function AdminUsers() {
   const [form] = Form.useForm();
   const { message } = AntApp.useApp();
   const editingId = Form.useWatch('id', form);
-  const editingUsername = Form.useWatch('username', form);
-  const editingDefaultAdmin = editingUsername === 'admin';
 
   const load = async (targetPage = page, targetPageSize = pageSize) => {
     setLoading(true);
@@ -65,20 +70,18 @@ export default function AdminUsers() {
       username: row.username,
       nickname: row.nickname,
       enabled: row.enabled,
-      role: row.username === 'admin' ? 'super_admin' : row.role || 'admin',
-      permissions: row.username === 'admin' ? [] : row.permissions || [],
-    } : { role: 'admin', permissions: [], enabled: true });
+      role: row.role || ADMIN_ROLE_ADMIN,
+    } : { role: ADMIN_ROLE_ADMIN, enabled: true });
     setDrawerOpen(true);
   };
 
-  const save = async (values: { id?: React.Key; username: string; password?: string; nickname?: string; role?: string; permissions?: string[]; enabled?: boolean }) => {
+  const save = async (values: { id?: React.Key; username: string; password?: string; nickname?: string; role?: string; enabled?: boolean }) => {
     setSubmitting(true);
     try {
       const payload = {
         password: values.password?.trim() || '',
         nickname: values.nickname?.trim() || '',
-        role: values.role || 'admin',
-        permissions: values.permissions || [],
+        role: values.role || ADMIN_ROLE_ADMIN,
         enabled: values.enabled ?? true,
       };
       if (values.id) {
@@ -114,13 +117,10 @@ export default function AdminUsers() {
       title: '角色',
       dataIndex: 'role',
       width: 120,
-      render: (_, row) => (row.role === 'super_admin' || row.username === 'admin' ? <Tag color="gold">最高权限</Tag> : <Tag>管理员</Tag>),
-    },
-    {
-      title: '权限',
-      dataIndex: 'permissions',
-      width: 180,
-      render: (value) => (Array.isArray(value) && value.includes(ADMIN_PERMISSION_KOOK_MANAGE) ? <Tag color="blue">KOOK 管理</Tag> : '-'),
+      render: (value) => {
+        const color = value === ADMIN_ROLE_SUPER_ADMIN ? 'gold' : value === ADMIN_ROLE_KOOK_ADMIN ? 'blue' : 'default';
+        return <Tag color={color}>{roleLabel(String(value || ADMIN_ROLE_ADMIN))}</Tag>;
+      },
     },
     {
       title: '最后登录',
@@ -198,7 +198,7 @@ export default function AdminUsers() {
         loading={loading}
         columns={columns}
         dataSource={rows}
-        scroll={{ x: 1220 }}
+        scroll={{ x: 1040 }}
         pagination={{
           total,
           current: page,
@@ -236,22 +236,11 @@ export default function AdminUsers() {
           </Form.Item>
           <Form.Item label="角色" name="role">
             <Select
-              options={[
-                { value: 'admin', label: '管理员' },
-                { value: 'super_admin', label: '最高权限' },
-              ]}
-              disabled={editingDefaultAdmin}
-            />
-          </Form.Item>
-          <Form.Item label="权限" name="permissions">
-            <Select
-              mode="multiple"
-              options={[{ value: ADMIN_PERMISSION_KOOK_MANAGE, label: 'KOOK 频道管理' }]}
-              disabled={editingDefaultAdmin}
+              options={roleOptions}
             />
           </Form.Item>
           <Form.Item label="启用" name="enabled" valuePropName="checked">
-            <Switch disabled={editingDefaultAdmin} />
+            <Switch />
           </Form.Item>
           <Space>
             <Button type="primary" htmlType="submit" loading={submitting}>

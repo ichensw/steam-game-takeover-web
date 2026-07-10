@@ -32,11 +32,11 @@ export function listAdminUsers(params: Query) {
   );
 }
 
-export function createAdminUser(values: { username: string; password: string; nickname?: string; role?: string; permissions?: string[] }) {
+export function createAdminUser(values: { username: string; password: string; nickname?: string; role?: string }) {
   return unwrap<Record<string, unknown>>(http.post('/admin/admin-users', values));
 }
 
-export function updateAdminUser(id: React.Key, values: { password?: string; nickname?: string; role?: string; permissions?: string[]; enabled?: boolean }) {
+export function updateAdminUser(id: React.Key, values: { password?: string; nickname?: string; role?: string; enabled?: boolean }) {
   return unwrap<Record<string, unknown>>(http.put(`/admin/admin-users/${id}`, values));
 }
 
