@@ -16,10 +16,12 @@ import {
   Table,
   Tabs,
   Tag,
+  Tree,
   Tooltip,
   Typography,
 } from 'antd';
-import { ArrowDownOutlined, ArrowUpOutlined, ScheduleOutlined, SettingOutlined } from '@ant-design/icons';
+import { ApartmentOutlined, ArrowDownOutlined, ArrowUpOutlined, ScheduleOutlined, SettingOutlined } from '@ant-design/icons';
+import type { DataNode, TreeProps } from 'antd/es/tree';
 import type { ColumnsType } from 'antd/es/table';
 import { useEffect, useMemo, useState } from 'react';
 import {
@@ -34,6 +36,7 @@ import {
   type KookChannelUsage,
   listKookChannelUsers,
   listKookChannels,
+  moveKookChannel,
   moveKookChannelUsers,
   syncKookChannelRoles,
   updateKookChannel,
@@ -42,9 +45,11 @@ import {
 import KookMemberSelect from '../components/KookMemberSelect';
 import KookRoleSelect from '../components/KookRoleSelect';
 import KookChannelSortDrawer from '../components/KookChannelSortDrawer';
+import KookChannelMoveModal from '../components/KookChannelMoveModal';
 import PageHeader from '../components/PageHeader';
 import { useTableColumnSettings } from '../components/tableColumnSettings';
 import { kookPermissionOptions, permissionText, permissionValue } from '../constants/kookPermissions';
+import { buildKookMoveCandidate, type KookChannelDropMode } from '../utils/kookChannelMove';
 
 type Row = Record<string, unknown> & {
   id: React.Key;
@@ -57,6 +62,8 @@ type Row = Record<string, unknown> & {
   limitAmount?: number;
   durationSeconds?: number;
   durationText?: string;
+  occupiedDurationSeconds?: number;
+  occupiedDurationText?: string;
   sessionCount?: number;
   activeUserCount?: number;
   children?: Row[];
@@ -79,7 +86,7 @@ type RoleRow = Record<string, unknown> & {
 };
 
 type DateLike = { format: (template: string) => string };
-type ColumnKey = 'id' | 'name' | 'type' | 'activeUserCount' | 'durationSeconds' | 'sessionCount' | 'level' | 'limitAmount';
+type ColumnKey = 'id' | 'name' | 'type' | 'activeUserCount' | 'durationSeconds' | 'occupiedDurationSeconds' | 'level' | 'limitAmount';
 type ColumnWidths = Partial<Record<ColumnKey, number>>;
 type ColumnPreference = { order: ColumnKey[]; visible: ColumnKey[]; widths: ColumnWidths };
 type ColumnDefinition = {
@@ -91,7 +98,7 @@ type ColumnDefinition = {
 
 const dateTimeFormat = 'YYYY-MM-DD HH:mm:ss';
 const columnPreferenceKey = 'ttw_kook_channel_columns';
-const defaultColumnOrder: ColumnKey[] = ['id', 'name', 'type', 'activeUserCount', 'durationSeconds', 'sessionCount', 'level', 'limitAmount'];
+const defaultColumnOrder: ColumnKey[] = ['id', 'name', 'type', 'activeUserCount', 'durationSeconds', 'occupiedDurationSeconds', 'level', 'limitAmount'];
 const defaultVisibleColumns: ColumnKey[] = [...defaultColumnOrder];
 const defaultColumnWidths: Record<ColumnKey, number> = {
   id: 170,
@@ -99,7 +106,7 @@ const defaultColumnWidths: Record<ColumnKey, number> = {
   type: 90,
   activeUserCount: 110,
   durationSeconds: 130,
-  sessionCount: 100,
+  occupiedDurationSeconds: 130,
   level: 90,
   limitAmount: 100,
 };
@@ -184,8 +191,8 @@ function rowDurationSeconds(row: Row): number {
   return Number(row.durationSeconds || 0) + (row.children || []).reduce((sum, child) => sum + rowDurationSeconds(child), 0);
 }
 
-function rowSessionCount(row: Row): number {
-  return Number(row.sessionCount || 0) + (row.children || []).reduce((sum, child) => sum + rowSessionCount(child), 0);
+function rowOccupiedDurationSeconds(row: Row): number {
+  return Number(row.occupiedDurationSeconds || 0) + (row.children || []).reduce((sum, child) => sum + rowOccupiedDurationSeconds(child), 0);
 }
 
 function rowActiveUserCount(row: Row): number {
@@ -273,6 +280,9 @@ export default function KookChannels() {
   const [columnPreference, setColumnPreference] = useState<ColumnPreference>(() => readColumnPreference());
   const [columnSettingOpen, setColumnSettingOpen] = useState(false);
   const [sortDrawerOpen, setSortDrawerOpen] = useState(false);
+  const [structureDrawerOpen, setStructureDrawerOpen] = useState(false);
+  const [moveTarget, setMoveTarget] = useState<Row | null>(null);
+  const [moving, setMoving] = useState(false);
   const [drawerOpen, setDrawerOpen] = useState(false);
   const [editing, setEditing] = useState<Row | null>(null);
   const [detail, setDetail] = useState<Record<string, unknown> | null>(null);
@@ -328,6 +338,35 @@ export default function KookChannels() {
 
   const refreshChannelData = async () => {
     await Promise.all([load(), loadUsage()]);
+  };
+
+  const confirmMove = async (source: Row, request: Parameters<typeof moveKookChannel>[1]) => {
+    const targetGroup = rows.find((row) => String(row.id) === request.targetParentId);
+    const anchor = rows.find((row) => String(row.id) === request.anchorChannelId);
+    modal.confirm({
+      title: `确认移动「${rowName(source)}」？`,
+      content: `目标分组：${targetGroup ? rowName(targetGroup) : '根目录'}；目标位置：${anchor ? `${rowName(anchor)} ${request.placement === 'before' ? '之前' : '之后'}` : request.placement === 'top' ? '顶部' : '底部'}`,
+      okText: '确认移动',
+      cancelText: '取消',
+      onOk: async () => {
+        await moveKookChannel(source.id, request);
+        message.success('频道已移动');
+        await refreshChannelData();
+      },
+    });
+  };
+
+  const submitPreciseMove = async (request: Parameters<typeof moveKookChannel>[1]) => {
+    if (!moveTarget) return;
+    setMoving(true);
+    try {
+      await moveKookChannel(moveTarget.id, request);
+      message.success('频道已移动');
+      setMoveTarget(null);
+      await refreshChannelData();
+    } finally {
+      setMoving(false);
+    }
   };
 
   useEffect(() => {
@@ -517,12 +556,12 @@ export default function KookChannels() {
       },
     },
     {
-      key: 'sessionCount',
-      title: '会话数',
+      key: 'occupiedDurationSeconds',
+      title: '占用时长',
       defaultVisible: true,
       column: {
-        title: '会话数',
-        render: (_, row) => rowSessionCount(row),
+        title: '占用时长',
+        render: (_, row) => durationText(rowOccupiedDurationSeconds(row)),
       },
     },
     { key: 'level', title: '排序', defaultVisible: true, column: { title: '排序', dataIndex: 'level' } },
@@ -539,12 +578,13 @@ export default function KookChannels() {
       .filter(Boolean) as ColumnsType<Row>,
     {
       title: '操作',
-      width: 340,
+      width: 390,
       fixed: 'right',
       render: (_, row) => (
         <Space>
           <Button size="small" onClick={() => openDetail(row)}>详情</Button>
           <Button size="small" onClick={() => openEdit(row)}>编辑</Button>
+          <Button size="small" onClick={() => setMoveTarget(row)}>移动</Button>
           {Number(row.type) === 2 && <Button size="small" onClick={() => openUsers(row)}>语音成员</Button>}
           <Button size="small" onClick={() => openRoles(row)}>权限</Button>
           <Popconfirm
@@ -620,6 +660,34 @@ export default function KookChannels() {
     .filter((row) => Number(row.type) === 0)
     .map((row) => ({ id: row.id, name: row.name, level: row.level })), [rows]);
   const treeRows = buildChannelTree(enrichedRows, filters);
+  const structureTreeData = useMemo(() => {
+    const convert = (nodes: Row[]): DataNode[] => nodes.map((node) => ({
+      key: String(node.id),
+      title: rowName(node),
+      children: node.children ? convert(node.children) : undefined,
+    }));
+    return convert(buildChannelTree(enrichedRows, {}));
+  }, [enrichedRows]);
+
+  const handleTreeDrop: TreeProps['onDrop'] = (info) => {
+    const source = rows.find((row) => String(row.id) === String(info.dragNode.key));
+    const target = rows.find((row) => String(row.id) === String(info.node.key));
+    if (!source || !target) return;
+    const mode: KookChannelDropMode = info.dropToGap
+      ? (info.dropPosition < Number(info.node.pos.split('-').at(-1)) ? 'before' : 'after')
+      : 'inside';
+    const request = buildKookMoveCandidate(
+      { id: String(source.id), type: Number(source.type), parentId: parentIdOf(source) },
+      { id: String(target.id), type: Number(target.type), parentId: parentIdOf(target) },
+      mode,
+      Boolean(filters.keyword),
+    );
+    if (!request) {
+      message.warning(filters.keyword ? '搜索状态下不能调整频道结构' : '该位置不支持移动');
+      return;
+    }
+    void confirmMove(source, request);
+  };
 
   return (
     <>
@@ -629,6 +697,7 @@ export default function KookChannels() {
         extra={(
           <Space wrap className="kook-channel-toolbar">
             <Button icon={<ScheduleOutlined />} onClick={() => setSortDrawerOpen(true)}>自动排序设置</Button>
+            <Button icon={<ApartmentOutlined />} onClick={() => setStructureDrawerOpen(true)}>调整频道结构</Button>
             <Button icon={<SettingOutlined />} onClick={() => setColumnSettingOpen(true)}>列设置</Button>
             <Button type="primary" onClick={openCreate}>创建频道</Button>
           </Space>
@@ -669,6 +738,34 @@ export default function KookChannels() {
         categories={sortCategories}
         onClose={() => setSortDrawerOpen(false)}
         onCompleted={refreshChannelData}
+      />
+
+      <Drawer
+        title="调整频道结构"
+        width={520}
+        open={structureDrawerOpen}
+        onClose={() => setStructureDrawerOpen(false)}
+      >
+        <Typography.Paragraph type="secondary">
+          {filters.keyword ? '当前正在搜索，清除搜索条件后可拖拽。' : '拖动频道后需在确认弹窗中确认，才会真正移动。'}
+        </Typography.Paragraph>
+        <Tree
+          className="kook-channel-structure-tree"
+          blockNode
+          defaultExpandAll
+          draggable={!filters.keyword}
+          treeData={structureTreeData}
+          onDrop={handleTreeDrop}
+        />
+      </Drawer>
+
+      <KookChannelMoveModal
+        open={!!moveTarget}
+        source={moveTarget}
+        channels={rows}
+        loading={moving}
+        onCancel={() => setMoveTarget(null)}
+        onConfirm={submitPreciseMove}
       />
 
       <Modal

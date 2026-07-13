@@ -1864,7 +1864,7 @@ select {
     width: 100%;
   }
 
-  .kook-channel-toolbar .ant-btn-primary {
+.kook-channel-toolbar .ant-btn-primary {
     grid-column: 1 / -1;
   }
 
@@ -1914,6 +1914,17 @@ select {
     flex-basis: 100%;
     line-height: 1.5;
   }
+}
+
+.kook-channel-structure-tree .ant-tree-node-content-wrapper {
+  min-width: 0;
+}
+
+.kook-channel-structure-tree .ant-tree-title {
+  display: block;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
 @media (prefers-reduced-motion: reduce) {
