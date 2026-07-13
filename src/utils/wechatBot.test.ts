@@ -1,5 +1,13 @@
 import { describe, expect, it } from 'vitest';
-import { buildQuery, formatCell, previewText, summaryPayload, toApiTime } from './wechatBot';
+import {
+  buildQuery,
+  formatCell,
+  formatWechatTime,
+  previewText,
+  summaryPayload,
+  toApiTime,
+  wechatMessageTypeLabel,
+} from './wechatBot';
 
 describe('WeChat bot admin utilities', () => {
   it('builds queries without empty values', () => {
@@ -40,5 +48,17 @@ describe('WeChat bot admin utilities', () => {
     expect(formatCell({ nested: true })).toBe('{"nested":true}');
     expect(previewText('abcdef', 3)).toBe('abc...');
     expect(previewText('abc', 3)).toBe('abc');
+  });
+
+  it('formats structured message times and keeps legacy strings', () => {
+    expect(formatWechatTime({ unix: 1783918830, text: '2026-07-13 10:20:30' }))
+      .toBe('2026-07-13 10:20:30');
+    expect(formatWechatTime('2026-07-13 10:20:30')).toBe('2026-07-13 10:20:30');
+    expect(formatWechatTime(undefined)).toBe('-');
+  });
+
+  it('labels message type 10002 as a pat event', () => {
+    expect(wechatMessageTypeLabel(10002)).toBe('拍一拍');
+    expect(wechatMessageTypeLabel(99999)).toBe('类型 99999');
   });
 });

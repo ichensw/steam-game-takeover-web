@@ -1,11 +1,12 @@
 import { http, unwrap } from './http';
+import type { ApiUnixTime } from '../utils/wechatBot';
 
 export type WechatGroup = {
   roomId: string;
   roomName: string;
   memberCount: number;
   ownerWxid: string;
-  updatedAt: string;
+  updatedAt: ApiUnixTime;
 };
 
 export type WechatMessage = {
@@ -19,7 +20,7 @@ export type WechatMessage = {
   mediaUrl?: string;
   mediaLocalPath?: string;
   mediaOssKey?: string;
-  createdAt: string;
+  createdAt: ApiUnixTime | string;
 };
 
 export type Pagination = {

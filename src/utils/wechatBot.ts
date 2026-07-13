@@ -1,5 +1,20 @@
 export type SummaryPeriod = 'day' | 'morning' | 'afternoon' | 'custom';
 
+export type ApiUnixTime = {
+  unix: number;
+  text: string;
+};
+
+export const wechatMessageTypes = [
+  { value: 1, label: '文本' },
+  { value: 3, label: '图片' },
+  { value: 34, label: '语音' },
+  { value: 43, label: '视频' },
+  { value: 47, label: '表情' },
+  { value: 49, label: '卡片 / 文件' },
+  { value: 10002, label: '拍一拍' },
+];
+
 export type SummaryFormValues = {
   roomId?: string;
   date?: string;
@@ -59,6 +74,15 @@ export function formatCell(value: unknown): string {
     return typeof text === 'string' ? text : JSON.stringify(value);
   }
   return String(value);
+}
+
+export function formatWechatTime(value: ApiUnixTime | string | null | undefined): string {
+  const text = formatCell(value).trim();
+  return text || '-';
+}
+
+export function wechatMessageTypeLabel(value: number): string {
+  return wechatMessageTypes.find((item) => item.value === value)?.label || `类型 ${value}`;
 }
 
 export function previewText(value: unknown, maxLength = 420) {

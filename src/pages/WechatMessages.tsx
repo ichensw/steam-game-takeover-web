@@ -5,19 +5,9 @@ import { listWechatGroups, listWechatMessages, type WechatGroup, type WechatMess
 import PageHeader from '../components/PageHeader';
 import { useTableColumnSettings } from '../components/tableColumnSettings';
 import { pageSizeOptions } from '../utils/pagination';
+import { formatWechatTime, wechatMessageTypeLabel, wechatMessageTypes } from '../utils/wechatBot';
 
 type DateLike = { format: (template: string) => string };
-
-const messageTypeOptions = [
-  { value: 1, label: '文本' },
-  { value: 3, label: '图片' },
-  { value: 34, label: '语音' },
-  { value: 43, label: '视频' },
-  { value: 47, label: '表情' },
-  { value: 49, label: '卡片 / 文件' },
-];
-
-const messageTypeLabel = (value: number) => messageTypeOptions.find((item) => item.value === value)?.label || `类型 ${value}`;
 
 export default function WechatMessages() {
   const [rows, setRows] = useState<WechatMessage[]>([]);
@@ -73,7 +63,7 @@ export default function WechatMessages() {
   }, []);
 
   const columns = useMemo<ColumnsType<WechatMessage>>(() => [
-    { title: '时间', dataIndex: 'createdAt', width: 180, className: 'mono' },
+    { title: '时间', dataIndex: 'createdAt', width: 180, className: 'mono', render: formatWechatTime },
     {
       title: '群聊',
       dataIndex: 'roomId',
@@ -90,7 +80,7 @@ export default function WechatMessages() {
         </Space>
       ),
     },
-    { title: '类型', dataIndex: 'msgType', width: 110, render: (value) => <Tag>{messageTypeLabel(value)}</Tag> },
+    { title: '类型', dataIndex: 'msgType', width: 110, render: (value) => <Tag>{wechatMessageTypeLabel(value)}</Tag> },
     {
       title: '内容',
       dataIndex: 'content',
@@ -118,7 +108,7 @@ export default function WechatMessages() {
           </Form.Item>
           <Form.Item name="sender"><Input allowClear placeholder="发送人 / wxid" /></Form.Item>
           <Form.Item name="keyword"><Input.Search allowClear placeholder="消息关键词" /></Form.Item>
-          <Form.Item name="msgType"><Select allowClear placeholder="消息类型" style={{ width: 140 }} options={messageTypeOptions} /></Form.Item>
+          <Form.Item name="msgType"><Select allowClear placeholder="消息类型" style={{ width: 140 }} options={wechatMessageTypes} /></Form.Item>
           <Form.Item name="timeRange"><DatePicker.RangePicker showTime format="YYYY-MM-DD HH:mm:ss" /></Form.Item>
           <Space>
             <Button type="primary" htmlType="submit">查询</Button>
