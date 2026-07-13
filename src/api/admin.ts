@@ -261,6 +261,13 @@ export type KookChannelSortRun = {
   finishedAt: string | null;
 };
 
+export type KookChannelSortRunsResult = {
+  list: KookChannelSortRun[];
+  total: number;
+  page: number;
+  pageSize: number;
+};
+
 export type KookChannelSortConfigUpdate = {
   enabled: boolean;
   groupIds: string[];
@@ -333,7 +340,7 @@ export function runKookChannelSort() {
 }
 
 export function listKookChannelSortRuns(params: Query) {
-  return unwrap<PageResult<KookChannelSortRun>>(
+  return unwrap<KookChannelSortRunsResult>(
     http.get('/admin/kook-channel-sort/runs', { params }),
   );
 }
