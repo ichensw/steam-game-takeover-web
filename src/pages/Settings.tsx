@@ -1,8 +1,25 @@
-import { Button, Card, Form, Input, InputNumber, Space, Switch, Typography, App as AntApp } from 'antd';
+import {
+  App as AntApp,
+  Button,
+  Collapse,
+  Form,
+  Input,
+  InputNumber,
+  Space,
+  Spin,
+  Switch,
+  Tabs,
+  Typography,
+} from 'antd';
 import { useEffect, useState } from 'react';
 import { getSettings, refreshTakeoverSummaries, updateSettings } from '../api/admin';
 import PageHeader from '../components/PageHeader';
 import { normalizeSettings, sensitiveSettingsKeys, type SettingsValues } from '../utils/settings';
+import {
+  isSettingsSectionKey,
+  settingsSections,
+  type SettingsSectionKey,
+} from '../utils/settingsSections';
 
 function kookWebhookUrl() {
   return 'https://www.rabbits.ink/miniprogram-api/api/kook/webhook?compress=0';
@@ -14,10 +31,16 @@ export default function Settings() {
   const [submitting, setSubmitting] = useState(false);
   const [testingWebhook, setTestingWebhook] = useState(false);
   const [refreshingSummaries, setRefreshingSummaries] = useState(false);
+  const [activeSection, setActiveSection] = useState<SettingsSectionKey>('takeover');
   const [initialValues, setInitialValues] = useState<SettingsValues>({});
   const { message, modal } = AntApp.useApp();
   const currentValues = normalizeSettings(Form.useWatch([], form) || initialValues);
   const webhookUrl = kookWebhookUrl();
+  const activeSectionMeta = settingsSections.find((section) => section.key === activeSection)!;
+
+  const changeSection = (key: string) => {
+    if (isSettingsSectionKey(key)) setActiveSection(key);
+  };
 
   const loadSettings = async () => {
     setLoading(true);
@@ -128,184 +151,203 @@ export default function Settings() {
           </Button>
         }
       />
-      <Card className="settings-card" loading={loading}>
-        <Form form={form} layout="vertical" onFinish={onFinish} disabled={submitting}>
-          <Form.Item
-            label="全局允许发布接龙"
-            name="publishTakeoverEnabled"
-            valuePropName="checked"
-            extra="关闭后，只有发布白名单用户可以看到并使用发布接龙入口。"
-          >
-            <Switch checkedChildren="开启" unCheckedChildren="关闭" />
-          </Form.Item>
-          <Form.Item
-            label="每日接龙有效天数"
-            name="dailyTakeoverExpirationDays"
-            extra="每日类型接龙从创建时间起超过该天数后自动标记为已结束，默认 10 天。"
-            rules={[{ required: true, message: '请输入 1 至 365 天' }]}
-          >
-            <InputNumber
-              min={1}
-              max={365}
-              step={1}
-              precision={0}
-              className="settings-number-input"
-            />
-          </Form.Item>
-          <Form.Item
-            label="UAPI 调用密钥"
-            name="uapiKey"
-            extra="用于 Steam 好友码校验。修改后请用测试 SteamID 验证保存资料链路。"
-          >
-            <Input.Password placeholder="用于 SteamID 校验的 UAPI Key" autoComplete="off" />
-          </Form.Item>
-          <Form.Item
-            label="Steam Web API Key"
-            name="steamWebApiKey"
-            extra="Steam 官方 API Key，当前为空也可以保存。"
-          >
-            <Input.Password placeholder="Steam 官方 API Key，按需配置" autoComplete="off" />
-          </Form.Item>
-          <Form.Item
-            label="KOOK Bot Token"
-            name="kookBotToken"
-            extra="用于查询频道、生成频道邀请链接。"
-          >
-            <Input.Password placeholder="KOOK 机器人 Token" autoComplete="off" />
-          </Form.Item>
-          <Form.Item
-            label="KOOK 服务器 ID"
-            name="kookGuildId"
-            extra="KOOK Guild ID，只填写数字 ID。"
-          >
-            <Input placeholder="KOOK Guild ID" className="mono" />
-          </Form.Item>
-          <Form.Item
-            label="KOOK Webhook Verify Token"
-            name="kookVerifyToken"
-            extra="KOOK Webhook 校验 token，需和 KOOK 平台配置一致。"
-          >
-            <Input.Password placeholder="KOOK Webhook Verify Token" autoComplete="off" />
-          </Form.Item>
-          <Form.Item
-            label="KOOK Webhook Encrypt Key"
-            name="kookEncryptKey"
-            extra="用于解密 KOOK Webhook 加密消息，需与 KOOK 官方机器人后台的 Encrypt Key 完全一致。"
-          >
-            <Input.Password placeholder="KOOK Webhook Encrypt Key" autoComplete="off" />
-          </Form.Item>
-          <Form.Item label="KOOK Webhook 地址">
-            <Typography.Text className="mono">{webhookUrl}</Typography.Text>
-          </Form.Item>
-          <Form.Item label="KOOK 复制">
-            <Space wrap>
-              <Button onClick={() => copy(webhookUrl, '已复制 KOOK 回调地址')}>
-                复制 KOOK 回调地址
-              </Button>
-              <Button
-                onClick={() => copy(currentValues.kookVerifyToken || '', '已复制 KOOK Verify Token')}
-                disabled={!currentValues.kookVerifyToken}
+      <Spin spinning={loading}>
+        <div className="settings-workspace">
+          <nav className="settings-section-nav" aria-label="设置分组">
+            {settingsSections.map((section) => (
+              <button
+                key={section.key}
+                type="button"
+                className={section.key === activeSection ? 'is-active' : ''}
+                aria-current={section.key === activeSection ? 'page' : undefined}
+                onClick={() => changeSection(section.key)}
               >
-                复制 KOOK Verify Token
-              </Button>
-              <Button onClick={testWebhook} loading={testingWebhook}>
-                测试 Webhook 连通性
-              </Button>
-            </Space>
-            <Typography.Paragraph type="secondary" className="settings-note">
-              当前测试只验证后端 challenge 链路是否正常，不代表 KOOK 已经推送真实入服/退服事件。
-            </Typography.Paragraph>
-          </Form.Item>
-          <Form.Item label="KOOK 配置说明">
-            <Typography.Paragraph>
-              KOOK 后台连接模式选择 webhook
-              <br />
-              Callback Url 填写本页 KOOK Webhook 地址
-              <br />
-              Verify Token 必须与本页 KOOK Webhook Verify Token 一致
-              <br />
-              Encrypt Key 必须与本页 KOOK Webhook Encrypt Key 一致
-              <br />
-              配置完成后，在 KOOK 官方机器人后台点击“测试url”
-              <br />
-              测试通过后点击“机器人上线”
-            </Typography.Paragraph>
-          </Form.Item>
-          <Form.Item label="KOOK 配置状态检查">
-            <Space wrap>
-              <Typography.Text type={currentValues.kookBotToken ? 'success' : 'danger'}>
-                Bot Token {currentValues.kookBotToken ? '已填写' : '未填写'}
-              </Typography.Text>
-              <Typography.Text type={currentValues.kookGuildId ? 'success' : 'danger'}>
-                KOOK 服务器 ID {currentValues.kookGuildId ? '已填写' : '未填写'}
-              </Typography.Text>
-              <Typography.Text type={currentValues.kookVerifyToken ? 'success' : 'danger'}>
-                Webhook Verify Token {currentValues.kookVerifyToken ? '已填写' : '未填写'}
-              </Typography.Text>
-              <Typography.Text type={currentValues.kookEncryptKey ? 'success' : 'danger'}>
-                Webhook Encrypt Key {currentValues.kookEncryptKey ? '已填写' : '未填写'}
-              </Typography.Text>
-              <Typography.Text type={webhookUrl.includes('?compress=0') ? 'success' : 'danger'}>
-                Webhook 地址{webhookUrl.includes('?compress=0') ? '包含' : '缺少'} ?compress=0
-              </Typography.Text>
-            </Space>
-          </Form.Item>
-          <Form.Item
-            label="AI 汇总词提取"
-            name="aiExtractEnabled"
-            valuePropName="checked"
-            extra="开启后，创建或编辑接龙时会尝试提取接龙汇总展示词；失败会自动使用规则兜底。"
-          >
-            <Switch checkedChildren="开启" unCheckedChildren="关闭" />
-          </Form.Item>
-          <Form.Item label="AI OpenAI Compatible Base URL" name="aiExtractBaseUrl">
-            <Input placeholder="https://xxx/compatible-mode/v1" className="mono" />
-          </Form.Item>
-          <Form.Item label="AI 模型 / Agent ID" name="aiExtractModel">
-            <Input placeholder="模型名或 Agent ID" className="mono" />
-          </Form.Item>
-          <Form.Item label="AI API Key" name="aiExtractApiKey">
-            <Input.Password placeholder="AI API Key" autoComplete="off" />
-          </Form.Item>
-          <Form.Item label="AI 配置状态检查">
-            <Space wrap>
-              <Typography.Text type={currentValues.aiExtractEnabled ? 'success' : 'secondary'}>
-                AI 提取 {currentValues.aiExtractEnabled ? '已开启' : '未开启'}
-              </Typography.Text>
-              <Typography.Text type={currentValues.aiExtractBaseUrl ? 'success' : 'danger'}>
-                Base URL {currentValues.aiExtractBaseUrl ? '已填写' : '未填写'}
-              </Typography.Text>
-              <Typography.Text type={currentValues.aiExtractModel ? 'success' : 'danger'}>
-                模型 {currentValues.aiExtractModel ? '已填写' : '未填写'}
-              </Typography.Text>
-              <Typography.Text type={currentValues.aiExtractApiKey ? 'success' : 'danger'}>
-                API Key {currentValues.aiExtractApiKey ? '已填写' : '未填写'}
-              </Typography.Text>
-            </Space>
-          </Form.Item>
-          <Form.Item label="历史接龙汇总词">
-            <Space wrap>
-              <Button onClick={refreshSummaries} loading={refreshingSummaries}>
-                生成未结束接龙汇总词
-              </Button>
-              <Typography.Text type="secondary">
-                仅处理未结束且非人工汇总词的接龙。
-              </Typography.Text>
-            </Space>
-          </Form.Item>
-          <Space>
-            <Button type="primary" htmlType="submit" loading={submitting}>
-              保存设置
-            </Button>
-            <Button onClick={reset} disabled={submitting}>
-              撤销修改
-            </Button>
-          </Space>
-          <Typography.Paragraph type="secondary" className="settings-note">
-            敏感密钥保存前会二次确认；保存成功后页面会重新读取服务端配置。
-          </Typography.Paragraph>
-        </Form>
-      </Card>
+                <strong>{section.label}</strong>
+                <span>{section.description}</span>
+              </button>
+            ))}
+          </nav>
+
+          <div className="settings-content">
+            <Tabs
+              className="settings-section-tabs"
+              activeKey={activeSection}
+              onChange={changeSection}
+              items={settingsSections.map(({ key, label }) => ({ key, label }))}
+            />
+
+            <div className="settings-panel-heading">
+              <Typography.Title level={3}>{activeSectionMeta.label}</Typography.Title>
+              <Typography.Text type="secondary">{activeSectionMeta.description}</Typography.Text>
+            </div>
+
+            <Form form={form} layout="vertical" onFinish={onFinish} disabled={submitting}>
+              <section className="settings-panel" hidden={activeSection !== 'takeover'}>
+                <Form.Item
+                  label="全局允许发布接龙"
+                  name="publishTakeoverEnabled"
+                  valuePropName="checked"
+                  extra="关闭后，只有发布白名单用户可以看到并使用发布接龙入口。"
+                >
+                  <Switch checkedChildren="开启" unCheckedChildren="关闭" />
+                </Form.Item>
+                <Form.Item
+                  label="每日接龙有效天数"
+                  name="dailyTakeoverExpirationDays"
+                  extra="每日类型接龙从创建时间起超过该天数后自动标记为已结束，默认 10 天。"
+                  rules={[{ required: true, message: '请输入 1 至 365 天' }]}
+                >
+                  <InputNumber min={1} max={365} step={1} precision={0} className="settings-number-input" />
+                </Form.Item>
+              </section>
+
+              <section className="settings-panel" hidden={activeSection !== 'steam'}>
+                <div className="settings-field-grid">
+                  <Form.Item
+                    label="UAPI 调用密钥"
+                    name="uapiKey"
+                    extra="用于 Steam 好友码校验。修改后请用测试 SteamID 验证保存资料链路。"
+                  >
+                    <Input.Password placeholder="用于 SteamID 校验的 UAPI Key" autoComplete="off" />
+                  </Form.Item>
+                  <Form.Item
+                    label="Steam Web API Key"
+                    name="steamWebApiKey"
+                    extra="Steam 官方 API Key，当前为空也可以保存。"
+                  >
+                    <Input.Password placeholder="Steam 官方 API Key，按需配置" autoComplete="off" />
+                  </Form.Item>
+                </div>
+              </section>
+
+              <section className="settings-panel" hidden={activeSection !== 'kook'}>
+                <div className="settings-field-grid">
+                  <Form.Item label="KOOK Bot Token" name="kookBotToken" extra="用于查询频道、生成频道邀请链接。">
+                    <Input.Password placeholder="KOOK 机器人 Token" autoComplete="off" />
+                  </Form.Item>
+                  <Form.Item label="KOOK 服务器 ID" name="kookGuildId" extra="KOOK Guild ID，只填写数字 ID。">
+                    <Input placeholder="KOOK Guild ID" className="mono" />
+                  </Form.Item>
+                  <Form.Item label="KOOK Webhook Verify Token" name="kookVerifyToken" extra="需和 KOOK 平台配置一致。">
+                    <Input.Password placeholder="KOOK Webhook Verify Token" autoComplete="off" />
+                  </Form.Item>
+                  <Form.Item label="KOOK Webhook Encrypt Key" name="kookEncryptKey" extra="需与 KOOK 官方机器人后台的 Encrypt Key 完全一致。">
+                    <Input.Password placeholder="KOOK Webhook Encrypt Key" autoComplete="off" />
+                  </Form.Item>
+                </div>
+
+                <div className="settings-subsection">
+                  <Typography.Text strong>Webhook 地址</Typography.Text>
+                  <Typography.Text className="mono settings-webhook-url" copyable={{ text: webhookUrl }}>
+                    {webhookUrl}
+                  </Typography.Text>
+                  <Space wrap>
+                    <Button onClick={() => copy(webhookUrl, '已复制 KOOK 回调地址')}>复制回调地址</Button>
+                    <Button
+                      onClick={() => copy(currentValues.kookVerifyToken || '', '已复制 KOOK Verify Token')}
+                      disabled={!currentValues.kookVerifyToken}
+                    >
+                      复制 Verify Token
+                    </Button>
+                    <Button onClick={testWebhook} loading={testingWebhook}>测试连通性</Button>
+                  </Space>
+                  <Typography.Text type="secondary">
+                    当前测试只验证后端 challenge 链路，不代表 KOOK 已推送真实入服或退服事件。
+                  </Typography.Text>
+                </div>
+
+                <div className="settings-status-list" aria-label="KOOK 配置状态">
+                  <Typography.Text type={currentValues.kookBotToken ? 'success' : 'danger'}>
+                    Bot Token {currentValues.kookBotToken ? '已填写' : '未填写'}
+                  </Typography.Text>
+                  <Typography.Text type={currentValues.kookGuildId ? 'success' : 'danger'}>
+                    服务器 ID {currentValues.kookGuildId ? '已填写' : '未填写'}
+                  </Typography.Text>
+                  <Typography.Text type={currentValues.kookVerifyToken ? 'success' : 'danger'}>
+                    Verify Token {currentValues.kookVerifyToken ? '已填写' : '未填写'}
+                  </Typography.Text>
+                  <Typography.Text type={currentValues.kookEncryptKey ? 'success' : 'danger'}>
+                    Encrypt Key {currentValues.kookEncryptKey ? '已填写' : '未填写'}
+                  </Typography.Text>
+                  <Typography.Text type={webhookUrl.includes('?compress=0') ? 'success' : 'danger'}>
+                    Webhook 地址{webhookUrl.includes('?compress=0') ? '包含' : '缺少'} ?compress=0
+                  </Typography.Text>
+                </div>
+
+                <Collapse
+                  className="settings-help"
+                  ghost
+                  items={[{
+                    key: 'kook-guide',
+                    label: 'KOOK 接入说明',
+                    children: (
+                      <Typography.Paragraph>
+                        KOOK 后台连接模式选择 webhook<br />
+                        Callback Url 填写本页 KOOK Webhook 地址<br />
+                        Verify Token 必须与本页 KOOK Webhook Verify Token 一致<br />
+                        Encrypt Key 必须与本页 KOOK Webhook Encrypt Key 一致<br />
+                        配置完成后，在 KOOK 官方机器人后台点击“测试url”<br />
+                        测试通过后点击“机器人上线”
+                      </Typography.Paragraph>
+                    ),
+                  }]}
+                />
+              </section>
+
+              <section className="settings-panel" hidden={activeSection !== 'ai'}>
+                <Form.Item
+                  label="AI 汇总词提取"
+                  name="aiExtractEnabled"
+                  valuePropName="checked"
+                  extra="开启后，创建或编辑接龙时会尝试提取接龙汇总展示词；失败会自动使用规则兜底。"
+                >
+                  <Switch checkedChildren="开启" unCheckedChildren="关闭" />
+                </Form.Item>
+                <div className="settings-field-grid">
+                  <Form.Item label="AI OpenAI Compatible Base URL" name="aiExtractBaseUrl">
+                    <Input placeholder="https://xxx/compatible-mode/v1" className="mono" />
+                  </Form.Item>
+                  <Form.Item label="AI 模型 / Agent ID" name="aiExtractModel">
+                    <Input placeholder="模型名或 Agent ID" className="mono" />
+                  </Form.Item>
+                </div>
+                <Form.Item label="AI API Key" name="aiExtractApiKey">
+                  <Input.Password placeholder="AI API Key" autoComplete="off" />
+                </Form.Item>
+                <div className="settings-status-list" aria-label="AI 配置状态">
+                  <Typography.Text type={currentValues.aiExtractEnabled ? 'success' : 'secondary'}>
+                    AI 提取 {currentValues.aiExtractEnabled ? '已开启' : '未开启'}
+                  </Typography.Text>
+                  <Typography.Text type={currentValues.aiExtractBaseUrl ? 'success' : 'danger'}>
+                    Base URL {currentValues.aiExtractBaseUrl ? '已填写' : '未填写'}
+                  </Typography.Text>
+                  <Typography.Text type={currentValues.aiExtractModel ? 'success' : 'danger'}>
+                    模型 {currentValues.aiExtractModel ? '已填写' : '未填写'}
+                  </Typography.Text>
+                  <Typography.Text type={currentValues.aiExtractApiKey ? 'success' : 'danger'}>
+                    API Key {currentValues.aiExtractApiKey ? '已填写' : '未填写'}
+                  </Typography.Text>
+                </div>
+                <div className="settings-subsection settings-summary-action">
+                  <Typography.Text strong>历史接龙汇总词</Typography.Text>
+                  <Space wrap>
+                    <Button onClick={refreshSummaries} loading={refreshingSummaries}>生成未结束接龙汇总词</Button>
+                    <Typography.Text type="secondary">仅处理未结束且非人工汇总词的接龙。</Typography.Text>
+                  </Space>
+                </div>
+              </section>
+
+              <div className="settings-actions">
+                <Button type="primary" htmlType="submit" loading={submitting}>保存设置</Button>
+                <Button onClick={reset} disabled={submitting}>撤销修改</Button>
+                <Typography.Text type="secondary">
+                  敏感密钥保存前会二次确认；保存成功后页面会重新读取服务端配置。
+                </Typography.Text>
+              </div>
+            </Form>
+          </div>
+        </div>
+      </Spin>
     </>
   );
 }

@@ -769,7 +769,6 @@ select {
 }
 
 .filter-card,
-.settings-card,
 .ant-card {
   border: 1px solid var(--line) !important;
   border-radius: 8px !important;
@@ -780,13 +779,169 @@ select {
   padding: 2px;
 }
 
-.settings-card {
-  max-width: 680px;
-}
-
 .settings-number-input {
   width: 240px;
   max-width: 100%;
+}
+
+.settings-workspace {
+  max-width: 1160px;
+  display: grid;
+  grid-template-columns: 220px minmax(0, 1fr);
+  gap: 28px;
+  align-items: start;
+}
+
+.settings-workspace > .settings-section-nav,
+.settings-workspace > .settings-content {
+  min-width: 0;
+}
+
+.settings-section-nav {
+  position: sticky;
+  top: 0;
+  display: grid;
+  gap: 4px;
+  padding-right: 20px;
+  border-right: 1px solid var(--line);
+}
+
+.settings-section-nav button {
+  width: 100%;
+  min-height: 64px;
+  display: grid;
+  gap: 3px;
+  align-content: center;
+  padding: 10px 12px;
+  border: 1px solid transparent;
+  border-radius: 8px;
+  background: transparent;
+  color: var(--text);
+  text-align: left;
+  cursor: pointer;
+}
+
+.settings-section-nav button:hover {
+  background: var(--panel-2);
+}
+
+.settings-section-nav button:focus-visible {
+  outline: 2px solid var(--orange);
+  outline-offset: 2px;
+}
+
+.settings-section-nav button.is-active {
+  border-color: rgb(255 106 26 / 36%);
+  background: rgb(255 106 26 / 10%);
+}
+
+.settings-section-nav strong,
+.settings-section-nav span {
+  display: block;
+  letter-spacing: 0;
+}
+
+.settings-section-nav strong {
+  font-size: 14px;
+}
+
+.settings-section-nav span {
+  color: var(--muted);
+  font-size: 12px;
+  line-height: 1.45;
+}
+
+.settings-section-tabs {
+  display: none;
+}
+
+.settings-content {
+  max-width: 880px;
+}
+
+.settings-panel-heading {
+  min-height: 64px;
+  margin-bottom: 22px;
+  padding-bottom: 16px;
+  border-bottom: 1px solid var(--line);
+}
+
+.settings-panel-heading h3 {
+  margin: 0 0 4px !important;
+  font-size: 20px !important;
+  letter-spacing: 0;
+}
+
+.settings-panel[hidden] {
+  display: none;
+}
+
+.settings-field-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 0 18px;
+}
+
+.settings-subsection {
+  display: grid;
+  gap: 10px;
+  margin: 6px 0 22px;
+  padding: 16px 0;
+  border-top: 1px solid var(--line);
+  border-bottom: 1px solid var(--line);
+}
+
+.settings-webhook-url {
+  max-width: 100%;
+  overflow-wrap: anywhere;
+}
+
+.settings-status-list {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px 18px;
+  margin: 4px 0 18px;
+  padding: 12px 0;
+}
+
+.settings-status-list .ant-typography {
+  white-space: nowrap;
+}
+
+.settings-help {
+  border-top: 1px solid var(--line);
+  border-bottom: 1px solid var(--line);
+}
+
+.settings-help .ant-collapse-header {
+  padding-inline: 0 !important;
+}
+
+.settings-help .ant-collapse-content-box {
+  padding-inline: 0 !important;
+}
+
+.settings-summary-action {
+  margin-top: 8px;
+}
+
+.settings-actions {
+  position: sticky;
+  z-index: 4;
+  bottom: -1px;
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 10px;
+  margin-top: 24px;
+  padding: 16px 0;
+  border-top: 1px solid var(--line);
+  background: var(--bg);
+}
+
+.settings-actions .ant-typography {
+  flex: 1 1 320px;
+  margin: 0;
 }
 
 .detail-stack {
@@ -1482,6 +1637,60 @@ select {
   .wechat-table-list {
     position: static;
     max-height: 300px;
+  }
+
+  .settings-workspace {
+    max-width: none;
+    display: block;
+  }
+
+  .settings-section-nav {
+    display: none;
+  }
+
+  .settings-section-tabs {
+    display: block;
+    margin-bottom: 18px;
+  }
+
+  .settings-section-tabs .ant-tabs-nav {
+    margin-bottom: 0;
+  }
+
+  .settings-content {
+    max-width: none;
+  }
+
+  .settings-field-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .settings-panel-heading {
+    min-height: 0;
+  }
+}
+
+@media (max-width: 640px) {
+  .settings-section-tabs .ant-tabs-tab {
+    padding-inline: 4px;
+  }
+
+  .settings-status-list {
+    display: grid;
+    gap: 8px;
+  }
+
+  .settings-actions {
+    align-items: stretch;
+  }
+
+  .settings-actions .ant-btn {
+    flex: 1 1 calc(50% - 5px);
+  }
+
+  .settings-actions .ant-typography {
+    flex-basis: 100%;
+    line-height: 1.5;
   }
 }
 
