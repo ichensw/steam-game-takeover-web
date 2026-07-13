@@ -19,7 +19,7 @@ import {
   Tooltip,
   Typography,
 } from 'antd';
-import { ArrowDownOutlined, ArrowUpOutlined, SettingOutlined } from '@ant-design/icons';
+import { ArrowDownOutlined, ArrowUpOutlined, ScheduleOutlined, SettingOutlined } from '@ant-design/icons';
 import type { ColumnsType } from 'antd/es/table';
 import { useEffect, useMemo, useState } from 'react';
 import {
@@ -41,6 +41,7 @@ import {
 } from '../api/admin';
 import KookMemberSelect from '../components/KookMemberSelect';
 import KookRoleSelect from '../components/KookRoleSelect';
+import KookChannelSortDrawer from '../components/KookChannelSortDrawer';
 import PageHeader from '../components/PageHeader';
 import { useTableColumnSettings } from '../components/tableColumnSettings';
 import { kookPermissionOptions, permissionText, permissionValue } from '../constants/kookPermissions';
@@ -271,6 +272,7 @@ export default function KookChannels() {
   const [loading, setLoading] = useState(false);
   const [columnPreference, setColumnPreference] = useState<ColumnPreference>(() => readColumnPreference());
   const [columnSettingOpen, setColumnSettingOpen] = useState(false);
+  const [sortDrawerOpen, setSortDrawerOpen] = useState(false);
   const [drawerOpen, setDrawerOpen] = useState(false);
   const [editing, setEditing] = useState<Row | null>(null);
   const [detail, setDetail] = useState<Record<string, unknown> | null>(null);
@@ -322,6 +324,10 @@ export default function KookChannels() {
       keyword: values.keyword as string | undefined,
     });
     await loadUsage();
+  };
+
+  const refreshChannelData = async () => {
+    await Promise.all([load(), loadUsage()]);
   };
 
   useEffect(() => {
@@ -610,6 +616,9 @@ export default function KookChannels() {
     ...row,
     ...usageByChannel[String(row.id)],
   })), [rows, usageByChannel]);
+  const sortCategories = useMemo(() => rows
+    .filter((row) => Number(row.type) === 0)
+    .map((row) => ({ id: row.id, name: row.name, level: row.level })), [rows]);
   const treeRows = buildChannelTree(enrichedRows, filters);
 
   return (
@@ -618,7 +627,8 @@ export default function KookChannels() {
         title="KOOK 频道"
         description="管理 KOOK 频道、语音成员移动和频道权限。"
         extra={(
-          <Space>
+          <Space wrap className="kook-channel-toolbar">
+            <Button icon={<ScheduleOutlined />} onClick={() => setSortDrawerOpen(true)}>自动排序设置</Button>
             <Button icon={<SettingOutlined />} onClick={() => setColumnSettingOpen(true)}>列设置</Button>
             <Button type="primary" onClick={openCreate}>创建频道</Button>
           </Space>
@@ -636,7 +646,7 @@ export default function KookChannels() {
           <Space>
             <Button type="primary" htmlType="submit">查询</Button>
             <Button onClick={() => { filterForm.resetFields(); setFilters({}); loadUsage(); }}>重置</Button>
-            <Button onClick={() => { load(); loadUsage(); }} loading={loading || usageLoading}>刷新</Button>
+            <Button onClick={() => void refreshChannelData()} loading={loading || usageLoading}>刷新</Button>
           </Space>
         </Form>
       </Card>
@@ -652,6 +662,13 @@ export default function KookChannels() {
         scroll={{ x: scrollX }}
         pagination={false}
         expandable={{ defaultExpandAllRows: true }}
+      />
+
+      <KookChannelSortDrawer
+        open={sortDrawerOpen}
+        categories={sortCategories}
+        onClose={() => setSortDrawerOpen(false)}
+        onCompleted={refreshChannelData}
       />
 
       <Modal

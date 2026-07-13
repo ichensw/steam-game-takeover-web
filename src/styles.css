@@ -944,6 +944,174 @@ select {
   margin: 0;
 }
 
+.kook-sort-drawer .ant-drawer-content-wrapper {
+  width: min(960px, 100vw) !important;
+}
+
+.kook-sort-drawer .ant-drawer-body {
+  padding: 20px 24px;
+}
+
+.kook-sort-drawer .ant-drawer-footer {
+  padding: 12px 24px;
+  border-top-color: var(--line);
+  background: var(--panel);
+}
+
+.kook-sort-content {
+  display: grid;
+  gap: 24px;
+}
+
+.kook-sort-summary {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  border-top: 1px solid var(--line);
+  border-bottom: 1px solid var(--line);
+}
+
+.kook-sort-summary > div {
+  min-width: 0;
+  display: grid;
+  gap: 5px;
+  padding: 14px 16px;
+}
+
+.kook-sort-summary > div + div {
+  border-left: 1px solid var(--line);
+}
+
+.kook-sort-summary span,
+.kook-sort-group-order small {
+  color: var(--muted);
+  font-size: 12px;
+}
+
+.kook-sort-summary strong {
+  min-height: 24px;
+  overflow: hidden;
+  color: var(--text);
+  font-size: 14px;
+  font-weight: 650;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.kook-sort-section {
+  min-width: 0;
+  display: grid;
+  gap: 14px;
+}
+
+.kook-sort-section + .kook-sort-section {
+  padding-top: 22px;
+  border-top: 1px solid var(--line);
+}
+
+.kook-sort-section-heading {
+  min-width: 0;
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 16px;
+}
+
+.kook-sort-section-heading h5 {
+  margin: 0 !important;
+  color: var(--text) !important;
+  font-size: 16px !important;
+}
+
+.kook-sort-form-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 0 18px;
+}
+
+.kook-sort-form-grid .ant-form-item {
+  min-width: 0;
+  margin-bottom: 16px;
+}
+
+.kook-sort-form-full {
+  grid-column: 1 / -1;
+}
+
+.kook-sort-group-order {
+  display: flex;
+  overflow-x: auto;
+  border-top: 1px solid var(--line);
+  border-bottom: 1px solid var(--line);
+  scrollbar-color: var(--orange) transparent;
+}
+
+.kook-sort-group-order > div {
+  min-width: 220px;
+  display: grid;
+  grid-template-columns: 28px minmax(0, 1fr);
+  gap: 2px 10px;
+  align-items: center;
+  padding: 11px 14px;
+}
+
+.kook-sort-group-order > div + div {
+  border-left: 1px solid var(--line);
+}
+
+.kook-sort-group-order span {
+  width: 28px;
+  height: 28px;
+  grid-row: 1 / 3;
+  display: grid;
+  place-items: center;
+  border: 1px solid rgb(255 106 26 / 42%);
+  border-radius: 8px;
+  background: rgb(255 106 26 / 10%);
+  color: var(--orange);
+  font-size: 12px;
+  font-weight: 750;
+}
+
+.kook-sort-group-order strong {
+  overflow: hidden;
+  color: var(--text);
+  font-size: 13px;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.kook-sort-location {
+  min-width: 0;
+}
+
+.kook-sort-confirm {
+  display: grid;
+  grid-template-columns: 88px minmax(0, 1fr);
+  gap: 9px 12px;
+  margin-top: 16px;
+}
+
+.kook-sort-confirm span {
+  color: var(--muted);
+}
+
+.kook-sort-confirm strong {
+  color: var(--text);
+  font-weight: 650;
+}
+
+.kook-sort-footer,
+.kook-sort-footer > div {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
+}
+
+.kook-sort-footer {
+  justify-content: space-between;
+}
+
 .detail-stack {
   width: 100%;
 }
@@ -1665,12 +1833,66 @@ select {
     grid-template-columns: 1fr;
   }
 
+  .kook-sort-form-grid,
+  .kook-sort-summary {
+    grid-template-columns: 1fr;
+  }
+
+  .kook-sort-form-full {
+    grid-column: auto;
+  }
+
+  .kook-sort-summary > div + div {
+    border-top: 1px solid var(--line);
+    border-left: 0;
+  }
+
   .settings-panel-heading {
     min-height: 0;
   }
 }
 
 @media (max-width: 640px) {
+  .kook-channel-toolbar {
+    width: 100%;
+    display: grid !important;
+    grid-template-columns: 1fr 1fr;
+    gap: 8px !important;
+  }
+
+  .kook-channel-toolbar .ant-btn {
+    width: 100%;
+  }
+
+  .kook-channel-toolbar .ant-btn-primary {
+    grid-column: 1 / -1;
+  }
+
+  .kook-sort-drawer .ant-drawer-footer {
+    padding: 12px 16px;
+  }
+
+  .kook-sort-section-heading,
+  .kook-sort-footer {
+    align-items: stretch;
+    flex-direction: column;
+  }
+
+  .kook-sort-footer > div {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+  }
+
+  .kook-sort-footer > div,
+  .kook-sort-footer .ant-btn {
+    width: 100%;
+  }
+
+  .kook-sort-confirm {
+    grid-template-columns: 1fr;
+    gap: 4px;
+  }
+
   .settings-section-tabs .ant-tabs-tab {
     padding-inline: 4px;
   }
