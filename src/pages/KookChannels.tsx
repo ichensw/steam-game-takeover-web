@@ -80,7 +80,12 @@ type UserRow = Record<string, unknown> & {
 type RoleRow = Record<string, unknown> & {
   role_id?: React.Key;
   user_id?: React.Key;
-  user?: { id?: React.Key };
+  user?: { id?: React.Key; displayName?: string; nickname?: string; username?: string; name?: string };
+  displayName?: string;
+  objectName?: string;
+  nickname?: string;
+  username?: string;
+  name?: string;
   allow?: number;
   deny?: number;
 };
@@ -261,6 +266,20 @@ function moveColumn(keys: ColumnKey[], key: ColumnKey, direction: -1 | 1) {
 
 function roleKey(row: RoleRow, index?: number) {
   return String(row.role_id || row.user_id || row.user?.id || index);
+}
+
+function roleObjectText(row: RoleRow) {
+  if (row.role_id !== undefined) return `角色 ${row.role_id}`;
+  return row.displayName
+    || row.objectName
+    || row.user?.displayName
+    || row.user?.nickname
+    || row.user?.username
+    || row.user?.name
+    || row.nickname
+    || row.username
+    || row.name
+    || `用户 ${row.user?.id || row.user_id || '-'}`;
 }
 
 function getErrorMessage(error: unknown) {
@@ -624,7 +643,7 @@ export default function KookChannels() {
     {
       title: '对象',
       width: 160,
-      render: (_, row) => row.role_id !== undefined ? `角色 ${row.role_id}` : `用户 ${row.user?.id || row.user_id || '-'}`,
+      render: (_, row) => roleObjectText(row),
     },
     { title: '允许权限', dataIndex: 'allow', width: 220, ellipsis: true, render: permissionText },
     { title: '拒绝权限', dataIndex: 'deny', width: 220, ellipsis: true, render: permissionText },
