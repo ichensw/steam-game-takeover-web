@@ -8,6 +8,14 @@ export type SummaryFormValues = {
   end?: string;
 };
 
+export type SummaryPayload = {
+  period: string;
+  roomId?: string;
+  date?: string;
+  start?: string;
+  end?: string;
+};
+
 export function buildQuery(values: Record<string, unknown>) {
   const params = new URLSearchParams();
   for (const [key, value] of Object.entries(values)) {
@@ -24,9 +32,9 @@ export function toApiTime(value?: string) {
   return text;
 }
 
-export function summaryPayload(values: SummaryFormValues) {
+export function summaryPayload(values: SummaryFormValues): SummaryPayload {
   const period = values.period || 'day';
-  const payload: Record<string, string> = { period };
+  const payload: SummaryPayload = { period };
   if (values.roomId) payload.roomId = values.roomId;
   if (period === 'custom') {
     payload.start = toApiTime(values.start);

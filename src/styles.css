@@ -1410,6 +1410,76 @@ select {
   }
 }
 
+.wechat-summary-alert {
+  margin-bottom: 16px;
+}
+
+.wechat-summary-output {
+  min-height: 360px;
+}
+
+.wechat-summary-text {
+  margin: 0 !important;
+  color: var(--text) !important;
+  font-size: 15px;
+  line-height: 1.9;
+  letter-spacing: 0;
+  white-space: pre-wrap;
+}
+
+.wechat-summary-empty {
+  min-height: 280px;
+  display: grid;
+  place-content: center;
+  justify-items: center;
+  gap: 14px;
+}
+
+.wechat-summary-empty .anticon {
+  color: var(--green);
+  font-size: 34px;
+}
+
+.wechat-database-layout {
+  display: grid;
+  grid-template-columns: 280px minmax(0, 1fr);
+  gap: 16px;
+  align-items: start;
+}
+
+.wechat-table-list {
+  position: sticky;
+  top: 0;
+  max-height: calc(100dvh - 190px);
+  overflow: auto;
+}
+
+.wechat-table-list .ant-card-body {
+  padding: 8px !important;
+}
+
+.wechat-table-list .ant-menu {
+  border-inline-end: 0 !important;
+  background: transparent !important;
+}
+
+.wechat-database-detail {
+  min-width: 0;
+  display: grid;
+  gap: 16px;
+}
+
+@media (max-width: 860px) {
+  .wechat-database-layout {
+    grid-template-columns: 1fr;
+  }
+
+  .wechat-table-list {
+    position: static;
+    max-height: 300px;
+  }
+}
+
 @media (prefers-reduced-motion: reduce) {
   *,
   *::before,

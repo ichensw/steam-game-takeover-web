@@ -64,12 +64,14 @@ export type WechatSummary = {
 export type WechatTable = {
   name: string;
   approxRows: number;
+  comment?: string;
+  engine?: string;
 };
 
 export type WechatTableColumn = Record<string, unknown>;
 
 export type WechatTableDetail = {
-  name?: string;
+  table?: string;
   columns: WechatTableColumn[];
 };
 
