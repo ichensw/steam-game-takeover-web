@@ -1,46 +1,8 @@
-import { Button, Card, Form, Input, Space, Switch, Typography, App as AntApp } from 'antd';
+import { Button, Card, Form, Input, InputNumber, Space, Switch, Typography, App as AntApp } from 'antd';
 import { useEffect, useState } from 'react';
 import { getSettings, refreshTakeoverSummaries, updateSettings } from '../api/admin';
 import PageHeader from '../components/PageHeader';
-
-type SettingsValues = {
-  publishTakeoverEnabled?: boolean;
-  uapiKey?: string;
-  steamWebApiKey?: string;
-  kookBotToken?: string;
-  kookGuildId?: string;
-  kookVerifyToken?: string;
-  kookEncryptKey?: string;
-  aiExtractEnabled?: boolean;
-  aiExtractApiKey?: string;
-  aiExtractBaseUrl?: string;
-  aiExtractModel?: string;
-};
-
-const sensitiveKeys: Array<keyof SettingsValues> = [
-  'uapiKey',
-  'steamWebApiKey',
-  'kookBotToken',
-  'kookVerifyToken',
-  'kookEncryptKey',
-  'aiExtractApiKey',
-];
-
-function normalizeSettings(values: SettingsValues) {
-  return {
-    publishTakeoverEnabled: Boolean(values.publishTakeoverEnabled),
-    uapiKey: values.uapiKey?.trim() || '',
-    steamWebApiKey: values.steamWebApiKey?.trim() || '',
-    kookBotToken: values.kookBotToken?.trim() || '',
-    kookGuildId: values.kookGuildId?.trim() || '',
-    kookVerifyToken: values.kookVerifyToken?.trim() || '',
-    kookEncryptKey: values.kookEncryptKey?.trim() || '',
-    aiExtractEnabled: Boolean(values.aiExtractEnabled),
-    aiExtractApiKey: values.aiExtractApiKey?.trim() || '',
-    aiExtractBaseUrl: values.aiExtractBaseUrl?.trim().replace(/\/+$/, '') || '',
-    aiExtractModel: values.aiExtractModel?.trim() || '',
-  };
-}
+import { normalizeSettings, sensitiveSettingsKeys, type SettingsValues } from '../utils/settings';
 
 function kookWebhookUrl() {
   return 'https://www.rabbits.ink/miniprogram-api/api/kook/webhook?compress=0';
@@ -87,7 +49,7 @@ export default function Settings() {
   const onFinish = async (values: SettingsValues) => {
     const next = normalizeSettings(values);
     const previous = normalizeSettings(initialValues);
-    const changedSensitiveKeys = sensitiveKeys.filter((key) => next[key] !== previous[key]);
+    const changedSensitiveKeys = sensitiveSettingsKeys.filter((key) => next[key] !== previous[key]);
     if (changedSensitiveKeys.length > 0) {
       modal.confirm({
         title: '确认更新敏感配置？',
@@ -175,6 +137,20 @@ export default function Settings() {
             extra="关闭后，只有发布白名单用户可以看到并使用发布接龙入口。"
           >
             <Switch checkedChildren="开启" unCheckedChildren="关闭" />
+          </Form.Item>
+          <Form.Item
+            label="每日接龙有效天数"
+            name="dailyTakeoverExpirationDays"
+            extra="每日类型接龙从创建时间起超过该天数后自动标记为已结束，默认 10 天。"
+            rules={[{ required: true, message: '请输入 1 至 365 天' }]}
+          >
+            <InputNumber
+              min={1}
+              max={365}
+              step={1}
+              precision={0}
+              className="settings-number-input"
+            />
           </Form.Item>
           <Form.Item
             label="UAPI 调用密钥"

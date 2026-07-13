@@ -784,6 +784,11 @@ select {
   max-width: 680px;
 }
 
+.settings-number-input {
+  width: 240px;
+  max-width: 100%;
+}
+
 .detail-stack {
   width: 100%;
 }
