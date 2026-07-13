@@ -17,6 +17,9 @@ const Reports = lazy(() => import('./pages/Reports'));
 const Settings = lazy(() => import('./pages/Settings'));
 const Takeovers = lazy(() => import('./pages/Takeovers'));
 const Users = lazy(() => import('./pages/Users'));
+const WechatDatabase = lazy(() => import('./pages/WechatDatabase'));
+const WechatMessages = lazy(() => import('./pages/WechatMessages'));
+const WechatSummary = lazy(() => import('./pages/WechatSummary'));
 
 function RequireAuth({ children }: { children: React.ReactNode }) {
   return getToken() ? children : <Navigate to="/login" replace />;
@@ -58,6 +61,9 @@ export default function App() {
             <Route path="feedbacks" element={<Feedbacks />} />
             <Route path="announcements" element={<Announcements />} />
             <Route path="settings" element={<Settings />} />
+            <Route path="wechat-messages" element={<WechatMessages />} />
+            <Route path="wechat-summary" element={<WechatSummary />} />
+            <Route path="wechat-database" element={<WechatDatabase />} />
           </Route>
           <Route path="*" element={<Navigate to="/" replace />} />
         </Routes>

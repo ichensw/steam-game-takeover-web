@@ -5,6 +5,8 @@ import {
   BellOutlined,
   CrownOutlined,
   DashboardOutlined,
+  DatabaseOutlined,
+  FileTextOutlined,
   FormOutlined,
   LogoutOutlined,
   MenuOutlined,
@@ -13,6 +15,8 @@ import {
   ThunderboltOutlined,
   UploadOutlined,
   UserOutlined,
+  WechatOutlined,
+  MessageOutlined,
 } from '@ant-design/icons';
 import { Avatar, Badge, Button, Drawer, Flex, Form, Input, Layout, Menu, Modal, Space, Typography, Upload, App as AntApp } from 'antd';
 import type { MenuProps } from 'antd';
@@ -25,7 +29,7 @@ import type { AdminUser } from '../auth';
 
 type MenuItem = Required<MenuProps>['items'][number];
 
-const buildMenuItems = (visibleKeys?: string[]): MenuItem[] => {
+export const buildMenuItems = (visibleKeys?: string[]): MenuItem[] => {
   const visible = new Set(visibleKeys || []);
   const can = (key: string) => visible.size === 0 || visible.has(key);
   return [
@@ -59,7 +63,17 @@ const buildMenuItems = (visibleKeys?: string[]): MenuItem[] => {
           ...(can('kook-users') ? [{ key: '/kook-users', icon: <UserOutlined />, label: 'KOOK 用户' }] : []),
           ...(can('kook-voice-stats') ? [{ key: '/kook-voice-stats', icon: <BarChartOutlined />, label: '语音统计' }] : []),
         ],
-      } as MenuItem] : []),
+  } as MenuItem] : []),
+  ...((can('wechat-messages') || can('wechat-summary') || can('wechat-database')) ? [{
+    key: 'wechat-group',
+    icon: <WechatOutlined />,
+    label: '微信机器人',
+    children: [
+      ...(can('wechat-messages') ? [{ key: '/wechat-messages', icon: <MessageOutlined />, label: '消息查询' }] : []),
+      ...(can('wechat-summary') ? [{ key: '/wechat-summary', icon: <FileTextOutlined />, label: 'AI 总结' }] : []),
+      ...(can('wechat-database') ? [{ key: '/wechat-database', icon: <DatabaseOutlined />, label: '数据库浏览' }] : []),
+    ],
+  } as MenuItem] : []),
   ...((can('feedbacks') || can('announcements')) ? [{
     key: 'content-group',
     icon: <BellOutlined />,
@@ -78,7 +92,7 @@ const flatMenuItems = (items: MenuItem[]) => items.flatMap((item) => {
   return item ? [item] : [];
 });
 
-const openKeyByPath: Record<string, string> = {
+export const openKeyByPath: Record<string, string> = {
   '/takeovers': 'takeover-group',
   '/reports': 'takeover-group',
   '/users': 'user-group',
@@ -90,6 +104,9 @@ const openKeyByPath: Record<string, string> = {
   '/kook-voice-stats': 'kook-group',
   '/feedbacks': 'content-group',
   '/announcements': 'content-group',
+  '/wechat-messages': 'wechat-group',
+  '/wechat-summary': 'wechat-group',
+  '/wechat-database': 'wechat-group',
 };
 
 const menuItemLabel = (item: MenuItem | undefined) => {
