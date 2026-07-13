@@ -3,6 +3,7 @@ import {
   buildQuery,
   formatCell,
   formatWechatTime,
+  lastNDaysRange,
   previewText,
   summaryPayload,
   toApiTime,
@@ -60,5 +61,12 @@ describe('WeChat bot admin utilities', () => {
   it('labels message type 10002 as a pat event', () => {
     expect(wechatMessageTypeLabel(10002)).toBe('拍一拍');
     expect(wechatMessageTypeLabel(99999)).toBe('类型 99999');
+  });
+
+  it('builds an inclusive seven-day statistics range', () => {
+    expect(lastNDaysRange(7, new Date(2026, 6, 13, 12, 0, 0))).toEqual({
+      start: '2026-07-07',
+      end: '2026-07-13',
+    });
   });
 });

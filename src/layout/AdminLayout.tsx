@@ -64,13 +64,14 @@ export const buildMenuItems = (visibleKeys?: string[]): MenuItem[] => {
           ...(can('kook-voice-stats') ? [{ key: '/kook-voice-stats', icon: <BarChartOutlined />, label: '语音统计' }] : []),
         ],
   } as MenuItem] : []),
-  ...((can('wechat-messages') || can('wechat-summary') || can('wechat-database')) ? [{
+  ...((can('wechat-messages') || can('wechat-summary') || can('wechat-stats') || can('wechat-database')) ? [{
     key: 'wechat-group',
     icon: <WechatOutlined />,
     label: '微信机器人',
     children: [
       ...(can('wechat-messages') ? [{ key: '/wechat-messages', icon: <MessageOutlined />, label: '消息查询' }] : []),
       ...(can('wechat-summary') ? [{ key: '/wechat-summary', icon: <FileTextOutlined />, label: 'AI 总结' }] : []),
+      ...(can('wechat-stats') ? [{ key: '/wechat-stats', icon: <BarChartOutlined />, label: '聊天统计' }] : []),
       ...(can('wechat-database') ? [{ key: '/wechat-database', icon: <DatabaseOutlined />, label: '数据库浏览' }] : []),
     ],
   } as MenuItem] : []),
@@ -106,6 +107,7 @@ export const openKeyByPath: Record<string, string> = {
   '/announcements': 'content-group',
   '/wechat-messages': 'wechat-group',
   '/wechat-summary': 'wechat-group',
+  '/wechat-stats': 'wechat-group',
   '/wechat-database': 'wechat-group',
 };
 
@@ -298,7 +300,7 @@ export default function AdminLayout() {
         onClose={() => setMobileNavOpen(false)}
         open={mobileNavOpen}
         placement="left"
-        width={304}
+        size={304}
       >
         <div className="brand mobile-drawer-brand">
           <div className="brand-mark">

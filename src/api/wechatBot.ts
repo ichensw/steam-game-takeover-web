@@ -62,6 +62,36 @@ export type WechatSummary = {
   end?: string;
 };
 
+export type WechatStatsTotals = {
+  messageCount: number;
+  participantCount: number;
+  groupCount: number;
+  messagesPerParticipant: number;
+};
+
+export type WechatDailyStat = {
+  date: string;
+  messageCount: number;
+  participantCount: number;
+  groupCount: number;
+};
+
+export type WechatParticipantStat = {
+  senderWxid: string;
+  senderName: string;
+  messageCount: number;
+  activeDays: number;
+  groupCount: number;
+};
+
+export type WechatDailyStats = {
+  range: { start: string; end: string };
+  roomId: string;
+  totals: WechatStatsTotals;
+  daily: WechatDailyStat[];
+  participants: WechatParticipantStat[];
+};
+
 export type WechatTable = {
   name: string;
   approxRows: number;
@@ -85,6 +115,9 @@ export const listWechatMessages = (params: WechatMessageQuery) =>
 
 export const createWechatSummary = (body: WechatSummaryRequest) =>
   unwrap<WechatSummary>(http.post(`${root}/messages/summary`, body));
+
+export const getWechatDailyStats = (params: { start: string; end: string; roomId?: string }) =>
+  unwrap<WechatDailyStats>(http.get(`${root}/stats/daily`, { params }));
 
 export const listWechatTables = () => unwrap<WechatTable[]>(http.get(`${root}/tables`));
 

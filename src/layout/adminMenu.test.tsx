@@ -19,9 +19,16 @@ describe('WeChat bot admin navigation', () => {
     expect(group(items, 'wechat-group')).toBeUndefined();
   });
 
+  it('shows chat statistics for the dedicated permission', () => {
+    const items = buildMenuItems(['dashboard', 'wechat-stats']) as TestMenuItem[];
+    const wechat = group(items, 'wechat-group');
+    expect(wechat?.children?.map((item) => item?.key)).toEqual(['/wechat-stats']);
+  });
+
   it('maps every WeChat route to the same open group', () => {
     expect(openKeyByPath['/wechat-messages']).toBe('wechat-group');
     expect(openKeyByPath['/wechat-summary']).toBe('wechat-group');
+    expect(openKeyByPath['/wechat-stats']).toBe('wechat-group');
     expect(openKeyByPath['/wechat-database']).toBe('wechat-group');
   });
 });
