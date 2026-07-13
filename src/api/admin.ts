@@ -234,14 +234,112 @@ export type KookChannelUsage = {
   channelId: string;
   durationSeconds: number;
   durationText: string;
+  occupiedDurationSeconds: number;
+  occupiedDurationText: string;
   sessionCount: number;
   activeUserCount: number;
+};
+
+export type KookChannelSortScheduleType = 'daily' | 'weekly' | 'monthly';
+export type KookChannelSortRunStatus =
+  | 'planning'
+  | 'running'
+  | 'succeeded'
+  | 'failed'
+  | 'rollback_failed';
+
+export type KookChannelSortRun = {
+  id: number;
+  trigger: 'scheduled' | 'manual';
+  status: KookChannelSortRunStatus;
+  rangeStart: string;
+  rangeEnd: string;
+  plannedCount: number;
+  movedCount: number;
+  errorMessage: string | null;
+  startedAt: string;
+  finishedAt: string | null;
+};
+
+export type KookChannelSortConfigUpdate = {
+  enabled: boolean;
+  groupIds: string[];
+  scheduleType: KookChannelSortScheduleType;
+  weekday: number | null;
+  monthday: number | null;
+  hour: number;
+};
+
+export type KookChannelSortConfig = KookChannelSortConfigUpdate & {
+  nextRunAt: string | null;
+  latestRun: KookChannelSortRun | null;
+};
+
+export type KookChannelSortPlanGroup = {
+  groupId: string;
+  groupName: string;
+  order: number;
+  channelCount: number;
+};
+
+export type KookChannelSortMove = {
+  channelId: string;
+  channelName: string;
+  fromParentId: string;
+  fromParentName: string;
+  toParentId: string;
+  toParentName: string;
+  fromLevel: number;
+  toLevel: number;
+  usageSeconds: number;
+  usageText: string;
+  occupiedDurationSeconds: number;
+  occupiedDurationText: string;
+};
+
+export type KookChannelSortPlan = {
+  range: { startTime: string; endTime: string };
+  groups: KookChannelSortPlanGroup[];
+  moves: KookChannelSortMove[];
+  moveCount: number;
+};
+
+export type KookChannelMoveRequest = {
+  targetParentId: string;
+  placement: 'top' | 'bottom' | 'before' | 'after';
+  anchorChannelId?: string;
 };
 
 export function listKookChannelUsageSummary(params: Query) {
   return unwrap<{ range: { startTime: string; endTime: string }; list: KookChannelUsage[] }>(
     http.get('/admin/kook-channels/usage-summary', { params }),
   );
+}
+
+export function getKookChannelSortConfig() {
+  return unwrap<KookChannelSortConfig>(http.get('/admin/kook-channel-sort/config'));
+}
+
+export function updateKookChannelSortConfig(values: KookChannelSortConfigUpdate) {
+  return unwrap<KookChannelSortConfig>(http.put('/admin/kook-channel-sort/config', values));
+}
+
+export function previewKookChannelSort() {
+  return unwrap<KookChannelSortPlan>(http.post('/admin/kook-channel-sort/preview'));
+}
+
+export function runKookChannelSort() {
+  return unwrap<KookChannelSortRun>(http.post('/admin/kook-channel-sort/run'));
+}
+
+export function listKookChannelSortRuns(params: Query) {
+  return unwrap<PageResult<KookChannelSortRun>>(
+    http.get('/admin/kook-channel-sort/runs', { params }),
+  );
+}
+
+export function moveKookChannel(id: React.Key, values: KookChannelMoveRequest) {
+  return unwrap<Record<string, unknown>>(http.post(`/admin/kook-channels/${id}/move`, values));
 }
 
 export function getKookChannel(id: React.Key, params?: Query) {
