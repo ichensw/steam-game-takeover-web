@@ -1,8 +1,9 @@
 import { FileTextOutlined, HistoryOutlined, MessageOutlined } from '@ant-design/icons';
 import { Alert, App as AntApp, Button, Card, Col, Drawer, Empty, Form, Input, List, Row, Select, Space, Spin, Statistic, Tag, Typography } from 'antd';
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import {
-  createWechatSummary,
+  createWechatSummaryJob,
+  getWechatSummaryJob,
   getWechatSummary,
   listWechatGroups,
   listWechatSummaryHistory,
@@ -10,11 +11,12 @@ import {
   type WechatGroup,
   type WechatMessage,
   type WechatSummary as WechatSummaryData,
+  type WechatSummaryJob,
   type WechatSummaryReport,
   type WechatSummaryTopic,
 } from '../api/wechatBot';
 import PageHeader from '../components/PageHeader';
-import { formatWechatTime, summaryPayload, todayString, type SummaryFormValues } from '../utils/wechatBot';
+import { formatWechatTime, summaryPayload, toApiTime, todayString, type SummaryFormValues } from '../utils/wechatBot';
 
 const periodOptions = [
   { value: 'day', label: '全天' },
@@ -30,6 +32,12 @@ const emptyReport: WechatSummaryReport = {
   memes: [],
   disputes: '整体无明显争议',
   miniPrograms: [],
+};
+
+type HistorySearchValues = {
+  roomId?: string;
+  start?: string;
+  end?: string;
 };
 
 function reportOf(result: WechatSummaryData | null): WechatSummaryReport {
@@ -64,16 +72,24 @@ export default function WechatSummary() {
   const [originalOpen, setOriginalOpen] = useState(false);
   const [loading, setLoading] = useState(false);
   const [historyLoading, setHistoryLoading] = useState(false);
+  const [job, setJob] = useState<WechatSummaryJob | null>(null);
   const [form] = Form.useForm<SummaryFormValues>();
+  const [historyForm] = Form.useForm<HistorySearchValues>();
   const period = Form.useWatch('period', form);
-  const selectedRoomId = Form.useWatch('roomId', form);
+  const activeJobId = useRef(0);
   const { message } = AntApp.useApp();
   const report = useMemo(() => reportOf(result), [result]);
 
-  const loadHistory = async (roomId = selectedRoomId) => {
+  const loadHistory = async (values: HistorySearchValues = historyForm.getFieldsValue()) => {
     setHistoryLoading(true);
     try {
-      const data = await listWechatSummaryHistory({ roomId, page: 1, pageSize: 10 });
+      const data = await listWechatSummaryHistory({
+        roomId: values.roomId,
+        start: toApiTime(values.start) || undefined,
+        end: toApiTime(values.end) || undefined,
+        page: 1,
+        pageSize: 20,
+      });
       setHistory(data.data || []);
     } catch (error) {
       message.error(error instanceof Error ? error.message : '历史总结加载失败');
@@ -86,17 +102,48 @@ export default function WechatSummary() {
     listWechatGroups().then(setGroups).catch((error) => {
       message.error(error instanceof Error ? error.message : '群聊列表加载失败');
     });
-    void loadHistory(undefined);
+    void loadHistory({});
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
+  const pollSummaryJob = async (jobId: number, roomId?: string) => {
+    try {
+      let current = await getWechatSummaryJob(jobId);
+      setJob(current);
+      for (let index = 0; index < 240 && current.status !== 'succeeded' && current.status !== 'failed'; index += 1) {
+        await new Promise((resolve) => setTimeout(resolve, 2000));
+        if (activeJobId.current !== jobId) return;
+        current = await getWechatSummaryJob(jobId);
+        setJob(current);
+      }
+      if (activeJobId.current !== jobId) return;
+      if (current.status === 'failed') {
+        message.error(current.error || '总结生成失败');
+        return;
+      }
+      if (current.status !== 'succeeded') {
+        message.info('总结任务仍在执行，可稍后刷新历史查看结果');
+        return;
+      }
+      if (current.summary) setResult(current.summary);
+      await loadHistory({ roomId });
+      message.success('总结已生成');
+    } catch (error) {
+      if (activeJobId.current === jobId) {
+        message.error(error instanceof Error ? error.message : '总结任务状态查询失败');
+      }
+    }
+  };
+
   const submit = async (values: SummaryFormValues) => {
     setLoading(true);
+    setJob(null);
     try {
-      const data = await createWechatSummary(summaryPayload(values));
-      setResult(data);
-      await loadHistory(values.roomId);
-      message.success('总结已生成');
+      const created = await createWechatSummaryJob(summaryPayload(values));
+      activeJobId.current = created.id;
+      setJob(created);
+      message.success('总结任务已创建，完成后会自动刷新');
+      void pollSummaryJob(created.id, values.roomId);
     } catch (error) {
       message.error(error instanceof Error ? error.message : '总结生成失败');
     } finally {
@@ -154,6 +201,14 @@ export default function WechatSummary() {
         </Form>
       </Card>
 
+      {job ? (
+        <Alert
+          type={job.status === 'failed' ? 'error' : job.status === 'succeeded' ? 'success' : 'info'}
+          showIcon
+          message={`任务 ${job.id}：${job.status}，分段 ${job.chunkCount || 0}，消息 ${job.messageCount || 0}${job.sendStatus ? `，发群 ${job.sendStatus}` : ''}${job.sendError ? `：${job.sendError}` : ''}`}
+          className="wechat-summary-alert"
+        />
+      ) : null}
       {result?.truncated ? <Alert type="warning" showIcon message={`消息数量较多，本次总结已达到当前配置上限（${result.maxMessages || 1000} 条）。`} className="wechat-summary-alert" /> : null}
       {report.parseFailed ? <Alert type="warning" showIcon message="AI 返回的结构不完整，已按纯文本摘要兜底展示。" className="wechat-summary-alert" /> : null}
 
@@ -210,6 +265,18 @@ export default function WechatSummary() {
                   <SummaryBucket title="争议或情绪" items={[report.disputes]} />
                   <SummaryBucket title="小程序 / 接龙" items={report.miniPrograms} />
                 </Row>
+                {report.modelComparisons?.length ? (
+                  <Card title="模型对比" className="wechat-summary-bucket">
+                    <List
+                      dataSource={report.modelComparisons}
+                      renderItem={(item) => (
+                        <List.Item>
+                          <List.Item.Meta title={item.model} description={item.overview} />
+                        </List.Item>
+                      )}
+                    />
+                  </Card>
+                ) : null}
               </Space>
             ) : (
               <Card className="wechat-summary-output" aria-live="polite">
@@ -223,6 +290,16 @@ export default function WechatSummary() {
         </Col>
         <Col xs={24} xl={8}>
           <Card title="历史总结" className="wechat-summary-history" loading={historyLoading}>
+            <Form form={historyForm} layout="vertical" onFinish={loadHistory}>
+              <Form.Item name="roomId">
+                <Select allowClear showSearch optionFilterProp="label" placeholder="全部群聊" options={groups.map((group) => ({ value: group.roomId, label: group.roomName || group.roomId }))} />
+              </Form.Item>
+              <Row gutter={8}>
+                <Col span={12}><Form.Item name="start"><Input type="datetime-local" aria-label="历史开始时间" /></Form.Item></Col>
+                <Col span={12}><Form.Item name="end"><Input type="datetime-local" aria-label="历史结束时间" /></Form.Item></Col>
+              </Row>
+              <Button htmlType="submit" icon={<HistoryOutlined />} loading={historyLoading}>查询历史</Button>
+            </Form>
             <List
               dataSource={history}
               locale={{ emptyText: '暂无历史总结' }}

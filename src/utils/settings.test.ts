@@ -27,4 +27,30 @@ describe('admin settings normalization', () => {
     expect(normalizeSettings({ wechatSummaryMaxMessages: 3000 }).wechatSummaryMaxMessages).toBe(3000);
     expect(normalizeSettings({ wechatSummaryMaxMessages: 10000 }).wechatSummaryMaxMessages).toBe(10000);
   });
+
+  it('normalizes wechat summary prompt options', () => {
+    const settings = normalizeSettings({
+      wechatSummaryPrompt: '  保留游戏名  ',
+      wechatSummaryStyle: 'detailed',
+      wechatSummaryModel: ' gpt-5.5 ',
+      wechatSummaryCompareModels: 'gpt-5.5, gpt-4o\nclaude-sonnet,gpt-4o',
+    });
+
+    expect(settings.wechatSummaryPrompt).toBe('保留游戏名');
+    expect(settings.wechatSummaryStyle).toBe('detailed');
+    expect(settings.wechatSummaryModel).toBe('gpt-5.5');
+    expect(settings.wechatSummaryCompareModels).toBe('gpt-5.5,gpt-4o,claude-sonnet');
+  });
+
+  it('defaults invalid wechat summary daily time', () => {
+    expect(normalizeSettings({ wechatSummaryDailyTime: '' }).wechatSummaryDailyTime).toBe('09:00');
+    expect(normalizeSettings({ wechatSummaryDailyTime: '9:00' }).wechatSummaryDailyTime).toBe('09:00');
+    expect(normalizeSettings({ wechatSummaryDailyTime: '24:00' }).wechatSummaryDailyTime).toBe('09:00');
+    expect(normalizeSettings({ wechatSummaryDailyTime: '09:30' }).wechatSummaryDailyTime).toBe('09:30');
+  });
+
+  it('drops unknown wechat summary styles', () => {
+    expect(normalizeSettings({ wechatSummaryStyle: 'random' }).wechatSummaryStyle).toBe('');
+    expect(normalizeSettings({ wechatSummaryStyle: 'fun' }).wechatSummaryStyle).toBe('fun');
+  });
 });

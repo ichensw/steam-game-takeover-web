@@ -54,6 +54,21 @@ export type WechatSummaryRequest = {
   end?: string;
 };
 
+export type WechatSummaryJob = {
+  id: number;
+  status: 'pending' | 'running' | 'succeeded' | 'failed';
+  messageCount: number;
+  chunkCount: number;
+  summaryId?: number;
+  summary?: WechatSummary;
+  error?: string;
+  sendStatus?: string;
+  sendError?: string;
+  createdAt?: string;
+  startedAt?: string;
+  finishedAt?: string;
+};
+
 export type WechatSummary = {
   id?: number;
   summary: string;
@@ -79,6 +94,11 @@ export type WechatSummaryReport = {
   memes: string[];
   disputes: string;
   miniPrograms: string[];
+  modelComparisons?: Array<{
+    model: string;
+    overview: string;
+    topics: WechatSummaryTopic[];
+  }>;
   parseFailed?: boolean;
 };
 
@@ -154,7 +174,13 @@ export const listWechatMessages = (params: WechatMessageQuery) =>
 export const createWechatSummary = (body: WechatSummaryRequest) =>
   unwrap<WechatSummary>(http.post(`${root}/messages/summary`, body, { timeout: 140000 }));
 
-export const listWechatSummaryHistory = (params: { roomId?: string; page: number; pageSize: number }) =>
+export const createWechatSummaryJob = (body: WechatSummaryRequest) =>
+  unwrap<WechatSummaryJob>(http.post(`${root}/messages/summary-jobs`, body));
+
+export const getWechatSummaryJob = (id: number) =>
+  unwrap<WechatSummaryJob>(http.get(`${root}/messages/summary-jobs/${id}`));
+
+export const listWechatSummaryHistory = (params: { roomId?: string; start?: string; end?: string; page: number; pageSize: number }) =>
   unwrap<WechatPage<WechatSummary>>(http.get(`${root}/messages/summary/history`, { params }));
 
 export const getWechatSummary = (id: number) =>

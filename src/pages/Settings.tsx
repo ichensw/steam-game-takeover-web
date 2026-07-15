@@ -5,6 +5,7 @@ import {
   Form,
   Input,
   InputNumber,
+  Select,
   Space,
   Spin,
   Switch,
@@ -317,11 +318,67 @@ export default function Settings() {
                 <Form.Item
                   label="微信 AI 总结消息上限"
                   name="wechatSummaryMaxMessages"
-                  extra="生成微信聊天总结时最多读取的文本消息条数，超过后会截断。"
+                  extra="异步总结会按该数量分段处理，不再截断超大时间段。"
                   rules={[{ required: true, message: '请输入 1 至 10000 条' }]}
                 >
                   <InputNumber min={1} max={10000} step={100} precision={0} className="settings-number-input" />
                 </Form.Item>
+                <Form.Item
+                  label="微信总结 Prompt 模板"
+                  name="wechatSummaryPrompt"
+                  extra="追加到系统角色 Prompt 后的定制要求。适合写群规则、关注重点和禁止输出内容。"
+                >
+                  <Input.TextArea rows={5} placeholder="例如：重点保留游戏名、昵称、活动名；不要输出没有上下文的玩笑。" />
+                </Form.Item>
+                <div className="settings-field-grid">
+                  <Form.Item label="微信总结风格" name="wechatSummaryStyle" extra="不选则使用默认日报风格。">
+                    <Select
+                      allowClear
+                      placeholder="默认风格"
+                      options={[
+                        { value: 'brief', label: '简洁版' },
+                        { value: 'detailed', label: '详细版' },
+                        { value: 'fun', label: '轻松版' },
+                      ]}
+                    />
+                  </Form.Item>
+                  <Form.Item label="微信总结主模型" name="wechatSummaryModel" extra="为空时使用微信 Bot 后端默认模型。">
+                    <Input placeholder="例如 gpt-5.5" className="mono" />
+                  </Form.Item>
+                </div>
+                <Form.Item
+                  label="微信总结对比模型"
+                  name="wechatSummaryCompareModels"
+                  extra="多个模型用逗号或换行分隔。生成主总结后，会把不同模型的概览和话题附在结果里。"
+                >
+                  <Input.TextArea rows={2} placeholder={'gpt-4o\nclaude-sonnet'} className="mono" />
+                </Form.Item>
+                <div className="settings-field-grid">
+                  <Form.Item
+                    label="总结完成后自动发回微信群"
+                    name="wechatSummaryAutoSend"
+                    valuePropName="checked"
+                    extra="仅在选择了具体群聊时生效。需要微信 Hook 发送接口配置完整。"
+                  >
+                    <Switch checkedChildren="开启" unCheckedChildren="关闭" />
+                  </Form.Item>
+                  <Form.Item
+                    label="自动生成每日总结"
+                    name="wechatSummaryAutoDaily"
+                    valuePropName="checked"
+                    extra="开启后由后台按下面时间创建日报任务。"
+                  >
+                    <Switch checkedChildren="开启" unCheckedChildren="关闭" />
+                  </Form.Item>
+                </div>
+                <div className="settings-field-grid">
+                  <Form.Item label="日报生成时间" name="wechatSummaryDailyTime" rules={[{ required: true, message: '请选择生成时间' }]}>
+                    <Input type="time" />
+                  </Form.Item>
+                  <Form.Item label="日报群聊 RoomID" name="wechatSummaryDailyRoomId" extra="为空时生成全部群聊汇总；需要发回微信群时建议填写具体 roomId。">
+                    <Input placeholder="例如 xxxxx@chatroom" className="mono" />
+                  </Form.Item>
+                </div>
                 <div className="settings-status-list" aria-label="AI 配置状态">
                   <Typography.Text type={currentValues.aiExtractEnabled ? 'success' : 'secondary'}>
                     AI 提取 {currentValues.aiExtractEnabled ? '已开启' : '未开启'}
@@ -337,6 +394,15 @@ export default function Settings() {
                   </Typography.Text>
                   <Typography.Text type="secondary">
                     微信总结上限 {currentValues.wechatSummaryMaxMessages || 1000} 条
+                  </Typography.Text>
+                  <Typography.Text type={currentValues.wechatSummaryModel ? 'success' : 'secondary'}>
+                    微信总结模型 {currentValues.wechatSummaryModel || '后端默认'}
+                  </Typography.Text>
+                  <Typography.Text type={currentValues.wechatSummaryAutoDaily ? 'success' : 'secondary'}>
+                    定时日报 {currentValues.wechatSummaryAutoDaily ? `已开启 ${currentValues.wechatSummaryDailyTime || '09:00'}` : '未开启'}
+                  </Typography.Text>
+                  <Typography.Text type={currentValues.wechatSummaryAutoSend ? 'success' : 'secondary'}>
+                    发回微信群 {currentValues.wechatSummaryAutoSend ? '已开启' : '未开启'}
                   </Typography.Text>
                 </div>
                 <div className="settings-subsection settings-summary-action">
