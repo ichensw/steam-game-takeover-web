@@ -324,7 +324,8 @@ export default function WechatWxbotControl() {
 
   const saveConfig = async () => {
     if (!selectedBotId) return;
-    const values = await form.validateFields();
+    await form.validateFields();
+    const values = form.getFieldsValue(true) as FormValues;
     setSaving(true);
     try {
       const detail = await updateWxbotConfig(selectedBotId, formToConfig(values));
@@ -473,7 +474,7 @@ function mergeConfig(base: WxbotRemoteConfig, override: WxbotRemoteConfig): Wxbo
   return result as WxbotRemoteConfig;
 }
 
-function configToForm(config: WxbotRemoteConfig): FormValues {
+export function configToForm(config: WxbotRemoteConfig): FormValues {
   const result: FormValues = {};
   configSections.forEach((section) => {
     const source = ((config as Record<string, unknown>)[section.key] || {}) as Record<string, unknown>;
@@ -482,6 +483,8 @@ function configToForm(config: WxbotRemoteConfig): FormValues {
       const value = source[field.key];
       if (field.type === 'list') {
         result[section.key][field.key] = Array.isArray(value) ? value.join('\n') : '';
+      } else if (field.type === 'boolean') {
+        result[section.key][field.key] = asBool(value);
       } else {
         result[section.key][field.key] = value;
       }
@@ -490,7 +493,7 @@ function configToForm(config: WxbotRemoteConfig): FormValues {
   return result;
 }
 
-function formToConfig(values: FormValues): WxbotRemoteConfig {
+export function formToConfig(values: FormValues): WxbotRemoteConfig {
   const result: Record<string, Record<string, unknown>> = {};
   configSections.forEach((section) => {
     const source = values[section.key] || {};
@@ -499,6 +502,8 @@ function formToConfig(values: FormValues): WxbotRemoteConfig {
       const value = source[field.key];
       if (field.type === 'list') {
         result[section.key][field.key] = splitLines(value);
+      } else if (field.type === 'boolean') {
+        result[section.key][field.key] = asBool(value);
       } else if (field.type === 'number') {
         result[section.key][field.key] = Number(value || 0);
       } else {
@@ -511,6 +516,12 @@ function formToConfig(values: FormValues): WxbotRemoteConfig {
 
 function splitLines(value: unknown) {
   return Array.from(new Set(String(value || '').split(/[\n,，]+/).map((item) => item.trim()).filter(Boolean)));
+}
+
+function asBool(value: unknown) {
+  if (typeof value === 'boolean') return value;
+  if (typeof value === 'string') return ['true', '1', 'yes', 'on'].includes(value.trim().toLowerCase());
+  return false;
 }
 
 function isPlainObject(value: unknown): value is Record<string, unknown> {
