@@ -34,6 +34,7 @@ import KookRoleSelect from '../components/KookRoleSelect';
 import PageHeader from '../components/PageHeader';
 import { useTableColumnSettings } from '../components/tableColumnSettings';
 import { permissionText } from '../constants/kookPermissions';
+import { formatDateTime } from '../utils/wechatBot';
 import { pageSizeOptions, responsePageSize } from '../utils/pagination';
 
 type KookMemberRow = Record<string, unknown> & {
@@ -238,7 +239,7 @@ export default function KookMembers() {
     try {
       const res = await syncKookMembers();
       message.success(`已同步 ${res.count} 个 KOOK 成员`);
-      setLastSyncTime(new Date().toLocaleString());
+      setLastSyncTime(formatDateTime(new Date()));
       await load(1);
     } finally {
       setSyncing(false);

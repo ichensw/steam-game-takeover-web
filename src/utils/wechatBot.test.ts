@@ -2,6 +2,7 @@ import { describe, expect, it } from 'vitest';
 import {
   buildQuery,
   formatCell,
+  formatDateTime,
   formatWechatTime,
   lastNDaysRange,
   previewText,
@@ -51,9 +52,16 @@ describe('WeChat bot admin utilities', () => {
     expect(previewText('abc', 3)).toBe('abc');
   });
 
+  it('formats frontend times as yyyy-MM-dd HH:mm:ss', () => {
+    expect(formatDateTime('2026-07-13T10:20:30+08:00')).toBe('2026-07-13 10:20:30');
+    expect(formatDateTime('2026-07-13T10:20')).toBe('2026-07-13 10:20:00');
+    expect(formatDateTime('2026-07-13 10:20:30')).toBe('2026-07-13 10:20:30');
+  });
+
   it('formats structured message times and keeps legacy strings', () => {
     expect(formatWechatTime({ unix: 1783918830, text: '2026-07-13 10:20:30' }))
       .toBe('2026-07-13 10:20:30');
+    expect(formatWechatTime('2026-07-13T10:20:30+08:00')).toBe('2026-07-13 10:20:30');
     expect(formatWechatTime('2026-07-13 10:20:30')).toBe('2026-07-13 10:20:30');
     expect(formatWechatTime(undefined)).toBe('-');
   });

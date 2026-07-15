@@ -10,6 +10,7 @@ import {
   onlineKookBot,
 } from '../api/admin';
 import PageHeader from '../components/PageHeader';
+import { formatDateTime } from '../utils/wechatBot';
 
 type KookUser = Record<string, unknown>;
 type KookMember = Record<string, unknown>;
@@ -144,9 +145,7 @@ function memberLabel(row: KookMember) {
 }
 
 function formatTime(value: unknown) {
-  const time = typeof value === 'number' ? value : Number(value);
-  if (!Number.isFinite(time) || time <= 0) return '';
-  return new Date(time > 100000000000 ? time : time * 1000).toLocaleString();
+  return formatDateTime(typeof value === 'number' ? value : String(value));
 }
 
 function statusText(value: unknown) {

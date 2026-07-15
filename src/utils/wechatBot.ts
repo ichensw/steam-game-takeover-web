@@ -67,6 +67,38 @@ export function todayString(now = new Date()) {
   return `${year}-${month}-${day}`;
 }
 
+function formatDateObject(date: Date) {
+  if (Number.isNaN(date.getTime())) return '';
+  const year = date.getFullYear();
+  const month = String(date.getMonth() + 1).padStart(2, '0');
+  const day = String(date.getDate()).padStart(2, '0');
+  const hour = String(date.getHours()).padStart(2, '0');
+  const minute = String(date.getMinutes()).padStart(2, '0');
+  const second = String(date.getSeconds()).padStart(2, '0');
+  return `${year}-${month}-${day} ${hour}:${minute}:${second}`;
+}
+
+export function formatDateTime(value: Date | number | string | null | undefined): string {
+  if (value === null || value === undefined || value === '') return '';
+  if (value instanceof Date) return formatDateObject(value);
+  if (typeof value === 'number') {
+    if (!Number.isFinite(value) || value <= 0) return '';
+    return formatDateObject(new Date(value > 100000000000 ? value : value * 1000));
+  }
+
+  const text = String(value).trim();
+  if (!text) return '';
+  if (/^\d+(?:\.\d+)?$/.test(text)) return formatDateTime(Number(text));
+
+  const match = text.match(/^(\d{4})-(\d{2})-(\d{2})[ T](\d{2}):(\d{2})(?::(\d{2}))?/);
+  if (match && !/[zZ]|[+-]\d{2}:?\d{2}$/.test(text)) {
+    return `${match[1]}-${match[2]}-${match[3]} ${match[4]}:${match[5]}:${match[6] || '00'}`;
+  }
+
+  const parsed = new Date(text);
+  return Number.isNaN(parsed.getTime()) ? text : formatDateObject(parsed);
+}
+
 export function lastNDaysRange(days: number, now = new Date()) {
   const end = new Date(now.getFullYear(), now.getMonth(), now.getDate());
   const start = new Date(end);
@@ -85,7 +117,7 @@ export function formatCell(value: unknown): string {
 
 export function formatWechatTime(value: ApiUnixTime | string | null | undefined): string {
   const text = formatCell(value).trim();
-  return text || '-';
+  return formatDateTime(text) || '-';
 }
 
 export function wechatMessageTypeLabel(value: number): string {
