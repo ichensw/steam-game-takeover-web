@@ -6,7 +6,7 @@ import { listWechatGroups, listWechatMessages, type WechatGroup, type WechatMess
 import PageHeader from '../components/PageHeader';
 import { useTableColumnSettings } from '../components/tableColumnSettings';
 import { pageSizeOptions } from '../utils/pagination';
-import { formatWechatTime, wechatMessageTypeLabel, wechatMessageTypes } from '../utils/wechatBot';
+import { formatWechatTime, wechatMessageSubTypeLabel, wechatMessageSubTypes, wechatMessageTypeLabel, wechatMessageTypes } from '../utils/wechatBot';
 
 type DateLike = { format: (template: string) => string };
 
@@ -67,6 +67,7 @@ export default function WechatMessages() {
       sender: values.sender?.trim(),
       keyword: values.keyword?.trim(),
       msgType: values.msgType,
+      subType: values.subType,
       start: range?.[0]?.format('YYYY-MM-DDTHH:mm:ss'),
       end: range?.[1]?.format('YYYY-MM-DDTHH:mm:ss'),
       page: targetPage,
@@ -120,7 +121,11 @@ export default function WechatMessages() {
         </Space>
       ),
     },
-    { title: '类型', dataIndex: 'msgType', width: 110, render: (value) => <Tag>{wechatMessageTypeLabel(value)}</Tag> },
+    {
+      title: '类型',
+      width: 170,
+      render: (_, row) => <Tag>{[wechatMessageTypeLabel(row.msgType), wechatMessageSubTypeLabel(row.subType)].filter(Boolean).join(' / ')}</Tag>,
+    },
     {
       title: '内容',
       dataIndex: 'content',
@@ -181,6 +186,7 @@ export default function WechatMessages() {
           <Form.Item name="sender"><Input allowClear placeholder="发送人 / wxid" /></Form.Item>
           <Form.Item name="keyword"><Input.Search allowClear placeholder="消息关键词" /></Form.Item>
           <Form.Item name="msgType"><Select allowClear placeholder="消息类型" style={{ width: 140 }} options={wechatMessageTypes} /></Form.Item>
+          <Form.Item name="subType"><Select allowClear showSearch optionFilterProp="label" placeholder="细分类型" style={{ width: 160 }} options={wechatMessageSubTypes} /></Form.Item>
           <Form.Item name="timeRange"><DatePicker.RangePicker showTime format="YYYY-MM-DD HH:mm:ss" /></Form.Item>
           <Space>
             <Button type="primary" htmlType="submit">查询</Button>

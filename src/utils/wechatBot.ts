@@ -11,8 +11,26 @@ export const wechatMessageTypes = [
   { value: 34, label: '语音' },
   { value: 43, label: '视频' },
   { value: 47, label: '表情' },
+  { value: 48, label: '位置' },
   { value: 49, label: '卡片 / 文件' },
-  { value: 10002, label: '拍一拍' },
+  { value: 10000, label: '群系统消息' },
+  { value: 10002, label: '系统通知' },
+];
+
+export const wechatMessageSubTypes = [
+  { value: 'group_join', label: '进群通知' },
+  { value: 'group_leave', label: '退群 / 移出群聊' },
+  { value: 'group_system', label: '其他群系统消息' },
+  { value: 'pat', label: '拍一拍' },
+  { value: 'revoke', label: '撤回消息' },
+  { value: 'room_announcement', label: '群公告' },
+  { value: 'system_notice', label: '其他系统通知' },
+  { value: 'mini_program', label: '小程序卡片' },
+  { value: 'link', label: '链接卡片' },
+  { value: 'file', label: '文件' },
+  { value: 'transfer', label: '转账' },
+  { value: 'red_packet', label: '红包' },
+  { value: 'card_file', label: '其他卡片 / 文件' },
 ];
 
 export type SummaryFormValues = {
@@ -122,6 +140,11 @@ export function formatWechatTime(value: ApiUnixTime | string | null | undefined)
 
 export function wechatMessageTypeLabel(value: number): string {
   return wechatMessageTypes.find((item) => item.value === value)?.label || `类型 ${value}`;
+}
+
+export function wechatMessageSubTypeLabel(value?: string): string {
+  if (!value) return '';
+  return wechatMessageSubTypes.find((item) => item.value === value)?.label || value;
 }
 
 export function previewText(value: unknown, maxLength = 420) {

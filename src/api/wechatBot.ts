@@ -15,6 +15,7 @@ export type WechatMessage = {
   senderWxid: string;
   senderName: string;
   msgType: number;
+  subType?: string;
   content?: string;
   xmlContent?: string;
   mediaUrl?: string;
@@ -40,6 +41,7 @@ export type WechatMessageQuery = {
   sender?: string;
   keyword?: string;
   msgType?: number | string;
+  subType?: string;
   start?: string;
   end?: string;
   page: number;
@@ -64,6 +66,7 @@ export type WechatSummaryJob = {
   period?: string;
   messageCount: number;
   chunkCount: number;
+  processedChunkCount?: number;
   summaryId?: number;
   summary?: WechatSummary;
   error?: string;

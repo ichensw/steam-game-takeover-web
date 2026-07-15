@@ -8,6 +8,7 @@ import {
   previewText,
   summaryPayload,
   toApiTime,
+  wechatMessageSubTypeLabel,
   wechatMessageTypeLabel,
 } from './wechatBot';
 
@@ -66,9 +67,14 @@ describe('WeChat bot admin utilities', () => {
     expect(formatWechatTime(undefined)).toBe('-');
   });
 
-  it('labels message type 10002 as a pat event', () => {
-    expect(wechatMessageTypeLabel(10002)).toBe('拍一拍');
+  it('labels all stored message types and their system subtypes', () => {
+    expect(wechatMessageTypeLabel(48)).toBe('位置');
+    expect(wechatMessageTypeLabel(10000)).toBe('群系统消息');
+    expect(wechatMessageTypeLabel(10002)).toBe('系统通知');
     expect(wechatMessageTypeLabel(99999)).toBe('类型 99999');
+    expect(wechatMessageSubTypeLabel('group_join')).toBe('进群通知');
+    expect(wechatMessageSubTypeLabel('revoke')).toBe('撤回消息');
+    expect(wechatMessageSubTypeLabel('mini_program')).toBe('小程序卡片');
   });
 
   it('builds an inclusive seven-day statistics range', () => {

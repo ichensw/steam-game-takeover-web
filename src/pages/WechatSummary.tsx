@@ -54,7 +54,7 @@ function isActiveJob(job: WechatSummaryJob | null) {
 
 function jobStep(job: WechatSummaryJob) {
   if (job.status === 'succeeded') return 3;
-  if (job.chunkCount > 0) return 2;
+  if (job.chunkCount > 0 || (job.processedChunkCount || 0) > 0) return 2;
   if (job.messageCount > 0 || job.startedAt) return 1;
   return 0;
 }
@@ -62,8 +62,10 @@ function jobStep(job: WechatSummaryJob) {
 function jobProgress(job: WechatSummaryJob) {
   if (job.status === 'succeeded') return 100;
   if (job.status === 'failed') return 100;
-  // ponytail: backend exposes only coarse job state; replace with chunk-level progress when available.
-  if (job.chunkCount > 0) return 72;
+  if (job.chunkCount > 0) {
+    const processed = Math.min(job.processedChunkCount || 0, job.chunkCount);
+    return Math.max(52, Math.min(94, Math.round(52 + (processed / job.chunkCount) * 42)));
+  }
   if (job.messageCount > 0) return 46;
   if (job.startedAt) return 28;
   return 16;
@@ -79,6 +81,11 @@ function jobTag(job: WechatSummaryJob) {
   if (job.status === 'failed') return <Tag color="red">{jobStatusText[job.status]}</Tag>;
   if (job.status === 'succeeded') return <Tag color="green">{jobStatusText[job.status]}</Tag>;
   return <Tag color="processing" icon={<SyncOutlined spin />}>{jobStatusText[job.status]}</Tag>;
+}
+
+function processedChunkText(job: WechatSummaryJob) {
+  if (!job.chunkCount) return '0/0 段';
+  return `${Math.min(job.processedChunkCount || 0, job.chunkCount)}/${job.chunkCount} 段`;
 }
 
 function reportOf(result: WechatSummaryData | null): WechatSummaryReport {
@@ -289,14 +296,14 @@ export default function WechatSummary() {
                   items={[
                     { title: '创建任务' },
                     { title: '读取消息', description: `${job.messageCount || 0} 条` },
-                    { title: 'AI 生成', description: `${job.chunkCount || 0} 段` },
+                    { title: 'AI 生成', description: processedChunkText(job) },
                     { title: '写入历史' },
                   ]}
                 />
                 <Row gutter={[12, 12]}>
                   <Col xs={12} md={6}><Statistic title="消息" value={job.messageCount || 0} /></Col>
                   <Col xs={12} md={6}><Statistic title="分段" value={job.chunkCount || 0} /></Col>
-                  <Col xs={12} md={6}><Statistic title="开始" value={job.startedAt ? formatWechatTime(job.startedAt).slice(11, 19) : '-'} /></Col>
+                  <Col xs={12} md={6}><Statistic title="AI 生成" value={processedChunkText(job)} /></Col>
                   <Col xs={12} md={6}><Statistic title="完成" value={job.finishedAt ? formatWechatTime(job.finishedAt).slice(11, 19) : '-'} /></Col>
                 </Row>
                 {job.error ? <Alert type="error" showIcon message={job.error} /> : null}
