@@ -21,7 +21,7 @@ import {
 import { Avatar, Badge, Button, Drawer, Flex, Form, Input, Layout, Menu, Modal, Space, Typography, Upload, App as AntApp } from 'antd';
 import type { MenuProps } from 'antd';
 import type { RcFile, UploadProps } from 'antd/es/upload/interface';
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { Outlet, useLocation, useNavigate } from 'react-router-dom';
 import { adminLogout, getAdminMe, updateAdminMe, updateAdminPassword, uploadAdminImage } from '../api/admin';
 import { ADMIN_ROLE_KOOK_ADMIN, ADMIN_ROLE_SUPER_ADMIN, clearSession, getAdmin, getToken, hasAdminRole, setSession } from '../auth';
@@ -139,6 +139,11 @@ export default function AdminLayout() {
   const selectedKey = `/${location.pathname.split('/')[1] || 'dashboard'}`;
   const currentLabel = menuItemLabel(availableItems.find((item) => item?.key === selectedKey));
   const adminName = admin?.nickname || admin?.username || 'admin';
+
+  useEffect(() => {
+    void getAdminMe().then(saveAdminSession).catch(() => undefined);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   const onLogout = async () => {
     try {
