@@ -2003,6 +2003,40 @@ select {
   gap: 14px;
 }
 
+.wechat-summary-console {
+  margin-bottom: 16px;
+}
+
+.wechat-summary-panel {
+  height: 100%;
+  border-radius: 8px;
+}
+
+.wechat-summary-panel .ant-card-body {
+  min-height: 270px;
+}
+
+.wechat-summary-job .ant-progress {
+  margin-bottom: 2px;
+}
+
+.wechat-summary-job-meta {
+  min-height: 24px;
+}
+
+.wechat-summary-job .ant-steps-item-description {
+  color: var(--muted) !important;
+  font-size: 12px;
+}
+
+.wechat-summary-history-title {
+  max-width: min(100%, 1120px);
+}
+
+.wechat-summary-history-title .ant-typography {
+  max-width: 88ch;
+}
+
 .wechat-topic-card .ant-card-body {
   padding: 18px;
 }

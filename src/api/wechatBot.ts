@@ -57,6 +57,11 @@ export type WechatSummaryRequest = {
 export type WechatSummaryJob = {
   id: number;
   status: 'pending' | 'running' | 'succeeded' | 'failed';
+  roomId?: string;
+  roomName?: string;
+  start?: string;
+  end?: string;
+  period?: string;
   messageCount: number;
   chunkCount: number;
   summaryId?: number;

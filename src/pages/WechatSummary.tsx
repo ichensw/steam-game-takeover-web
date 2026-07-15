@@ -1,5 +1,5 @@
-import { FileTextOutlined, HistoryOutlined, MessageOutlined } from '@ant-design/icons';
-import { Alert, App as AntApp, Button, Card, Col, Drawer, Empty, Form, Input, List, Row, Select, Space, Spin, Statistic, Tag, Typography } from 'antd';
+import { CheckCircleOutlined, ClockCircleOutlined, FileTextOutlined, HistoryOutlined, MessageOutlined, SyncOutlined } from '@ant-design/icons';
+import { Alert, App as AntApp, Button, Card, Col, Drawer, Empty, Form, Input, List, Progress, Row, Select, Space, Spin, Statistic, Steps, Tag, Typography } from 'antd';
 import { useEffect, useMemo, useRef, useState } from 'react';
 import {
   createWechatSummaryJob,
@@ -40,6 +40,46 @@ type HistorySearchValues = {
   start?: string;
   end?: string;
 };
+
+const jobStatusText: Record<WechatSummaryJob['status'], string> = {
+  pending: '等待中',
+  running: '执行中',
+  succeeded: '已完成',
+  failed: '失败',
+};
+
+function isActiveJob(job: WechatSummaryJob | null) {
+  return job?.status === 'pending' || job?.status === 'running';
+}
+
+function jobStep(job: WechatSummaryJob) {
+  if (job.status === 'succeeded') return 3;
+  if (job.chunkCount > 0) return 2;
+  if (job.messageCount > 0 || job.startedAt) return 1;
+  return 0;
+}
+
+function jobProgress(job: WechatSummaryJob) {
+  if (job.status === 'succeeded') return 100;
+  if (job.status === 'failed') return 100;
+  // ponytail: backend exposes only coarse job state; replace with chunk-level progress when available.
+  if (job.chunkCount > 0) return 72;
+  if (job.messageCount > 0) return 46;
+  if (job.startedAt) return 28;
+  return 16;
+}
+
+function jobProgressStatus(job: WechatSummaryJob): 'active' | 'exception' | 'success' {
+  if (job.status === 'failed') return 'exception';
+  if (job.status === 'succeeded') return 'success';
+  return 'active';
+}
+
+function jobTag(job: WechatSummaryJob) {
+  if (job.status === 'failed') return <Tag color="red">{jobStatusText[job.status]}</Tag>;
+  if (job.status === 'succeeded') return <Tag color="green">{jobStatusText[job.status]}</Tag>;
+  return <Tag color="processing" icon={<SyncOutlined spin />}>{jobStatusText[job.status]}</Tag>;
+}
 
 function reportOf(result: WechatSummaryData | null): WechatSummaryReport {
   if (!result) return emptyReport;
@@ -83,6 +123,8 @@ export default function WechatSummary() {
   const activeJobId = useRef(0);
   const { message } = AntApp.useApp();
   const report = useMemo(() => reportOf(result), [result]);
+  const runningJob = isActiveJob(job);
+  const currentSummaryId = job?.summary?.id || job?.summaryId;
 
   const loadHistory = async (values: HistorySearchValues = historyForm.getFieldsValue()) => {
     setHistoryLoading(true);
@@ -146,7 +188,7 @@ export default function WechatSummary() {
       const created = await createWechatSummaryJob(summaryPayload(values));
       activeJobId.current = created.id;
       setJob(created);
-      message.success('总结任务已创建，完成后会自动刷新');
+      message.success('总结任务已创建，正在跟踪进度');
       void pollSummaryJob(created.id, values.roomId);
     } catch (error) {
       message.error(error instanceof Error ? error.message : '总结生成失败');
@@ -186,33 +228,91 @@ export default function WechatSummary() {
         title="微信 AI 总结"
         description="把群聊噪音整理成可追溯的话题日报、重要信息和热点梗。"
       />
-      <Card className="filter-card">
-        <Form form={form} layout="inline" initialValues={{ date: todayString(), period: 'day' }} onFinish={submit}>
-          <Form.Item name="roomId">
-            <Select allowClear showSearch optionFilterProp="label" placeholder="全部群聊" style={{ width: 220 }} options={groups.map((group) => ({ value: group.roomId, label: group.roomName || group.roomId }))} />
-          </Form.Item>
-          {period !== 'custom' ? <Form.Item name="date"><Input type="date" aria-label="总结日期" /></Form.Item> : null}
-          <Form.Item name="period"><Select style={{ width: 210 }} options={periodOptions} /></Form.Item>
-          {period === 'custom' ? (
-            <>
-              <Form.Item name="start" rules={[{ required: true, message: '请选择开始时间' }]}><Input type="datetime-local" aria-label="开始时间" /></Form.Item>
-              <Form.Item name="end" rules={[{ required: true, message: '请选择结束时间' }]}><Input type="datetime-local" aria-label="结束时间" /></Form.Item>
-            </>
-          ) : null}
-          <Space>
-            <Button type="primary" htmlType="submit" icon={<FileTextOutlined />} loading={loading}>生成总结</Button>
-          </Space>
-        </Form>
-      </Card>
-
-      {job ? (
-        <Alert
-          type={job.status === 'failed' ? 'error' : job.status === 'succeeded' ? 'success' : 'info'}
-          showIcon
-          message={`任务 ${job.id}：${job.status}，分段 ${job.chunkCount || 0}，消息 ${job.messageCount || 0}${job.sendStatus ? `，发群 ${job.sendStatus}` : ''}${job.sendError ? `：${job.sendError}` : ''}`}
-          className="wechat-summary-alert"
-        />
-      ) : null}
+      <Row gutter={[16, 16]} className="wechat-summary-console">
+        <Col xs={24} xl={10}>
+          <Card title="生成总结" className="wechat-summary-panel">
+            <Form form={form} layout="vertical" initialValues={{ date: todayString(), period: 'day' }} onFinish={submit}>
+              <Row gutter={12}>
+                <Col xs={24} md={12} xl={24}>
+                  <Form.Item label="群聊" name="roomId">
+                    <Select allowClear showSearch optionFilterProp="label" placeholder="全部群聊" options={groups.map((group) => ({ value: group.roomId, label: group.roomName || group.roomId }))} />
+                  </Form.Item>
+                </Col>
+                {period !== 'custom' ? (
+                  <Col xs={24} sm={12}>
+                    <Form.Item label="日期" name="date"><Input type="date" aria-label="总结日期" /></Form.Item>
+                  </Col>
+                ) : null}
+                <Col xs={24} sm={period !== 'custom' ? 12 : 24}>
+                  <Form.Item label="时间范围" name="period"><Select options={periodOptions} /></Form.Item>
+                </Col>
+                {period === 'custom' ? (
+                  <>
+                    <Col xs={24} sm={12}>
+                      <Form.Item label="开始时间" name="start" rules={[{ required: true, message: '请选择开始时间' }]}><Input type="datetime-local" aria-label="开始时间" /></Form.Item>
+                    </Col>
+                    <Col xs={24} sm={12}>
+                      <Form.Item label="结束时间" name="end" rules={[{ required: true, message: '请选择结束时间' }]}><Input type="datetime-local" aria-label="结束时间" /></Form.Item>
+                    </Col>
+                  </>
+                ) : null}
+              </Row>
+              <Button type="primary" htmlType="submit" icon={<FileTextOutlined />} loading={loading || runningJob} disabled={runningJob} block>
+                {runningJob ? '任务执行中' : '生成总结'}
+              </Button>
+            </Form>
+          </Card>
+        </Col>
+        <Col xs={24} xl={14}>
+          <Card
+            title="当前任务"
+            className="wechat-summary-panel wechat-summary-job"
+            extra={job ? jobTag(job) : <Tag>未开始</Tag>}
+          >
+            {job ? (
+              <Space direction="vertical" size={16} style={{ width: '100%' }}>
+                <Space wrap className="wechat-summary-job-meta">
+                  <Typography.Text className="mono">任务 #{job.id}</Typography.Text>
+                  <Typography.Text type="secondary">{job.roomName || job.roomId || '全部群聊'}</Typography.Text>
+                  <Typography.Text type="secondary">{job.start ? formatWechatTime(job.start) : '-'} 至 {job.end ? formatWechatTime(job.end) : '-'}</Typography.Text>
+                </Space>
+                <Progress
+                  percent={jobProgress(job)}
+                  status={jobProgressStatus(job)}
+                  strokeLinecap="butt"
+                  format={() => jobStatusText[job.status]}
+                />
+                <Steps
+                  size="small"
+                  current={jobStep(job)}
+                  status={job.status === 'failed' ? 'error' : job.status === 'succeeded' ? 'finish' : 'process'}
+                  items={[
+                    { title: '创建任务' },
+                    { title: '读取消息', description: `${job.messageCount || 0} 条` },
+                    { title: 'AI 生成', description: `${job.chunkCount || 0} 段` },
+                    { title: '写入历史' },
+                  ]}
+                />
+                <Row gutter={[12, 12]}>
+                  <Col xs={12} md={6}><Statistic title="消息" value={job.messageCount || 0} /></Col>
+                  <Col xs={12} md={6}><Statistic title="分段" value={job.chunkCount || 0} /></Col>
+                  <Col xs={12} md={6}><Statistic title="开始" value={job.startedAt ? formatWechatTime(job.startedAt).slice(11, 19) : '-'} /></Col>
+                  <Col xs={12} md={6}><Statistic title="完成" value={job.finishedAt ? formatWechatTime(job.finishedAt).slice(11, 19) : '-'} /></Col>
+                </Row>
+                {job.error ? <Alert type="error" showIcon message={job.error} /> : null}
+                {job.sendStatus || job.sendError ? <Alert type={job.sendError ? 'warning' : 'success'} showIcon message={`发群：${job.sendStatus || '未发送'}${job.sendError ? `，${job.sendError}` : ''}`} /> : null}
+                {currentSummaryId ? (
+                  <Button icon={<CheckCircleOutlined />} onClick={() => openHistory(currentSummaryId)}>
+                    查看本次总结
+                  </Button>
+                ) : null}
+              </Space>
+            ) : (
+              <Empty image={Empty.PRESENTED_IMAGE_SIMPLE} description="暂无执行中的总结任务" />
+            )}
+          </Card>
+        </Col>
+      </Row>
       <Card
         title="历史总结"
         className="wechat-summary-history"
@@ -234,14 +334,22 @@ export default function WechatSummary() {
             <List.Item className={`wechat-summary-history-item${item.id === lastSummaryId ? ' is-latest' : ''}`} onClick={() => openHistory(item.id)}>
               <List.Item.Meta
                 title={(
-                  <Space wrap>
+                  <Space wrap className="wechat-summary-history-title">
                     <Typography.Text>{item.report?.overview || item.summary || '未命名总结'}</Typography.Text>
                     {item.id === lastSummaryId ? <Tag color="green">刚生成</Tag> : null}
                     {item.id !== lastSummaryId && index === 0 ? <Tag color="blue">最新</Tag> : null}
                   </Space>
                 )}
-                description={`${item.roomName || item.roomId || '全部群聊'} · ${item.start ? formatWechatTime(item.start) : '-'} · ${item.messageCount || 0} 条`}
+                description={(
+                  <Space wrap size={12}>
+                    <Typography.Text type="secondary">{item.roomName || item.roomId || '全部群聊'}</Typography.Text>
+                    <Typography.Text type="secondary"><ClockCircleOutlined /> {item.start ? formatWechatTime(item.start) : '-'}</Typography.Text>
+                    <Typography.Text type="secondary">{item.messageCount || 0} 条消息</Typography.Text>
+                    <Typography.Text type="secondary">{item.report?.topics?.length || 0} 个话题</Typography.Text>
+                  </Space>
+                )}
               />
+              <Button type="text" onClick={(event) => { event.stopPropagation(); void openHistory(item.id); }}>查看</Button>
             </List.Item>
           )}
         />
