@@ -33,6 +33,11 @@ const wechatSummaryPeriodOptions = [
   { value: 'day', label: '全天' },
 ];
 
+const wechatSummaryDateOptions = [
+  { value: 'today', label: '当天' },
+  { value: 'yesterday', label: '昨天' },
+];
+
 export default function Settings() {
   const [form] = Form.useForm();
   const [loading, setLoading] = useState(true);
@@ -364,7 +369,7 @@ export default function Settings() {
                     <div className="settings-subsection">
                       <Space wrap className="settings-subsection-head">
                         <Typography.Text strong>定时总结计划</Typography.Text>
-                        <Button onClick={() => add({ enabled: true, time: '23:00', period: 'evening' })}>新增计划</Button>
+                        <Button onClick={() => add({ enabled: true, time: '00:05', dateMode: 'yesterday', period: 'day', name: '昨日总结' })}>新增计划</Button>
                       </Space>
                       {fields.map((field) => (
                         <div className="settings-schedule-row" key={field.key}>
@@ -373,6 +378,9 @@ export default function Settings() {
                           </Form.Item>
                           <Form.Item label="生成时间" name={[field.name, 'time']} rules={[{ required: true, message: '请选择时间' }]}>
                             <Input type="time" />
+                          </Form.Item>
+                          <Form.Item label="总结日期" name={[field.name, 'dateMode']} rules={[{ required: true, message: '请选择日期' }]}>
+                            <Select options={wechatSummaryDateOptions} />
                           </Form.Item>
                           <Form.Item label="总结范围" name={[field.name, 'period']} rules={[{ required: true, message: '请选择范围' }]}>
                             <Select options={wechatSummaryPeriodOptions} />

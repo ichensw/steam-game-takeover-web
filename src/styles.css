@@ -1753,7 +1753,7 @@ select {
 
 .settings-schedule-row {
   display: grid;
-  grid-template-columns: 86px 140px 150px minmax(180px, 1fr) minmax(140px, 180px) auto;
+  grid-template-columns: 86px 140px 120px 150px minmax(180px, 1fr) minmax(140px, 180px) auto;
   gap: 12px;
   align-items: end;
   padding: 12px;

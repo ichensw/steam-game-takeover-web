@@ -45,22 +45,22 @@ describe('admin settings normalization', () => {
   it('normalizes wechat summary daily schedules', () => {
     const schedules = normalizeSettings({
       wechatSummaryDailySchedules: [
-        { enabled: true, time: '12:00', period: 'morning', roomId: ' r1 ', name: ' 上午 ' },
+        { enabled: true, time: '12:00', dateMode: 'yesterday', period: 'morning', roomId: ' r1 ', name: ' 上午 ' },
         { enabled: true, time: '24:00', period: 'bad' as never },
       ],
     }).wechatSummaryDailySchedules;
 
     expect(schedules).toEqual([
-      { enabled: true, time: '12:00', period: 'morning', roomId: 'r1', name: '上午' },
-      { enabled: true, time: '09:00', period: 'day', roomId: '', name: '' },
+      { enabled: true, time: '12:00', dateMode: 'yesterday', period: 'morning', roomId: 'r1', name: '上午' },
+      { enabled: true, time: '09:00', dateMode: 'today', period: 'day', roomId: '', name: '' },
     ]);
   });
 
   it('defaults empty wechat summary daily schedules to morning, afternoon, and evening', () => {
     expect(normalizeSettings({}).wechatSummaryDailySchedules).toEqual([
-      { enabled: true, time: '12:00', period: 'morning', name: '上午总结' },
-      { enabled: true, time: '18:00', period: 'afternoon', name: '下午总结' },
-      { enabled: true, time: '23:00', period: 'evening', name: '晚上总结' },
+      { enabled: true, time: '12:00', dateMode: 'today', period: 'morning', name: '上午总结' },
+      { enabled: true, time: '18:00', dateMode: 'today', period: 'afternoon', name: '下午总结' },
+      { enabled: true, time: '23:00', dateMode: 'today', period: 'evening', name: '晚上总结' },
     ]);
   });
 
