@@ -11,6 +11,7 @@ export type SettingsValues = {
   aiExtractApiKey?: string;
   aiExtractBaseUrl?: string;
   aiExtractModel?: string;
+  wechatSummaryMaxMessages?: number;
 };
 
 export const sensitiveSettingsKeys: Array<keyof SettingsValues> = [
@@ -24,6 +25,7 @@ export const sensitiveSettingsKeys: Array<keyof SettingsValues> = [
 
 export function normalizeSettings(values: SettingsValues) {
   const expirationDays = Number(values.dailyTakeoverExpirationDays);
+  const summaryMaxMessages = Number(values.wechatSummaryMaxMessages);
   return {
     publishTakeoverEnabled: Boolean(values.publishTakeoverEnabled),
     dailyTakeoverExpirationDays: Number.isInteger(expirationDays)
@@ -41,5 +43,10 @@ export function normalizeSettings(values: SettingsValues) {
     aiExtractApiKey: values.aiExtractApiKey?.trim() || '',
     aiExtractBaseUrl: values.aiExtractBaseUrl?.trim().replace(/\/+$/, '') || '',
     aiExtractModel: values.aiExtractModel?.trim() || '',
+    wechatSummaryMaxMessages: Number.isInteger(summaryMaxMessages)
+      && summaryMaxMessages >= 1
+      && summaryMaxMessages <= 10000
+      ? summaryMaxMessages
+      : 1000,
   };
 }

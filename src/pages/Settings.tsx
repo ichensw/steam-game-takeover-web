@@ -314,6 +314,14 @@ export default function Settings() {
                 <Form.Item label="AI API Key" name="aiExtractApiKey">
                   <Input.Password placeholder="AI API Key" autoComplete="off" />
                 </Form.Item>
+                <Form.Item
+                  label="微信 AI 总结消息上限"
+                  name="wechatSummaryMaxMessages"
+                  extra="生成微信聊天总结时最多读取的文本消息条数，超过后会截断。"
+                  rules={[{ required: true, message: '请输入 1 至 10000 条' }]}
+                >
+                  <InputNumber min={1} max={10000} step={100} precision={0} className="settings-number-input" />
+                </Form.Item>
                 <div className="settings-status-list" aria-label="AI 配置状态">
                   <Typography.Text type={currentValues.aiExtractEnabled ? 'success' : 'secondary'}>
                     AI 提取 {currentValues.aiExtractEnabled ? '已开启' : '未开启'}
@@ -326,6 +334,9 @@ export default function Settings() {
                   </Typography.Text>
                   <Typography.Text type={currentValues.aiExtractApiKey ? 'success' : 'danger'}>
                     API Key {currentValues.aiExtractApiKey ? '已填写' : '未填写'}
+                  </Typography.Text>
+                  <Typography.Text type="secondary">
+                    微信总结上限 {currentValues.wechatSummaryMaxMessages || 1000} 条
                   </Typography.Text>
                 </div>
                 <div className="settings-subsection settings-summary-action">

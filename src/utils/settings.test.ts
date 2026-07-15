@@ -14,4 +14,17 @@ describe('admin settings normalization', () => {
     expect(normalizeSettings({ dailyTakeoverExpirationDays: 30 }).dailyTakeoverExpirationDays).toBe(30);
     expect(normalizeSettings({ dailyTakeoverExpirationDays: 365 }).dailyTakeoverExpirationDays).toBe(365);
   });
+
+  it('defaults invalid wechat summary limits to one thousand messages', () => {
+    expect(normalizeSettings({}).wechatSummaryMaxMessages).toBe(1000);
+    expect(normalizeSettings({ wechatSummaryMaxMessages: 0 }).wechatSummaryMaxMessages).toBe(1000);
+    expect(normalizeSettings({ wechatSummaryMaxMessages: 10001 }).wechatSummaryMaxMessages).toBe(1000);
+    expect(normalizeSettings({ wechatSummaryMaxMessages: 10.5 }).wechatSummaryMaxMessages).toBe(1000);
+  });
+
+  it('keeps valid integer wechat summary limits', () => {
+    expect(normalizeSettings({ wechatSummaryMaxMessages: 1 }).wechatSummaryMaxMessages).toBe(1);
+    expect(normalizeSettings({ wechatSummaryMaxMessages: 3000 }).wechatSummaryMaxMessages).toBe(3000);
+    expect(normalizeSettings({ wechatSummaryMaxMessages: 10000 }).wechatSummaryMaxMessages).toBe(10000);
+  });
 });
