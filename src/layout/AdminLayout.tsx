@@ -67,7 +67,7 @@ export const buildMenuItems = (visibleKeys?: string[]): MenuItem[] => {
   ...((can('wechat-messages') || can('wechat-summary') || can('wechat-stats') || can('wechat-database')) ? [{
     key: 'wechat-group',
     icon: <WechatOutlined />,
-    label: '微信机器人',
+    label: '微信Bot',
     children: [
       ...(can('wechat-messages') ? [{ key: '/wechat-messages', icon: <MessageOutlined />, label: '消息查询' }] : []),
       ...(can('wechat-summary') ? [{ key: '/wechat-summary', icon: <FileTextOutlined />, label: 'AI 总结' }] : []),

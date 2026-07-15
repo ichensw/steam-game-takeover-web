@@ -60,6 +60,7 @@ export type WechatSummary = {
   report?: WechatSummaryReport;
   messageCount: number;
   speakerCount?: number;
+  maxMessages?: number;
   truncated: boolean;
   start?: string;
   end?: string;

@@ -1,4 +1,4 @@
-import { DownloadOutlined, FileTextOutlined, HistoryOutlined, MessageOutlined } from '@ant-design/icons';
+import { FileTextOutlined, HistoryOutlined, MessageOutlined } from '@ant-design/icons';
 import { Alert, App as AntApp, Button, Card, Col, Drawer, Empty, Form, Input, List, Row, Select, Space, Spin, Statistic, Tag, Typography } from 'antd';
 import { useEffect, useMemo, useState } from 'react';
 import {
@@ -15,7 +15,6 @@ import {
 } from '../api/wechatBot';
 import PageHeader from '../components/PageHeader';
 import { formatWechatTime, summaryPayload, todayString, type SummaryFormValues } from '../utils/wechatBot';
-import { exportWechatSummaryImage } from '../utils/wechatSummaryImage';
 
 const periodOptions = [
   { value: 'day', label: '全天' },
@@ -65,7 +64,6 @@ export default function WechatSummary() {
   const [originalOpen, setOriginalOpen] = useState(false);
   const [loading, setLoading] = useState(false);
   const [historyLoading, setHistoryLoading] = useState(false);
-  const [exporting, setExporting] = useState(false);
   const [form] = Form.useForm<SummaryFormValues>();
   const period = Form.useWatch('period', form);
   const selectedRoomId = Form.useWatch('roomId', form);
@@ -130,25 +128,11 @@ export default function WechatSummary() {
     }
   };
 
-  const exportImage = async () => {
-    if (!result?.summary) return;
-    setExporting(true);
-    try {
-      await exportWechatSummaryImage(result);
-      message.success('图片已导出');
-    } catch (error) {
-      message.error(error instanceof Error ? error.message : '图片导出失败');
-    } finally {
-      setExporting(false);
-    }
-  };
-
   return (
     <>
       <PageHeader
         title="微信 AI 总结"
         description="把群聊噪音整理成可追溯的话题日报、重要信息和热点梗。"
-        extra={<Button icon={<DownloadOutlined />} disabled={!result?.summary} loading={exporting} onClick={exportImage}>导出图片</Button>}
       />
       <Card className="filter-card">
         <Form form={form} layout="inline" initialValues={{ date: todayString(), period: 'day' }} onFinish={submit}>
@@ -170,7 +154,7 @@ export default function WechatSummary() {
         </Form>
       </Card>
 
-      {result?.truncated ? <Alert type="warning" showIcon message="消息数量较多，本次总结已达到配置上限。" className="wechat-summary-alert" /> : null}
+      {result?.truncated ? <Alert type="warning" showIcon message={`消息数量较多，本次总结已达到当前配置上限（${result.maxMessages || 1000} 条）。`} className="wechat-summary-alert" /> : null}
       {report.parseFailed ? <Alert type="warning" showIcon message="AI 返回的结构不完整，已按纯文本摘要兜底展示。" className="wechat-summary-alert" /> : null}
 
       <Row gutter={[16, 16]} align="top">

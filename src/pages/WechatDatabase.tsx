@@ -84,7 +84,7 @@ export default function WechatDatabase() {
   return (
     <>
       <PageHeader
-        title="微信机器人数据库"
+        title="微信Bot数据库"
         description="查看机器人数据库中的表结构与只读分页数据。"
         extra={<Button icon={<ReloadOutlined />} loading={loadingTables} onClick={loadTables}>刷新</Button>}
       />
