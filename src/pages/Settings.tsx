@@ -13,7 +13,7 @@ import {
   Typography,
 } from 'antd';
 import { useEffect, useState } from 'react';
-import { getSettings, refreshTakeoverSummaries, updateSettings } from '../api/admin';
+import { getSettings, updateSettings } from '../api/admin';
 import PageHeader from '../components/PageHeader';
 import { normalizeSettings, sensitiveSettingsKeys, type SettingsValues } from '../utils/settings';
 import {
@@ -29,6 +29,7 @@ function kookWebhookUrl() {
 const wechatSummaryPeriodOptions = [
   { value: 'morning', label: '上午' },
   { value: 'afternoon', label: '下午' },
+  { value: 'evening', label: '晚上' },
   { value: 'day', label: '全天' },
 ];
 
@@ -37,7 +38,6 @@ export default function Settings() {
   const [loading, setLoading] = useState(true);
   const [submitting, setSubmitting] = useState(false);
   const [testingWebhook, setTestingWebhook] = useState(false);
-  const [refreshingSummaries, setRefreshingSummaries] = useState(false);
   const [activeSection, setActiveSection] = useState<SettingsSectionKey>('takeover');
   const [initialValues, setInitialValues] = useState<SettingsValues>({});
   const { message, modal } = AntApp.useApp();
@@ -127,24 +127,6 @@ export default function Settings() {
     } finally {
       setTestingWebhook(false);
     }
-  };
-
-  const refreshSummaries = () => {
-    modal.confirm({
-      title: '生成历史未结束接龙汇总词？',
-      content: '会为未结束且非人工汇总词的接龙重新生成展示词，可能触发多次 AI 调用。',
-      okText: '开始生成',
-      cancelText: '取消',
-      onOk: async () => {
-        setRefreshingSummaries(true);
-        try {
-          const result = await refreshTakeoverSummaries();
-          message.success(`已处理 ${result.count} 个接龙`);
-        } finally {
-          setRefreshingSummaries(false);
-        }
-      },
-    });
   };
 
   return (
@@ -382,7 +364,7 @@ export default function Settings() {
                     <div className="settings-subsection">
                       <Space wrap className="settings-subsection-head">
                         <Typography.Text strong>定时总结计划</Typography.Text>
-                        <Button onClick={() => add({ enabled: true, time: '12:00', period: 'morning' })}>新增计划</Button>
+                        <Button onClick={() => add({ enabled: true, time: '23:00', period: 'evening' })}>新增计划</Button>
                       </Space>
                       {fields.map((field) => (
                         <div className="settings-schedule-row" key={field.key}>
@@ -432,13 +414,6 @@ export default function Settings() {
                   <Typography.Text type={currentValues.wechatSummaryAutoSend ? 'success' : 'secondary'}>
                     发回微信群 {currentValues.wechatSummaryAutoSend ? '已开启' : '未开启'}
                   </Typography.Text>
-                </div>
-                <div className="settings-subsection settings-summary-action">
-                  <Typography.Text strong>历史接龙汇总词</Typography.Text>
-                  <Space wrap>
-                    <Button onClick={refreshSummaries} loading={refreshingSummaries}>生成未结束接龙汇总词</Button>
-                    <Typography.Text type="secondary">仅处理未结束且非人工汇总词的接龙。</Typography.Text>
-                  </Space>
                 </div>
               </section>
 

@@ -22,6 +22,7 @@ const periodOptions = [
   { value: 'day', label: '全天' },
   { value: 'morning', label: '上午（00:00-12:00）' },
   { value: 'afternoon', label: '下午（12:00-18:00）' },
+  { value: 'evening', label: '晚上（18:00-24:00）' },
   { value: 'custom', label: '自定义时间段' },
 ];
 

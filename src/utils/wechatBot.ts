@@ -1,4 +1,4 @@
-export type SummaryPeriod = 'day' | 'morning' | 'afternoon' | 'custom';
+export type SummaryPeriod = 'day' | 'morning' | 'afternoon' | 'evening' | 'custom';
 
 export type ApiUnixTime = {
   unix: number;

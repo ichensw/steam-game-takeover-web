@@ -28,6 +28,7 @@ import {
   listKookChannels,
   listTakeoverMemberActivities,
   listTakeovers,
+  refreshTakeoverSummaries,
   updateTakeover,
 } from '../api/admin';
 import PageHeader from '../components/PageHeader';
@@ -106,13 +107,14 @@ export default function Takeovers() {
   const [editorSubmitting, setEditorSubmitting] = useState(false);
   const [summaryModalOpen, setSummaryModalOpen] = useState(false);
   const [summarySubmitting, setSummarySubmitting] = useState(false);
+  const [refreshingSummaries, setRefreshingSummaries] = useState(false);
   const [channels, setChannels] = useState<ChannelOption[]>([]);
   const [form] = Form.useForm();
   const [editorForm] = Form.useForm();
   const [summaryForm] = Form.useForm();
   const timeFilter = Form.useWatch('timeFilter', form);
   const editorScheduleType = Form.useWatch('scheduleType', editorForm);
-  const { message } = AntApp.useApp();
+  const { message, modal } = AntApp.useApp();
 
   const buildParams = (
     targetPage: number,
@@ -346,6 +348,25 @@ export default function Takeovers() {
     setTimeout(() => load(1), 0);
   };
 
+  const refreshSummaries = () => {
+    modal.confirm({
+      title: '生成未结束接龙汇总词？',
+      content: '仅处理未结束且非人工汇总词的接龙，可能触发多次 AI 调用。',
+      okText: '开始生成',
+      cancelText: '取消',
+      onOk: async () => {
+        setRefreshingSummaries(true);
+        try {
+          const result = await refreshTakeoverSummaries();
+          message.success(`已处理 ${result.count} 个接龙`);
+          await load();
+        } finally {
+          setRefreshingSummaries(false);
+        }
+      },
+    });
+  };
+
   const columns: ColumnsType<TakeoverRow> = [
     { title: 'ID', dataIndex: 'id', width: 84, className: 'mono', sorter: true },
     { title: '标题', dataIndex: 'title', ellipsis: true, sorter: true },
@@ -459,6 +480,7 @@ export default function Takeovers() {
         extra={(
           <Space>
             {tableColumns.button}
+            <Button onClick={refreshSummaries} loading={refreshingSummaries}>生成未结束接龙汇总词</Button>
             <Button type="primary" onClick={openCreate}>新增接龙</Button>
           </Space>
         )}

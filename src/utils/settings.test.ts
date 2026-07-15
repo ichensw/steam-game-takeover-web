@@ -56,10 +56,11 @@ describe('admin settings normalization', () => {
     ]);
   });
 
-  it('defaults empty wechat summary daily schedules to morning and afternoon', () => {
+  it('defaults empty wechat summary daily schedules to morning, afternoon, and evening', () => {
     expect(normalizeSettings({}).wechatSummaryDailySchedules).toEqual([
       { enabled: true, time: '12:00', period: 'morning', name: '上午总结' },
       { enabled: true, time: '18:00', period: 'afternoon', name: '下午总结' },
+      { enabled: true, time: '23:00', period: 'evening', name: '晚上总结' },
     ]);
   });
 

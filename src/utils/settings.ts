@@ -1,7 +1,7 @@
 export type WechatSummaryDailySchedule = {
   enabled?: boolean;
   time?: string;
-  period?: 'day' | 'morning' | 'afternoon';
+  period?: 'day' | 'morning' | 'afternoon' | 'evening';
   roomId?: string;
   name?: string;
 };
@@ -63,17 +63,18 @@ function normalizeDailyTime(value?: string) {
 const defaultWechatSummaryDailySchedules: WechatSummaryDailySchedule[] = [
   { enabled: true, time: '12:00', period: 'morning', name: '上午总结' },
   { enabled: true, time: '18:00', period: 'afternoon', name: '下午总结' },
+  { enabled: true, time: '23:00', period: 'evening', name: '晚上总结' },
 ];
 
 function normalizeDailySchedules(values?: WechatSummaryDailySchedule[]) {
   const items = Array.isArray(values) ? values : [];
   const schedules = items
     .map((item) => {
-      const period = ['day', 'morning', 'afternoon'].includes(String(item.period)) ? item.period : 'day';
+      const period = ['day', 'morning', 'afternoon', 'evening'].includes(String(item.period)) ? item.period : 'day';
       return {
         enabled: Boolean(item.enabled),
         time: normalizeDailyTime(item.time),
-        period: period as 'day' | 'morning' | 'afternoon',
+        period: period as 'day' | 'morning' | 'afternoon' | 'evening',
         roomId: item.roomId?.trim() || '',
         name: item.name?.trim() || '',
       };
