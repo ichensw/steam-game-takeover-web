@@ -55,11 +55,48 @@ export type WechatSummaryRequest = {
 };
 
 export type WechatSummary = {
+  id?: number;
   summary: string;
+  report?: WechatSummaryReport;
   messageCount: number;
+  speakerCount?: number;
   truncated: boolean;
   start?: string;
   end?: string;
+  roomId?: string;
+  roomName?: string;
+  period?: string;
+  model?: string;
+  createdBy?: string;
+  createdAt?: string;
+};
+
+export type WechatSummaryReport = {
+  overview: string;
+  topics: WechatSummaryTopic[];
+  importantInfo: string[];
+  memes: string[];
+  disputes: string;
+  miniPrograms: string[];
+  parseFailed?: boolean;
+};
+
+export type WechatSummaryTopic = {
+  title: string;
+  summary: string;
+  start?: string;
+  end?: string;
+  keywords: string[];
+  messageIds: string[];
+  messageCount: number;
+  speakerCount: number;
+  samples: Array<{
+    id?: string;
+    roomId?: string;
+    sender?: string;
+    content?: string;
+    time?: string;
+  }>;
 };
 
 export type WechatStatsTotals = {
@@ -115,6 +152,15 @@ export const listWechatMessages = (params: WechatMessageQuery) =>
 
 export const createWechatSummary = (body: WechatSummaryRequest) =>
   unwrap<WechatSummary>(http.post(`${root}/messages/summary`, body));
+
+export const listWechatSummaryHistory = (params: { roomId?: string; page: number; pageSize: number }) =>
+  unwrap<WechatPage<WechatSummary>>(http.get(`${root}/messages/summary/history`, { params }));
+
+export const getWechatSummary = (id: number) =>
+  unwrap<WechatSummary>(http.get(`${root}/messages/summary/${id}`));
+
+export const listWechatSummaryMessages = (id: number, params: { topicIndex?: number }) =>
+  unwrap<{ data: WechatMessage[] }>(http.get(`${root}/messages/summary/${id}/messages`, { params }));
 
 export const getWechatDailyStats = (params: { start: string; end: string; roomId?: string }) =>
   unwrap<WechatDailyStats>(http.get(`${root}/stats/daily`, { params }));

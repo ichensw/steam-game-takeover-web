@@ -1927,6 +1927,54 @@ select {
   white-space: nowrap;
 }
 
+.wechat-summary-hero .ant-card-body {
+  display: grid;
+  gap: 14px;
+}
+
+.wechat-topic-card .ant-card-body {
+  padding: 18px;
+}
+
+.wechat-topic-card h4 {
+  margin-bottom: 4px !important;
+}
+
+.wechat-topic-samples {
+  display: grid;
+  gap: 8px;
+  border: 1px solid rgb(255 255 255 / 8%);
+  border-radius: 8px;
+  background: rgb(255 255 255 / 3%);
+  padding: 10px 12px;
+}
+
+.wechat-topic-samples .ant-typography {
+  line-height: 1.7;
+}
+
+.wechat-summary-bucket,
+.wechat-summary-history,
+.wechat-topic-card,
+.wechat-summary-hero {
+  border-radius: 8px;
+}
+
+.wechat-summary-history-item {
+  cursor: pointer;
+  border-radius: 8px;
+  padding-inline: 10px !important;
+}
+
+.wechat-summary-history-item:hover {
+  background: rgb(255 255 255 / 5%);
+}
+
+.wechat-original-message {
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+}
+
 @media (prefers-reduced-motion: reduce) {
   *,
   *::before,
