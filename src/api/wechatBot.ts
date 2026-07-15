@@ -151,7 +151,7 @@ export const listWechatMessages = (params: WechatMessageQuery) =>
   unwrap<WechatPage<WechatMessage>>(http.get(`${root}/messages`, { params }));
 
 export const createWechatSummary = (body: WechatSummaryRequest) =>
-  unwrap<WechatSummary>(http.post(`${root}/messages/summary`, body));
+  unwrap<WechatSummary>(http.post(`${root}/messages/summary`, body, { timeout: 140000 }));
 
 export const listWechatSummaryHistory = (params: { roomId?: string; page: number; pageSize: number }) =>
   unwrap<WechatPage<WechatSummary>>(http.get(`${root}/messages/summary/history`, { params }));
