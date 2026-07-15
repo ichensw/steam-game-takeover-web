@@ -1825,6 +1825,23 @@ select {
   gap: 16px;
 }
 
+.selected-row > td {
+  background: rgb(242 194 48 / 8%) !important;
+}
+
+.wxbot-config-meta {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px 18px;
+  margin-bottom: 16px;
+  padding-bottom: 14px;
+  border-bottom: 1px solid var(--line);
+}
+
+.wxbot-config-form textarea {
+  font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+}
+
 @media (max-width: 860px) {
   .wechat-database-layout {
     grid-template-columns: 1fr;

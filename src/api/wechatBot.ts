@@ -164,6 +164,52 @@ export type WechatTableDetail = {
   columns: WechatTableColumn[];
 };
 
+export type WxbotRemoteConfig = {
+  bot?: {
+    name?: string;
+    admin_wxids?: string[];
+    group_whitelist?: string[];
+    command_prefix?: string;
+    at_me_required?: boolean;
+  };
+  monitor?: {
+    message?: boolean;
+    message_types?: string[];
+    alert_member_change?: boolean;
+    group_cache_ttl?: number;
+  };
+  welcome?: {
+    enabled?: boolean;
+  };
+  summary_reminder?: {
+    enabled?: boolean;
+    jobs?: Array<{ room_id: string; time: string }>;
+  };
+};
+
+export type WxbotRecord = {
+  botId: string;
+  name: string;
+  wxid: string;
+  status: string;
+  version: string;
+  host: string;
+  pid: number;
+  online: boolean;
+  startedAt?: string;
+  lastSeenAt?: string;
+  config: WxbotRemoteConfig;
+  configUpdatedAt?: string;
+  configAppliedAt?: string;
+  updatedAt?: string;
+};
+
+export type WxbotConfigDetail = {
+  botId: string;
+  config: WxbotRemoteConfig;
+  configUpdatedAt?: string;
+};
+
 const root = '/admin/wechat-bot';
 
 export const listWechatGroups = () => unwrap<WechatGroup[]>(http.get(`${root}/groups`));
@@ -201,3 +247,11 @@ export const listWechatTableRows = (table: string, params: { page: number; pageS
   unwrap<WechatPage<Record<string, unknown>>>(
     http.get(`${root}/tables/${encodeURIComponent(table)}/rows`, { params }),
   );
+
+export const listWxbots = () => unwrap<{ list: WxbotRecord[] }>(http.get(`${root}/wxbots`));
+
+export const getWxbotConfig = (botId: string) =>
+  unwrap<WxbotConfigDetail>(http.get(`${root}/wxbots/${encodeURIComponent(botId)}/config`));
+
+export const updateWxbotConfig = (botId: string, config: WxbotRemoteConfig) =>
+  unwrap<WxbotConfigDetail>(http.put(`${root}/wxbots/${encodeURIComponent(botId)}/config`, { config }));

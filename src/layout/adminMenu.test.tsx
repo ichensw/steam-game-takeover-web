@@ -30,5 +30,12 @@ describe('WeChat bot admin navigation', () => {
     expect(openKeyByPath['/wechat-summary']).toBe('wechat-group');
     expect(openKeyByPath['/wechat-stats']).toBe('wechat-group');
     expect(openKeyByPath['/wechat-database']).toBe('wechat-group');
+    expect(openKeyByPath['/wechat-wxbots']).toBe('wechat-group');
+  });
+
+  it('shows wxbot control for the dedicated permission', () => {
+    const items = buildMenuItems(['dashboard', 'wechat-wxbot-control']) as TestMenuItem[];
+    const wechat = group(items, 'wechat-group');
+    expect(wechat?.children?.map((item) => item?.key)).toEqual(['/wechat-wxbots']);
   });
 });
