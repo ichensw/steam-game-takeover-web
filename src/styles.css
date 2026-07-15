@@ -1842,6 +1842,20 @@ select {
   font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
 }
 
+.wxbot-config-tabs .ant-tabs-content-holder {
+  min-width: 0;
+}
+
+.wxbot-field-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 2px 18px;
+}
+
+.wxbot-wide-field {
+  grid-column: 1 / -1;
+}
+
 @media (max-width: 860px) {
   .wechat-database-layout {
     grid-template-columns: 1fr;
@@ -1850,6 +1864,10 @@ select {
   .wechat-table-list {
     position: static;
     max-height: 300px;
+  }
+
+  .wxbot-field-grid {
+    grid-template-columns: 1fr;
   }
 
   .settings-workspace {
