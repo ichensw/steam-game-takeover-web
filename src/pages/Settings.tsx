@@ -26,6 +26,12 @@ function kookWebhookUrl() {
   return 'https://www.rabbits.ink/miniprogram-api/api/kook/webhook?compress=0';
 }
 
+const wechatSummaryPeriodOptions = [
+  { value: 'morning', label: '上午' },
+  { value: 'afternoon', label: '下午' },
+  { value: 'day', label: '全天' },
+];
+
 export default function Settings() {
   const [form] = Form.useForm();
   const [loading, setLoading] = useState(true);
@@ -371,14 +377,36 @@ export default function Settings() {
                     <Switch checkedChildren="开启" unCheckedChildren="关闭" />
                   </Form.Item>
                 </div>
-                <div className="settings-field-grid">
-                  <Form.Item label="日报生成时间" name="wechatSummaryDailyTime" rules={[{ required: true, message: '请选择生成时间' }]}>
-                    <Input type="time" />
-                  </Form.Item>
-                  <Form.Item label="日报群聊 RoomID" name="wechatSummaryDailyRoomId" extra="为空时生成全部群聊汇总；需要发回微信群时建议填写具体 roomId。">
-                    <Input placeholder="例如 xxxxx@chatroom" className="mono" />
-                  </Form.Item>
-                </div>
+                <Form.List name="wechatSummaryDailySchedules">
+                  {(fields, { add, remove }) => (
+                    <div className="settings-subsection">
+                      <Space wrap className="settings-subsection-head">
+                        <Typography.Text strong>定时总结计划</Typography.Text>
+                        <Button onClick={() => add({ enabled: true, time: '12:00', period: 'morning' })}>新增计划</Button>
+                      </Space>
+                      {fields.map((field) => (
+                        <div className="settings-schedule-row" key={field.key}>
+                          <Form.Item label="启用" name={[field.name, 'enabled']} valuePropName="checked">
+                            <Switch checkedChildren="开" unCheckedChildren="关" />
+                          </Form.Item>
+                          <Form.Item label="生成时间" name={[field.name, 'time']} rules={[{ required: true, message: '请选择时间' }]}>
+                            <Input type="time" />
+                          </Form.Item>
+                          <Form.Item label="总结范围" name={[field.name, 'period']} rules={[{ required: true, message: '请选择范围' }]}>
+                            <Select options={wechatSummaryPeriodOptions} />
+                          </Form.Item>
+                          <Form.Item label="群聊 RoomID" name={[field.name, 'roomId']}>
+                            <Input placeholder="为空则总结全部群聊" className="mono" />
+                          </Form.Item>
+                          <Form.Item label="备注" name={[field.name, 'name']}>
+                            <Input placeholder="上午总结" />
+                          </Form.Item>
+                          <Button danger onClick={() => remove(field.name)} disabled={fields.length <= 1}>删除</Button>
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                </Form.List>
                 <div className="settings-status-list" aria-label="AI 配置状态">
                   <Typography.Text type={currentValues.aiExtractEnabled ? 'success' : 'secondary'}>
                     AI 提取 {currentValues.aiExtractEnabled ? '已开启' : '未开启'}
@@ -399,7 +427,7 @@ export default function Settings() {
                     微信总结模型 {currentValues.wechatSummaryModel || '后端默认'}
                   </Typography.Text>
                   <Typography.Text type={currentValues.wechatSummaryAutoDaily ? 'success' : 'secondary'}>
-                    定时日报 {currentValues.wechatSummaryAutoDaily ? `已开启 ${currentValues.wechatSummaryDailyTime || '09:00'}` : '未开启'}
+                    定时日报 {currentValues.wechatSummaryAutoDaily ? `已开启 ${currentValues.wechatSummaryDailySchedules?.filter((item) => item.enabled).length || 0} 个计划` : '未开启'}
                   </Typography.Text>
                   <Typography.Text type={currentValues.wechatSummaryAutoSend ? 'success' : 'secondary'}>
                     发回微信群 {currentValues.wechatSummaryAutoSend ? '已开启' : '未开启'}

@@ -1,3 +1,11 @@
+export type WechatSummaryDailySchedule = {
+  enabled?: boolean;
+  time?: string;
+  period?: 'day' | 'morning' | 'afternoon';
+  roomId?: string;
+  name?: string;
+};
+
 export type SettingsValues = {
   publishTakeoverEnabled?: boolean;
   dailyTakeoverExpirationDays?: number;
@@ -18,8 +26,7 @@ export type SettingsValues = {
   wechatSummaryCompareModels?: string;
   wechatSummaryAutoSend?: boolean;
   wechatSummaryAutoDaily?: boolean;
-  wechatSummaryDailyTime?: string;
-  wechatSummaryDailyRoomId?: string;
+  wechatSummaryDailySchedules?: WechatSummaryDailySchedule[];
 };
 
 export const sensitiveSettingsKeys: Array<keyof SettingsValues> = [
@@ -53,6 +60,28 @@ function normalizeDailyTime(value?: string) {
   return hour >= 0 && hour <= 23 && minute >= 0 && minute <= 59 ? text : '09:00';
 }
 
+const defaultWechatSummaryDailySchedules: WechatSummaryDailySchedule[] = [
+  { enabled: true, time: '12:00', period: 'morning', name: '上午总结' },
+  { enabled: true, time: '18:00', period: 'afternoon', name: '下午总结' },
+];
+
+function normalizeDailySchedules(values?: WechatSummaryDailySchedule[]) {
+  const items = Array.isArray(values) ? values : [];
+  const schedules = items
+    .map((item) => {
+      const period = ['day', 'morning', 'afternoon'].includes(String(item.period)) ? item.period : 'day';
+      return {
+        enabled: Boolean(item.enabled),
+        time: normalizeDailyTime(item.time),
+        period: period as 'day' | 'morning' | 'afternoon',
+        roomId: item.roomId?.trim() || '',
+        name: item.name?.trim() || '',
+      };
+    })
+    .filter((item) => item.time);
+  return schedules.length ? schedules : defaultWechatSummaryDailySchedules;
+}
+
 export function normalizeSettings(values: SettingsValues) {
   const expirationDays = Number(values.dailyTakeoverExpirationDays);
   const summaryMaxMessages = Number(values.wechatSummaryMaxMessages);
@@ -84,7 +113,6 @@ export function normalizeSettings(values: SettingsValues) {
     wechatSummaryCompareModels: normalizeCSV(values.wechatSummaryCompareModels),
     wechatSummaryAutoSend: Boolean(values.wechatSummaryAutoSend),
     wechatSummaryAutoDaily: Boolean(values.wechatSummaryAutoDaily),
-    wechatSummaryDailyTime: normalizeDailyTime(values.wechatSummaryDailyTime),
-    wechatSummaryDailyRoomId: values.wechatSummaryDailyRoomId?.trim() || '',
+    wechatSummaryDailySchedules: normalizeDailySchedules(values.wechatSummaryDailySchedules),
   };
 }

@@ -42,11 +42,25 @@ describe('admin settings normalization', () => {
     expect(settings.wechatSummaryCompareModels).toBe('gpt-5.5,gpt-4o,claude-sonnet');
   });
 
-  it('defaults invalid wechat summary daily time', () => {
-    expect(normalizeSettings({ wechatSummaryDailyTime: '' }).wechatSummaryDailyTime).toBe('09:00');
-    expect(normalizeSettings({ wechatSummaryDailyTime: '9:00' }).wechatSummaryDailyTime).toBe('09:00');
-    expect(normalizeSettings({ wechatSummaryDailyTime: '24:00' }).wechatSummaryDailyTime).toBe('09:00');
-    expect(normalizeSettings({ wechatSummaryDailyTime: '09:30' }).wechatSummaryDailyTime).toBe('09:30');
+  it('normalizes wechat summary daily schedules', () => {
+    const schedules = normalizeSettings({
+      wechatSummaryDailySchedules: [
+        { enabled: true, time: '12:00', period: 'morning', roomId: ' r1 ', name: ' 上午 ' },
+        { enabled: true, time: '24:00', period: 'bad' as never },
+      ],
+    }).wechatSummaryDailySchedules;
+
+    expect(schedules).toEqual([
+      { enabled: true, time: '12:00', period: 'morning', roomId: 'r1', name: '上午' },
+      { enabled: true, time: '09:00', period: 'day', roomId: '', name: '' },
+    ]);
+  });
+
+  it('defaults empty wechat summary daily schedules to morning and afternoon', () => {
+    expect(normalizeSettings({}).wechatSummaryDailySchedules).toEqual([
+      { enabled: true, time: '12:00', period: 'morning', name: '上午总结' },
+      { enabled: true, time: '18:00', period: 'afternoon', name: '下午总结' },
+    ]);
   });
 
   it('drops unknown wechat summary styles', () => {
