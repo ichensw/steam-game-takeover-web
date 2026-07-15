@@ -91,6 +91,7 @@ const defaultWxbotConfig = {
     write_timeout: 10,
     batch_size: 100,
     batch_flush_interval: 10,
+    message_queue_size: 5000,
   },
   logging: {
     level: 'INFO',
@@ -200,6 +201,7 @@ const configSections: SectionDef[] = [
       { key: 'write_timeout', label: '写入超时秒', type: 'number' },
       { key: 'batch_size', label: '批量入库条数', type: 'number' },
       { key: 'batch_flush_interval', label: '批量刷新间隔秒', type: 'number' },
+      { key: 'message_queue_size', label: '消息队列容量', type: 'number' },
     ],
   },
   {
@@ -326,9 +328,15 @@ export default function WechatWxbotControl() {
     if (!selectedBotId) return;
     await form.validateFields();
     const values = form.getFieldsValue(true) as FormValues;
+    const config = formToConfig(values);
+    const error = validateWxbotConfig(config);
+    if (error) {
+      message.error(error);
+      return;
+    }
     setSaving(true);
     try {
-      const detail = await updateWxbotConfig(selectedBotId, formToConfig(values));
+      const detail = await updateWxbotConfig(selectedBotId, config);
       setConfigUpdatedAt(detail.configUpdatedAt || '');
       message.success('配置已保存，机器人会在下一次拉取时生效');
       await loadBots();
@@ -514,6 +522,78 @@ export function formToConfig(values: FormValues): WxbotRemoteConfig {
   return result as WxbotRemoteConfig;
 }
 
+export function validateWxbotConfig(config: WxbotRemoteConfig) {
+  const checks: Array<() => string> = [
+    () => requireText(config.bot, 'name', '机器人名称'),
+    () => requireText(config.hook, 'dll_path', 'DLL 路径'),
+    () => requireText(config.hook, 'inject_exe_path', '注入程序路径'),
+    () => requireText(config.hook, 'receive_mode', '接收模式'),
+    () => requireInt(config.hook, 'http_server_port', 'Hook HTTP 端口'),
+    () => requireText(config.hook, 'callback_url', '回调地址'),
+    () => requireText(config.database, 'host', 'MySQL 地址'),
+    () => requireInt(config.database, 'port', 'MySQL 端口'),
+    () => requireText(config.database, 'user', '数据库用户名'),
+    () => requireText(config.database, 'password', '数据库密码'),
+    () => requireText(config.database, 'name', '数据库名'),
+    () => requireText(config.database, 'charset', '数据库字符集'),
+    () => requireInt(config.database, 'connect_timeout', '数据库连接超时'),
+    () => requireInt(config.database, 'read_timeout', '数据库读取超时'),
+    () => requireInt(config.database, 'write_timeout', '数据库写入超时'),
+    () => requireInt(config.database, 'batch_size', '批量入库条数'),
+    () => requireInt(config.database, 'batch_flush_interval', '批量刷新间隔'),
+    () => requireInt(config.database, 'message_queue_size', '消息队列容量'),
+    () => requireText(config.logging, 'level', '日志级别'),
+    () => requireText(config.logging, 'file', '日志文件'),
+    () => requireInt(config.logging, 'max_size_mb', '日志单文件大小'),
+    () => requireInt(config.logging, 'backup_count', '日志保留文件数'),
+  ];
+  if (text(config.hook, 'receive_mode') === 'tcp') {
+    checks.push(
+      () => requireText(config.hook, 'tcp_ip', 'TCP IP'),
+      () => requireInt(config.hook, 'tcp_port', 'TCP 端口'),
+    );
+  }
+  if (config.webhook?.enabled) {
+    checks.push(
+      () => requireText(config.webhook, 'host', 'Webhook 监听地址'),
+      () => requireInt(config.webhook, 'port', 'Webhook 监听端口'),
+      () => requireText(config.webhook, 'token', 'Webhook Token'),
+    );
+  }
+  if (config.welcome?.enabled) {
+    checks.push(() => requireText(config.welcome, 'default_msg', '默认欢迎词'));
+  }
+  if (config.party_site?.enabled) {
+    checks.push(
+      () => requireText(config.party_site, 'base_url', '接龙网站地址'),
+      () => requireText(config.party_site, 'admin_username', '接龙网站管理员账号'),
+      () => requireText(config.party_site, 'admin_password', '接龙网站管理员密码'),
+      () => requireInt(config.party_site, 'timeout', '接龙网站请求超时'),
+    );
+  }
+  if (config.wxbot_control?.enabled) {
+    checks.push(
+      () => requireText(config.wxbot_control, 'base_url', '控制中心 Base URL'),
+      () => requireText(config.wxbot_control, 'token', '控制中心 Token'),
+      () => requireText(config.wxbot_control, 'bot_id', '机器人 ID'),
+      () => requireInt(config.wxbot_control, 'heartbeat_interval', '心跳间隔'),
+      () => requireInt(config.wxbot_control, 'config_pull_interval', '配置拉取间隔'),
+      () => requireInt(config.wxbot_control, 'request_timeout', '控制中心请求超时'),
+    );
+  }
+  if (config.oss?.enabled) {
+    checks.push(
+      () => requireText(config.oss, 'endpoint', 'OSS Endpoint'),
+      () => requireText(config.oss, 'bucket', 'OSS Bucket'),
+      () => requireText(config.oss, 'access_key_id', 'OSS AccessKey ID'),
+      () => requireText(config.oss, 'access_key_secret', 'OSS AccessKey Secret'),
+      () => requireText(config.oss, 'public_base_url', 'OSS 公开访问地址'),
+      () => requireText(config.oss, 'object_prefix', 'OSS 对象前缀'),
+    );
+  }
+  return checks.map((check) => check()).find(Boolean) || '';
+}
+
 function splitLines(value: unknown) {
   return Array.from(new Set(String(value || '').split(/[\n,，]+/).map((item) => item.trim()).filter(Boolean)));
 }
@@ -526,4 +606,17 @@ function asBool(value: unknown) {
 
 function isPlainObject(value: unknown): value is Record<string, unknown> {
   return Boolean(value) && typeof value === 'object' && !Array.isArray(value);
+}
+
+function text(section: Record<string, unknown> | undefined, key: string) {
+  return String(section?.[key] ?? '').trim();
+}
+
+function requireText(section: Record<string, unknown> | undefined, key: string, label: string) {
+  return text(section, key) ? '' : `${label}不能为空`;
+}
+
+function requireInt(section: Record<string, unknown> | undefined, key: string, label: string) {
+  const value = Number(section?.[key]);
+  return Number.isInteger(value) && value > 0 ? '' : `${label}必须大于 0`;
 }
