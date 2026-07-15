@@ -1,4 +1,4 @@
-import { App as AntApp, AutoComplete, Avatar, Button, Card, Descriptions, Empty, Flex, Form, Space, Tag, Typography } from 'antd';
+import { App as AntApp, AutoComplete, Button, Card, Descriptions, Empty, Flex, Form, Space, Tag, Typography } from 'antd';
 import { useEffect, useRef, useState } from 'react';
 import {
   getKookBotOnlineStatus,
@@ -16,49 +16,29 @@ type KookUser = Record<string, unknown>;
 type KookMember = Record<string, unknown>;
 type KookRole = Record<string, unknown>;
 
-const fieldLabels: Record<string, string> = {
-  id: '用户 ID',
-  username: '用户名',
-  nickname: '昵称',
-  identify_num: '认证号',
-  online: '在线状态',
-  os: '连接方式',
-  status: '账号状态',
-  avatar: '头像',
-  vip_avatar: 'VIP 头像',
-  banner: '横幅',
-  roles: '角色',
-  is_vip: '会员',
-  vip_amp: '年度会员',
-  bot: '机器人',
-  bot_status: '机器人状态',
-  tag_info: '标签信息',
-  mobile_verified: '手机号验证',
-  is_sys: '系统账号',
-  client_id: '客户端 ID',
-  verified: '已验证',
-  mobile_prefix: '手机区号',
-  mobile: '手机号',
-  invited_count: '邀请人数',
-  intent: '事件订阅',
-  joined_at: '加入服务器时间',
-  active_time: '活跃时间',
-  kpm_vip: 'KPM VIP',
-  wealth_level: '语音财富等级',
-};
+const userInfoFields = [
+  { key: 'id', label: '用户 ID', keys: ['id', 'user_id', 'userId', 'kookUserId'] },
+  { key: 'username', label: '用户名', keys: ['username', 'userName'] },
+  { key: 'nickname', label: '昵称', keys: ['nickname', 'nickName'] },
+  { key: 'identify_num', label: '认证号', keys: ['identify_num', 'identifyNum'] },
+  { key: 'online', label: '在线状态', keys: ['online', 'onlineStatus', 'is_online', 'bot_online'] },
+  { key: 'os', label: '连接方式', keys: ['os', 'platform', 'client'] },
+  { key: 'roles', label: '角色', keys: ['roles', 'roleIds', 'role_ids'] },
+  { key: 'joined_at', label: '加入服务器时间', keys: ['joined_at', 'joinedAt'] },
+  { key: 'active_time', label: '最近活跃时间', keys: ['active_time', 'activeTime'] },
+];
 
-function text(row: KookUser | null, ...keys: string[]) {
+function firstValue(row: KookUser | null, ...keys: string[]) {
   for (const key of keys) {
     const value = row?.[key];
-    if (value !== undefined && value !== null && value !== '') return String(value);
+    if (value !== undefined && value !== null && value !== '') return value;
   }
-  return '';
+  return undefined;
 }
 
-function boolText(value: unknown) {
-  if (value === true || value === 1 || value === '1') return '是';
-  if (value === false || value === 0 || value === '0') return '否';
-  return '-';
+function text(row: KookUser | null, ...keys: string[]) {
+  const value = firstValue(row, ...keys);
+  return value === undefined ? '' : String(value);
 }
 
 function renderOnline(row: KookUser | null) {
@@ -148,13 +128,6 @@ function formatTime(value: unknown) {
   return formatDateTime(typeof value === 'number' ? value : String(value));
 }
 
-function statusText(value: unknown) {
-  const status = Number(value);
-  if (status === 0 || status === 1) return <Tag color="green">正常 ({status})</Tag>;
-  if (status === 10) return <Tag color="red">封禁 ({status})</Tag>;
-  return <Tag>{String(value)}</Tag>;
-}
-
 function renderRoles(value: unknown, roleMap: Record<string, KookRole>) {
   const ids = Array.isArray(value) ? value : value ? [value] : [];
   if (!ids.length) return '-';
@@ -172,13 +145,8 @@ function renderRoles(value: unknown, roleMap: Record<string, KookRole>) {
 function renderValue(key: string, value: unknown, roleMap: Record<string, KookRole>) {
   if (value === undefined || value === null || value === '') return '-';
   if (key === 'roles') return renderRoles(value, roleMap);
-  if (key === 'online' || key === 'bot_status') return renderOnline({ online: value });
-  if (key === 'status') return statusText(value);
-  if (['bot', 'is_vip', 'vip_amp', 'mobile_verified', 'is_sys', 'verified'].includes(key)) return boolText(value);
+  if (key === 'online') return renderOnline({ online: value });
   if (['joined_at', 'active_time'].includes(key)) return formatTime(value) || String(value);
-  if (['avatar', 'vip_avatar', 'banner'].includes(key)) {
-    return <Typography.Link href={String(value)} target="_blank">{String(value)}</Typography.Link>;
-  }
   if (Array.isArray(value)) return value.length ? value.map((item) => String(item)).join('、') : '-';
   if (typeof value === 'object') {
     return <Typography.Text code>{JSON.stringify(value)}</Typography.Text>;
@@ -186,10 +154,10 @@ function renderValue(key: string, value: unknown, roleMap: Record<string, KookRo
   return String(value);
 }
 
-function orderedEntries(user: KookUser) {
-  const first = ['id', 'username', 'nickname', 'identify_num', 'online', 'os', 'status', 'roles'];
-  const keys = [...first, ...Object.keys(user).filter((key) => !first.includes(key))];
-  return keys.filter((key, index) => keys.indexOf(key) === index && key in user);
+function visibleUserInfo(user: KookUser) {
+  return userInfoFields
+    .map((field) => ({ ...field, value: firstValue(user, ...field.keys) }))
+    .filter((field) => field.value !== undefined && !(Array.isArray(field.value) && field.value.length === 0));
 }
 
 function UserInfo({ user, roleMap }: { user: KookUser | null; roleMap: Record<string, KookRole> }) {
@@ -199,12 +167,11 @@ function UserInfo({ user, roleMap }: { user: KookUser | null; roleMap: Record<st
     <Flex gap={18} align="start" wrap>
       <Space direction="vertical" align="center">
         <KookAvatar user={user} />
-        {text(user, 'banner') ? <Avatar shape="square" src={text(user, 'banner')} size={96} /> : null}
       </Space>
       <Descriptions column={1} bordered size="small" style={{ flex: 1, minWidth: 260 }}>
-        {orderedEntries(user).map((key) => (
-          <Descriptions.Item key={key} label={fieldLabels[key] || key}>
-            {renderValue(key, user[key], roleMap)}
+        {visibleUserInfo(user).map((field) => (
+          <Descriptions.Item key={field.key} label={field.label}>
+            {renderValue(field.key, field.value, roleMap)}
           </Descriptions.Item>
         ))}
       </Descriptions>
