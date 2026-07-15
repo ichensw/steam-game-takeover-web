@@ -1,5 +1,5 @@
 import { ReloadOutlined, SaveOutlined, ThunderboltOutlined } from '@ant-design/icons';
-import { App as AntApp, Button, Card, Col, Empty, Form, Input, InputNumber, Row, Space, Switch, Table, Tag, Typography } from 'antd';
+import { App as AntApp, Button, Card, Col, Empty, Form, Input, Row, Space, Table, Tag, Typography } from 'antd';
 import type { ColumnsType } from 'antd/es/table';
 import { useEffect, useState } from 'react';
 import {
@@ -13,18 +13,7 @@ import PageHeader from '../components/PageHeader';
 import { formatWechatTime } from '../utils/wechatBot';
 
 type FormValues = {
-  botName?: string;
-  adminWxids?: string;
-  groupWhitelist?: string;
-  commandPrefix?: string;
-  atMeRequired?: boolean;
-  monitorMessage?: boolean;
-  monitorMessageTypes?: string;
-  alertMemberChange?: boolean;
-  groupCacheTtl?: number;
-  welcomeEnabled?: boolean;
-  summaryReminderEnabled?: boolean;
-  summaryReminderJobs?: string;
+  configJson?: string;
 };
 
 export default function WechatWxbotControl() {
@@ -34,6 +23,7 @@ export default function WechatWxbotControl() {
   const [configLoading, setConfigLoading] = useState(false);
   const [saving, setSaving] = useState(false);
   const [configUpdatedAt, setConfigUpdatedAt] = useState('');
+  const [configSource, setConfigSource] = useState('');
   const [form] = Form.useForm<FormValues>();
   const { message } = AntApp.useApp();
 
@@ -61,7 +51,11 @@ export default function WechatWxbotControl() {
     setConfigLoading(true);
     try {
       const detail = await getWxbotConfig(botId);
-      form.setFieldsValue(configToForm(detail.config || {}));
+      const savedConfig = detail.config || {};
+      const currentConfig = detail.currentConfig || {};
+      const nextConfig = hasConfig(currentConfig) ? mergeConfig(currentConfig, savedConfig) : savedConfig;
+      form.setFieldsValue({ configJson: JSON.stringify(nextConfig, null, 2) });
+      setConfigSource(configSourceText(savedConfig, currentConfig));
       setConfigUpdatedAt(detail.configUpdatedAt || '');
     } catch (error) {
       message.error(error instanceof Error ? error.message : '机器人配置加载失败');
@@ -80,7 +74,7 @@ export default function WechatWxbotControl() {
     const values = await form.validateFields();
     setSaving(true);
     try {
-      const detail = await updateWxbotConfig(selectedBotId, formToConfig(values));
+      const detail = await updateWxbotConfig(selectedBotId, parseConfigJson(values.configJson));
       setConfigUpdatedAt(detail.configUpdatedAt || '');
       message.success('配置已保存，机器人会在下一次拉取时生效');
       await loadBots();
@@ -152,79 +146,18 @@ export default function WechatWxbotControl() {
                 <div className="wxbot-config-meta">
                   <Typography.Text type="secondary">配置更新时间：{formatWechatTime(configUpdatedAt) || '-'}</Typography.Text>
                   <Typography.Text type="secondary">应用时间：{formatWechatTime(selectedBot.configAppliedAt) || '-'}</Typography.Text>
+                  <Typography.Text type="secondary">当前展示：{configSource || '-'}</Typography.Text>
                   <Typography.Text type="secondary">主机：{selectedBot.host || '-'}</Typography.Text>
                 </div>
                 <Form form={form} layout="vertical" className="wxbot-config-form">
-                  <Row gutter={16}>
-                    <Col xs={24} md={12}>
-                      <Form.Item label="机器人名称" name="botName">
-                        <Input placeholder="WeChatHookBot" />
-                      </Form.Item>
-                    </Col>
-                    <Col xs={12} md={6}>
-                      <Form.Item label="命令前缀" name="commandPrefix" rules={[{ max: 3, message: '最长 3 个字符' }]}>
-                        <Input placeholder="#" />
-                      </Form.Item>
-                    </Col>
-                    <Col xs={12} md={6}>
-                      <Form.Item label="群聊需要 @ 机器人" name="atMeRequired" valuePropName="checked">
-                        <Switch />
-                      </Form.Item>
-                    </Col>
-                  </Row>
-                  <Row gutter={16}>
-                    <Col xs={24} md={12}>
-                      <Form.Item label="管理员 wxid" name="adminWxids" extra="每行一个 wxid。">
-                        <Input.TextArea rows={5} placeholder="wxid_xxx" />
-                      </Form.Item>
-                    </Col>
-                    <Col xs={24} md={12}>
-                      <Form.Item label="群白名单" name="groupWhitelist" extra="每行一个群 ID。为空表示不限制群聊。">
-                        <Input.TextArea rows={5} placeholder="47759534463@chatroom" />
-                      </Form.Item>
-                    </Col>
-                  </Row>
-                  <Row gutter={16}>
-                    <Col xs={24} md={8}>
-                      <Form.Item label="消息入库" name="monitorMessage" valuePropName="checked">
-                        <Switch />
-                      </Form.Item>
-                    </Col>
-                    <Col xs={24} md={8}>
-                      <Form.Item label="成员变动通知" name="alertMemberChange" valuePropName="checked">
-                        <Switch />
-                      </Form.Item>
-                    </Col>
-                    <Col xs={24} md={8}>
-                      <Form.Item label="进群欢迎词总开关" name="welcomeEnabled" valuePropName="checked">
-                        <Switch />
-                      </Form.Item>
-                    </Col>
-                  </Row>
-                  <Row gutter={16}>
-                    <Col xs={24} md={12}>
-                      <Form.Item label="入库消息类型" name="monitorMessageTypes" extra="逗号或换行分隔。为空表示全部类型。">
-                        <Input placeholder="1, 3, 49" />
-                      </Form.Item>
-                    </Col>
-                    <Col xs={24} md={12}>
-                      <Form.Item label="群缓存 TTL 秒" name="groupCacheTtl" rules={[{ type: 'number', min: 60, message: '最小 60 秒' }]}>
-                        <InputNumber min={60} style={{ width: '100%' }} />
-                      </Form.Item>
-                    </Col>
-                  </Row>
-                  <Row gutter={16}>
-                    <Col xs={24} md={8}>
-                      <Form.Item label="接龙汇总定时提醒" name="summaryReminderEnabled" valuePropName="checked">
-                        <Switch />
-                      </Form.Item>
-                    </Col>
-                    <Col xs={24} md={16}>
-                      <Form.Item label="提醒任务" name="summaryReminderJobs" extra="每行格式：群ID HH:MM。">
-                        <Input.TextArea rows={4} placeholder="47759534463@chatroom 18:00" />
-                      </Form.Item>
-                    </Col>
-                  </Row>
+                  <Form.Item
+                    label="完整配置 JSON"
+                    name="configJson"
+                    rules={[{ required: true, message: '请输入配置 JSON' }]}
+                    extra="保存后机器人会拉取并写入本机 config.yaml；运行中的连接类配置通常重启后完全生效。"
+                  >
+                    <Input.TextArea rows={30} className="mono" spellCheck={false} />
+                  </Form.Item>
                 </Form>
               </>
             ) : (
@@ -237,59 +170,42 @@ export default function WechatWxbotControl() {
   );
 }
 
-function configToForm(config: WxbotRemoteConfig): FormValues {
-  return {
-    botName: config.bot?.name || '',
-    adminWxids: lines(config.bot?.admin_wxids || []),
-    groupWhitelist: lines(config.bot?.group_whitelist || []),
-    commandPrefix: config.bot?.command_prefix ?? '#',
-    atMeRequired: config.bot?.at_me_required ?? true,
-    monitorMessage: config.monitor?.message ?? true,
-    monitorMessageTypes: lines(config.monitor?.message_types || []),
-    alertMemberChange: config.monitor?.alert_member_change ?? true,
-    groupCacheTtl: config.monitor?.group_cache_ttl ?? 600,
-    welcomeEnabled: config.welcome?.enabled ?? true,
-    summaryReminderEnabled: config.summary_reminder?.enabled ?? false,
-    summaryReminderJobs: (config.summary_reminder?.jobs || []).map((item) => `${item.room_id} ${item.time}`).join('\n'),
-  };
+function hasConfig(config: WxbotRemoteConfig) {
+  return Object.keys(config || {}).length > 0;
 }
 
-function formToConfig(values: FormValues): WxbotRemoteConfig {
-  return {
-    bot: {
-      name: (values.botName || '').trim(),
-      admin_wxids: splitList(values.adminWxids),
-      group_whitelist: splitList(values.groupWhitelist),
-      command_prefix: values.commandPrefix ?? '',
-      at_me_required: Boolean(values.atMeRequired),
-    },
-    monitor: {
-      message: Boolean(values.monitorMessage),
-      message_types: splitList(values.monitorMessageTypes),
-      alert_member_change: Boolean(values.alertMemberChange),
-      group_cache_ttl: Number(values.groupCacheTtl || 600),
-    },
-    welcome: {
-      enabled: Boolean(values.welcomeEnabled),
-    },
-    summary_reminder: {
-      enabled: Boolean(values.summaryReminderEnabled),
-      jobs: parseJobs(values.summaryReminderJobs),
-    },
-  };
+function configSourceText(savedConfig: WxbotRemoteConfig, currentConfig: WxbotRemoteConfig) {
+  if (hasConfig(savedConfig) && hasConfig(currentConfig)) return '机器人当前配置 + 远程覆盖';
+  if (hasConfig(savedConfig)) return '远程配置';
+  if (hasConfig(currentConfig)) return '机器人当前配置';
+  return '-';
 }
 
-function splitList(value?: string) {
-  return Array.from(new Set(String(value || '').split(/[\n,，]+/).map((item) => item.trim()).filter(Boolean)));
+function mergeConfig(base: WxbotRemoteConfig, override: WxbotRemoteConfig): WxbotRemoteConfig {
+  const result: Record<string, unknown> = { ...(base as Record<string, unknown>) };
+  Object.entries(override || {}).forEach(([key, value]) => {
+    const baseValue = result[key];
+    if (isPlainObject(baseValue) && isPlainObject(value)) {
+      result[key] = { ...baseValue, ...value };
+    } else {
+      result[key] = value;
+    }
+  });
+  return result as WxbotRemoteConfig;
 }
 
-function parseJobs(value?: string) {
-  return String(value || '').split('\n').map((line) => {
-    const [roomId, time] = line.trim().split(/\s+/, 2);
-    return { room_id: roomId || '', time: time || '' };
-  }).filter((item) => item.room_id && item.time);
+function isPlainObject(value: unknown): value is Record<string, unknown> {
+  return Boolean(value) && typeof value === 'object' && !Array.isArray(value);
 }
 
-function lines(values: string[]) {
-  return values.join('\n');
+function parseConfigJson(value?: string): WxbotRemoteConfig {
+  try {
+    const parsed = JSON.parse(value || '{}');
+    if (!parsed || typeof parsed !== 'object' || Array.isArray(parsed)) {
+      throw new Error('配置必须是 JSON 对象');
+    }
+    return parsed;
+  } catch (error) {
+    throw new Error(error instanceof Error ? error.message : '配置 JSON 格式错误');
+  }
 }

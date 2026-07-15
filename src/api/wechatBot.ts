@@ -180,11 +180,19 @@ export type WxbotRemoteConfig = {
   };
   welcome?: {
     enabled?: boolean;
+    default_msg?: string;
   };
   summary_reminder?: {
     enabled?: boolean;
     jobs?: Array<{ room_id: string; time: string }>;
   };
+  hook?: Record<string, unknown>;
+  webhook?: Record<string, unknown>;
+  database?: Record<string, unknown>;
+  logging?: Record<string, unknown>;
+  party_site?: Record<string, unknown>;
+  wxbot_control?: Record<string, unknown>;
+  oss?: Record<string, unknown>;
 };
 
 export type WxbotRecord = {
@@ -199,6 +207,7 @@ export type WxbotRecord = {
   startedAt?: string;
   lastSeenAt?: string;
   config: WxbotRemoteConfig;
+  currentConfig?: WxbotRemoteConfig;
   configUpdatedAt?: string;
   configAppliedAt?: string;
   updatedAt?: string;
@@ -207,6 +216,7 @@ export type WxbotRecord = {
 export type WxbotConfigDetail = {
   botId: string;
   config: WxbotRemoteConfig;
+  currentConfig?: WxbotRemoteConfig;
   configUpdatedAt?: string;
 };
 
