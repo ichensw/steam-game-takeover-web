@@ -43,12 +43,13 @@ export const buildMenuItems = (visibleKeys?: string[]): MenuItem[] => {
       ...(can('reports') ? [{ key: '/reports', icon: <AlertOutlined />, label: '举报审核' }] : []),
     ],
   } as MenuItem] : []),
-  ...((can('users') || can('admin-users')) ? [{
+  ...((can('users') || can('user-blocks') || can('admin-users')) ? [{
     key: 'user-group',
     icon: <UserOutlined />,
     label: '用户',
     children: [
       ...(can('users') ? [{ key: '/users', icon: <UserOutlined />, label: '用户管理' }] : []),
+      ...(can('user-blocks') ? [{ key: '/user-blocks', icon: <UserOutlined />, label: '用户拉黑关系' }] : []),
       ...(can('admin-users') ? [{ key: '/admin-users', icon: <UserOutlined />, label: '管理员账号' }] : []),
     ],
   } as MenuItem] : []),
@@ -98,6 +99,7 @@ export const openKeyByPath: Record<string, string> = {
   '/takeovers': 'takeover-group',
   '/reports': 'takeover-group',
   '/users': 'user-group',
+  '/user-blocks': 'user-group',
   '/admin-users': 'user-group',
   '/kook-channels': 'kook-group',
   '/kook-roles': 'kook-group',

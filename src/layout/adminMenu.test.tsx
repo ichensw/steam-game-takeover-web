@@ -38,4 +38,11 @@ describe('WeChat bot admin navigation', () => {
     const wechat = group(items, 'wechat-group');
     expect(wechat?.children?.map((item) => item?.key)).toEqual(['/wechat-wxbots']);
   });
+
+  it('shows user block management for the dedicated permission', () => {
+    const items = buildMenuItems(['dashboard', 'user-blocks']) as TestMenuItem[];
+    const userGroup = group(items, 'user-group');
+    expect(userGroup?.children?.map((item) => item?.key)).toEqual(['/user-blocks']);
+    expect(openKeyByPath['/user-blocks']).toBe('user-group');
+  });
 });

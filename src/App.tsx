@@ -16,6 +16,7 @@ const Login = lazy(() => import('./pages/Login'));
 const Reports = lazy(() => import('./pages/Reports'));
 const Settings = lazy(() => import('./pages/Settings'));
 const Takeovers = lazy(() => import('./pages/Takeovers'));
+const UserBlocks = lazy(() => import('./pages/UserBlocks'));
 const Users = lazy(() => import('./pages/Users'));
 const WechatDatabase = lazy(() => import('./pages/WechatDatabase'));
 const WechatMessages = lazy(() => import('./pages/WechatMessages'));
@@ -53,6 +54,7 @@ export default function App() {
             <Route path="dashboard" element={<Dashboard />} />
             <Route path="takeovers" element={<Takeovers />} />
             <Route path="users" element={<Users />} />
+            <Route path="user-blocks" element={<UserBlocks />} />
             <Route path="admin-users" element={<AdminUsers />} />
             <Route path="reports" element={<Reports />} />
             <Route path="kook-channels" element={<KookChannels />} />

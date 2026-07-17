@@ -100,6 +100,24 @@ export function listUsers(params: Query) {
   );
 }
 
+export function listUserBlocks(params: Query) {
+  return unwrap<PageResult<Record<string, unknown>>>(
+    http.get('/admin/user-blocks', { params }),
+  );
+}
+
+export function createUserBlock(values: { ownerUserId: React.Key; blockedUserId: React.Key }) {
+  return unwrap<Record<string, unknown>>(http.post('/admin/user-blocks', values));
+}
+
+export function updateUserBlock(id: React.Key, values: { ownerUserId: React.Key; blockedUserId: React.Key }) {
+  return unwrap<Record<string, unknown>>(http.put(`/admin/user-blocks/${id}`, values));
+}
+
+export function deleteUserBlock(id: React.Key) {
+  return unwrap<null>(http.delete(`/admin/user-blocks/${id}`));
+}
+
 export function getUser(id: React.Key) {
   return unwrap<Record<string, unknown>>(http.get(`/admin/users/${id}`));
 }
