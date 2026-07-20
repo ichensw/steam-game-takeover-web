@@ -78,6 +78,14 @@ npm run build
 dist/
 ```
 
+### 生产发布
+
+```bash
+npm run deploy
+```
+
+发布脚本会自动执行测试、构建、打包、上传、备份线上 `dist/`、替换新包并 reload Nginx。服务器密码只从本机私密文件或 `DEPLOY_PASSWORD` 环境变量读取，不写入仓库。
+
 ### 本地预览生产包
 
 ```bash
