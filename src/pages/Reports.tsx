@@ -105,7 +105,7 @@ function memberLabel(row: MemberRow) {
 
 function userOption(row: MemberRow) {
   const id = memberId(row);
-  return id ? { value: id, label: memberLabel(row) } : null;
+  return id && row.nickname?.trim() ? { value: id, label: memberLabel(row) } : null;
 }
 
 function renderState(value: unknown) {
@@ -157,7 +157,8 @@ export default function Reports() {
   const [creating, setCreating] = useState(false);
   const [takeoverOptions, setTakeoverOptions] = useState<{ value: number; label: string }[]>([]);
   const [takeoverLoading, setTakeoverLoading] = useState(false);
-  const [userOptions, setUserOptions] = useState<{ value: number; label: string; disabled?: boolean }[]>([]);
+  const [reporterUserOptions, setReporterUserOptions] = useState<{ value: number; label: string; disabled?: boolean }[]>([]);
+  const [reportedUserOptions, setReportedUserOptions] = useState<{ value: number; label: string; disabled?: boolean }[]>([]);
   const [usersLoading, setUsersLoading] = useState(false);
   const [imageUploading, setImageUploading] = useState(false);
   const [form] = Form.useForm();
@@ -239,29 +240,42 @@ export default function Reports() {
     }
   };
 
-  const searchUsers = async (keyword = '') => {
+  const searchUsers = async (
+    keyword = '',
+    setOptions: (options: { value: number; label: string }[]) => void,
+  ) => {
     setUsersLoading(true);
     try {
       const res = await listUsers({ page: 1, pageSize: 100, keyword });
       const nextOptions = ((res.list || res.items || []) as MemberRow[])
         .map(userOption)
         .filter((option): option is { value: number; label: string } => Boolean(option));
-      setUserOptions((current) => {
-        const map = new Map<number, { value: number; label: string }>();
-        nextOptions.forEach((option) => map.set(option.value, option));
-        current.forEach((option) => {
-          if (!map.has(option.value)) map.set(option.value, option);
-        });
-        return Array.from(map.values());
-      });
+      setOptions(nextOptions);
     } finally {
       setUsersLoading(false);
     }
   };
 
-  const debouncedSearchUsers = (keyword: string) => {
+  const loadInitialUserOptions = async () => {
+    setUsersLoading(true);
+    try {
+      const res = await listUsers({ page: 1, pageSize: 100 });
+      const nextOptions = ((res.list || res.items || []) as MemberRow[])
+        .map(userOption)
+        .filter((option): option is { value: number; label: string } => Boolean(option));
+      setReporterUserOptions(nextOptions);
+      setReportedUserOptions(nextOptions);
+    } finally {
+      setUsersLoading(false);
+    }
+  };
+
+  const debouncedSearchUsers = (
+    keyword: string,
+    setOptions: (options: { value: number; label: string }[]) => void,
+  ) => {
     window.clearTimeout(userSearchTimer.current);
-    userSearchTimer.current = window.setTimeout(() => searchUsers(keyword), 300);
+    userSearchTimer.current = window.setTimeout(() => searchUsers(keyword, setOptions), 300);
   };
 
   const openCreate = () => {
@@ -269,7 +283,7 @@ export default function Reports() {
     createForm.setFieldsValue({ reportType: 'other', imageUrls: [] });
     setCreateOpen(true);
     loadTakeoverOptions();
-    searchUsers();
+    loadInitialUserOptions();
   };
 
   const currentReportImageUrls = () => (Array.isArray(createForm.getFieldValue('imageUrls'))
@@ -403,22 +417,22 @@ export default function Reports() {
   ];
   const tableColumns = useTableColumnSettings('reports', columns);
   const reporterOptions = useMemo(
-    () => userOptions.map((option) => ({ ...option, disabled: option.value === numberId(reportedUserId) })),
-    [reportedUserId, userOptions],
+    () => reporterUserOptions.map((option) => ({ ...option, disabled: option.value === numberId(reportedUserId) })),
+    [reportedUserId, reporterUserOptions],
   );
   const reportedOptions = useMemo(
-    () => userOptions.map((option) => ({ ...option, disabled: option.value === numberId(reporterUserId) })),
-    [reporterUserId, userOptions],
+    () => reportedUserOptions.map((option) => ({ ...option, disabled: option.value === numberId(reporterUserId) })),
+    [reporterUserId, reportedUserOptions],
   );
-  const userSelectProps = {
+  const userSelectProps = (setOptions: (options: { value: number; label: string }[]) => void) => ({
     allowClear: true,
     filterOption: false,
     loading: usersLoading,
-    onFocus: () => searchUsers(),
-    onSearch: debouncedSearchUsers,
+    onFocus: () => searchUsers('', setOptions),
+    onSearch: (keyword: string) => debouncedSearchUsers(keyword, setOptions),
     optionFilterProp: 'label',
     showSearch: true,
-  };
+  });
 
   return (
     <>
@@ -570,7 +584,7 @@ export default function Reports() {
             ]}
           >
             <Select
-              {...userSelectProps}
+              {...userSelectProps(setReporterUserOptions)}
               options={reporterOptions}
               placeholder="搜索昵称 / SteamID / openid / 用户ID"
             />
@@ -592,7 +606,7 @@ export default function Reports() {
             ]}
           >
             <Select
-              {...userSelectProps}
+              {...userSelectProps(setReportedUserOptions)}
               options={reportedOptions}
               placeholder="搜索昵称 / SteamID / openid / 用户ID"
             />
