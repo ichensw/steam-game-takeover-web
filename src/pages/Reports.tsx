@@ -15,17 +15,21 @@ import {
   Table,
   Tag,
   Typography,
+  Upload,
 } from 'antd';
+import { DeleteOutlined, UploadOutlined } from '@ant-design/icons';
 import type { ColumnsType } from 'antd/es/table';
-import { useEffect, useState } from 'react';
+import type { RcFile, UploadProps } from 'antd/es/upload/interface';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import {
   approveReport,
   createReport,
   getReport,
-  getTakeover,
+  listUsers,
   listReports,
   listTakeovers,
   rejectReport,
+  uploadAdminImage,
 } from '../api/admin';
 import PageHeader from '../components/PageHeader';
 import { useTableColumnSettings } from '../components/tableColumnSettings';
@@ -76,6 +80,10 @@ const reportTypeOptions = [
   { value: 'other', label: '其他' },
 ];
 
+const allowedImageTypes = ['image/jpeg', 'image/png', 'image/gif', 'image/webp'];
+const maxImageSize = 5 * 1024 * 1024;
+const maxReportImages = 9;
+
 function numberId(value: unknown) {
   const id = Number(value);
   return Number.isFinite(id) && id > 0 ? id : 0;
@@ -93,6 +101,11 @@ function memberLabel(row: MemberRow) {
     row.openid ? `openid: ${row.openid}` : '',
     id ? `ID: ${id}` : '',
   ].filter(Boolean).join(' / ');
+}
+
+function userOption(row: MemberRow) {
+  const id = memberId(row);
+  return id ? { value: id, label: memberLabel(row) } : null;
 }
 
 function renderState(value: unknown) {
@@ -144,14 +157,17 @@ export default function Reports() {
   const [creating, setCreating] = useState(false);
   const [takeoverOptions, setTakeoverOptions] = useState<{ value: number; label: string }[]>([]);
   const [takeoverLoading, setTakeoverLoading] = useState(false);
-  const [members, setMembers] = useState<MemberRow[]>([]);
-  const [membersLoading, setMembersLoading] = useState(false);
+  const [userOptions, setUserOptions] = useState<{ value: number; label: string; disabled?: boolean }[]>([]);
+  const [usersLoading, setUsersLoading] = useState(false);
+  const [imageUploading, setImageUploading] = useState(false);
   const [form] = Form.useForm();
   const [handleForm] = Form.useForm();
   const [createForm] = Form.useForm();
+  const userSearchTimer = useRef<number | undefined>(undefined);
   const { message } = AntApp.useApp();
   const reporterUserId = Form.useWatch('reporterUserId', createForm);
   const reportedUserId = Form.useWatch('reportedUserId', createForm);
+  const imageUrls = (Form.useWatch('imageUrls', createForm) as string[] | undefined) || [];
 
   const buildParams = (targetPage: number, targetPageSize: number) => {
     const values = form.getFieldsValue();
@@ -187,6 +203,8 @@ export default function Reports() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
+  useEffect(() => () => window.clearTimeout(userSearchTimer.current), []);
+
   const openDetail = async (id: React.Key) => {
     setDetailLoading(true);
     setDetail({ id });
@@ -207,7 +225,7 @@ export default function Reports() {
   const loadTakeoverOptions = async (keyword = '') => {
     setTakeoverLoading(true);
     try {
-      const res = await listTakeovers({ page: 1, pageSize: 20, keyword });
+      const res = await listTakeovers({ page: 1, pageSize: 100, keyword });
       setTakeoverOptions(
         ((res.list || res.items || []) as ReportRow[])
           .map((row) => {
@@ -221,30 +239,46 @@ export default function Reports() {
     }
   };
 
-  const loadTakeoverMembers = async (takeoverId: React.Key) => {
-    setMembersLoading(true);
+  const searchUsers = async (keyword = '') => {
+    setUsersLoading(true);
     try {
-      const row = (await getTakeover(takeoverId)) as { members?: MemberRow[] };
-      setMembers(row.members || []);
+      const res = await listUsers({ page: 1, pageSize: 100, keyword });
+      const nextOptions = ((res.list || res.items || []) as MemberRow[])
+        .map(userOption)
+        .filter((option): option is { value: number; label: string } => Boolean(option));
+      setUserOptions((current) => {
+        const map = new Map<number, { value: number; label: string }>();
+        nextOptions.forEach((option) => map.set(option.value, option));
+        current.forEach((option) => {
+          if (!map.has(option.value)) map.set(option.value, option);
+        });
+        return Array.from(map.values());
+      });
     } finally {
-      setMembersLoading(false);
+      setUsersLoading(false);
     }
+  };
+
+  const debouncedSearchUsers = (keyword: string) => {
+    window.clearTimeout(userSearchTimer.current);
+    userSearchTimer.current = window.setTimeout(() => searchUsers(keyword), 300);
   };
 
   const openCreate = () => {
     createForm.resetFields();
-    createForm.setFieldsValue({ reportType: 'other' });
-    setMembers([]);
+    createForm.setFieldsValue({ reportType: 'other', imageUrls: [] });
     setCreateOpen(true);
     loadTakeoverOptions();
+    searchUsers();
   };
+
+  const currentReportImageUrls = () => (Array.isArray(createForm.getFieldValue('imageUrls'))
+    ? createForm.getFieldValue('imageUrls').map((item: unknown) => String(item).trim()).filter(Boolean)
+    : []);
 
   const submitCreate = async () => {
     const values = await createForm.validateFields();
-    const imageUrls = String(values.imageUrlsText || '')
-      .split('\n')
-      .map((item) => item.trim())
-      .filter(Boolean);
+    const reportImageUrls = currentReportImageUrls();
     setCreating(true);
     try {
       await createReport({
@@ -253,7 +287,7 @@ export default function Reports() {
         reportedUserId: Number(values.reportedUserId),
         reportType: values.reportType || 'other',
         content: values.content || '',
-        imageUrls,
+        imageUrls: reportImageUrls,
       });
       message.success('举报已新增');
       setCreateOpen(false);
@@ -263,6 +297,49 @@ export default function Reports() {
     } finally {
       setCreating(false);
     }
+  };
+
+  const beforeReportImageUpload = (file: RcFile) => {
+    if (!allowedImageTypes.includes(file.type)) {
+      message.error('仅支持 JPG、PNG、GIF、WebP 图片');
+      return Upload.LIST_IGNORE;
+    }
+    if (file.size > maxImageSize) {
+      message.error('图片不能超过 5MB');
+      return Upload.LIST_IGNORE;
+    }
+    if (imageUrls.length >= maxReportImages) {
+      message.error(`最多上传 ${maxReportImages} 张图片`);
+      return Upload.LIST_IGNORE;
+    }
+    return true;
+  };
+
+  const uploadReportImage: UploadProps['customRequest'] = async ({ file, onSuccess, onError }) => {
+    try {
+      if (!(file instanceof File)) {
+        throw new Error('请选择有效图片文件');
+      }
+      setImageUploading(true);
+      const result = await uploadAdminImage(file);
+      const currentUrls = currentReportImageUrls();
+      if (currentUrls.length >= maxReportImages) {
+        throw new Error(`最多上传 ${maxReportImages} 张图片`);
+      }
+      createForm.setFieldValue('imageUrls', [...currentUrls, result.url]);
+      onSuccess?.(result);
+      message.success('图片已上传');
+    } catch (error) {
+      const uploadError = error instanceof Error ? error : new Error('图片上传失败');
+      onError?.(uploadError);
+      message.error(uploadError.message || '图片上传失败');
+    } finally {
+      setImageUploading(false);
+    }
+  };
+
+  const removeReportImage = (url: string) => {
+    createForm.setFieldValue('imageUrls', imageUrls.filter((item) => item !== url));
   };
 
   const submitHandle = async () => {
@@ -325,6 +402,23 @@ export default function Reports() {
     },
   ];
   const tableColumns = useTableColumnSettings('reports', columns);
+  const reporterOptions = useMemo(
+    () => userOptions.map((option) => ({ ...option, disabled: option.value === numberId(reportedUserId) })),
+    [reportedUserId, userOptions],
+  );
+  const reportedOptions = useMemo(
+    () => userOptions.map((option) => ({ ...option, disabled: option.value === numberId(reporterUserId) })),
+    [reporterUserId, userOptions],
+  );
+  const userSelectProps = {
+    allowClear: true,
+    filterOption: false,
+    loading: usersLoading,
+    onFocus: () => searchUsers(),
+    onSearch: debouncedSearchUsers,
+    optionFilterProp: 'label',
+    showSearch: true,
+  };
 
   return (
     <>
@@ -453,11 +547,6 @@ export default function Reports() {
               onSearch={loadTakeoverOptions}
               onChange={(value) => {
                 createForm.setFieldsValue({ reporterUserId: undefined, reportedUserId: undefined });
-                if (value) {
-                  loadTakeoverMembers(value);
-                } else {
-                  setMembers([]);
-                }
               }}
               options={takeoverOptions}
               placeholder="搜索接龙标题 / ID"
@@ -481,11 +570,9 @@ export default function Reports() {
             ]}
           >
             <Select
-              loading={membersLoading}
-              options={members.map((row) => ({ value: memberId(row), label: memberLabel(row), disabled: memberId(row) === numberId(reportedUserId) }))}
-              placeholder="先选择接龙，再选择举报人"
-              showSearch
-              optionFilterProp="label"
+              {...userSelectProps}
+              options={reporterOptions}
+              placeholder="搜索昵称 / SteamID / openid / 用户ID"
             />
           </Form.Item>
           <Form.Item
@@ -505,11 +592,9 @@ export default function Reports() {
             ]}
           >
             <Select
-              loading={membersLoading}
-              options={members.map((row) => ({ value: memberId(row), label: memberLabel(row), disabled: memberId(row) === numberId(reporterUserId) }))}
-              placeholder="先选择接龙，再选择被举报人"
-              showSearch
-              optionFilterProp="label"
+              {...userSelectProps}
+              options={reportedOptions}
+              placeholder="搜索昵称 / SteamID / openid / 用户ID"
             />
           </Form.Item>
           <Form.Item label="举报类型" name="reportType" rules={[{ required: true, message: '请选择举报类型' }]}>
@@ -518,8 +603,36 @@ export default function Reports() {
           <Form.Item label="举报内容" name="content" rules={[{ required: true, message: '请输入举报内容' }, { max: 500, message: '举报内容最多 500 字' }]}>
             <Input.TextArea rows={4} showCount maxLength={500} />
           </Form.Item>
-          <Form.Item label="图片地址" name="imageUrlsText">
-            <Input.TextArea rows={3} placeholder="选填，每行一个图片 URL" />
+          <Form.Item label="举报截图">
+            <Space direction="vertical" size={10} style={{ width: '100%' }}>
+              {imageUrls.length > 0 && (
+                <Image.PreviewGroup>
+                  <Space wrap>
+                    {imageUrls.map((url) => (
+                      <Space key={url} direction="vertical" size={6}>
+                        <Image src={url} width={86} height={86} />
+                        <Button size="small" icon={<DeleteOutlined />} onClick={() => removeReportImage(url)}>
+                          移除
+                        </Button>
+                      </Space>
+                    ))}
+                  </Space>
+                </Image.PreviewGroup>
+              )}
+              <Upload
+                accept="image/jpeg,image/png,image/gif,image/webp"
+                beforeUpload={beforeReportImageUpload}
+                customRequest={uploadReportImage}
+                disabled={creating || imageUploading || imageUrls.length >= maxReportImages}
+                multiple
+                showUploadList={false}
+              >
+                <Button icon={<UploadOutlined />} loading={imageUploading}>
+                  上传图片
+                </Button>
+              </Upload>
+              <Typography.Text type="secondary">支持 JPG、PNG、GIF、WebP，最多 {maxReportImages} 张，单张不超过 5MB。</Typography.Text>
+            </Space>
           </Form.Item>
         </Form>
       </Modal>
