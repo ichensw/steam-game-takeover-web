@@ -18,7 +18,15 @@ import {
 } from 'antd';
 import type { ColumnsType } from 'antd/es/table';
 import { useEffect, useState } from 'react';
-import { approveReport, getReport, listReports, rejectReport } from '../api/admin';
+import {
+  approveReport,
+  createReport,
+  getReport,
+  getTakeover,
+  listReports,
+  listTakeovers,
+  rejectReport,
+} from '../api/admin';
 import PageHeader from '../components/PageHeader';
 import { useTableColumnSettings } from '../components/tableColumnSettings';
 import { pageSizeOptions, responsePageSize } from '../utils/pagination';
@@ -46,11 +54,46 @@ type ReportRow = Record<string, unknown> & {
   createdAt?: string;
 };
 
+type MemberRow = Record<string, unknown> & {
+  id?: React.Key;
+  userId?: React.Key;
+  nickname?: string;
+  openid?: string;
+  steamId?: string;
+};
+
 const stateOptions = [
   { value: 'pending', label: '待处理' },
   { value: 'approved', label: '已扣分' },
   { value: 'rejected', label: '已驳回' },
 ];
+
+const reportTypeOptions = [
+  { value: 'no_show', label: '到点不来' },
+  { value: 'leave_early', label: '中途跳车' },
+  { value: 'disruptive', label: '消极捣乱' },
+  { value: 'offensive', label: '言语攻击' },
+  { value: 'other', label: '其他' },
+];
+
+function numberId(value: unknown) {
+  const id = Number(value);
+  return Number.isFinite(id) && id > 0 ? id : 0;
+}
+
+function memberId(row: MemberRow) {
+  return numberId(row.userId || row.id);
+}
+
+function memberLabel(row: MemberRow) {
+  const id = memberId(row);
+  return [
+    row.nickname || '未命名用户',
+    row.steamId ? `SteamID: ${row.steamId}` : '',
+    row.openid ? `openid: ${row.openid}` : '',
+    id ? `ID: ${id}` : '',
+  ].filter(Boolean).join(' / ');
+}
 
 function renderState(value: unknown) {
   const state = Number(value);
@@ -97,9 +140,18 @@ export default function Reports() {
   const [handling, setHandling] = useState(false);
   const [handleTarget, setHandleTarget] = useState<ReportRow | null>(null);
   const [handleMode, setHandleMode] = useState<'approve' | 'reject'>('approve');
+  const [createOpen, setCreateOpen] = useState(false);
+  const [creating, setCreating] = useState(false);
+  const [takeoverOptions, setTakeoverOptions] = useState<{ value: number; label: string }[]>([]);
+  const [takeoverLoading, setTakeoverLoading] = useState(false);
+  const [members, setMembers] = useState<MemberRow[]>([]);
+  const [membersLoading, setMembersLoading] = useState(false);
   const [form] = Form.useForm();
   const [handleForm] = Form.useForm();
+  const [createForm] = Form.useForm();
   const { message } = AntApp.useApp();
+  const reporterUserId = Form.useWatch('reporterUserId', createForm);
+  const reportedUserId = Form.useWatch('reportedUserId', createForm);
 
   const buildParams = (targetPage: number, targetPageSize: number) => {
     const values = form.getFieldsValue();
@@ -150,6 +202,67 @@ export default function Reports() {
     setHandleMode(mode);
     handleForm.resetFields();
     handleForm.setFieldsValue({ penaltyScore: 10 });
+  };
+
+  const loadTakeoverOptions = async (keyword = '') => {
+    setTakeoverLoading(true);
+    try {
+      const res = await listTakeovers({ page: 1, pageSize: 20, keyword });
+      setTakeoverOptions(
+        ((res.list || res.items || []) as ReportRow[])
+          .map((row) => {
+            const id = numberId(row.id);
+            return id ? { value: id, label: `${row.takeoverTitle || row.title || `接龙 ${id}`} / ID: ${id}` } : null;
+          })
+          .filter((item): item is { value: number; label: string } => Boolean(item)),
+      );
+    } finally {
+      setTakeoverLoading(false);
+    }
+  };
+
+  const loadTakeoverMembers = async (takeoverId: React.Key) => {
+    setMembersLoading(true);
+    try {
+      const row = (await getTakeover(takeoverId)) as { members?: MemberRow[] };
+      setMembers(row.members || []);
+    } finally {
+      setMembersLoading(false);
+    }
+  };
+
+  const openCreate = () => {
+    createForm.resetFields();
+    createForm.setFieldsValue({ reportType: 'other' });
+    setMembers([]);
+    setCreateOpen(true);
+    loadTakeoverOptions();
+  };
+
+  const submitCreate = async () => {
+    const values = await createForm.validateFields();
+    const imageUrls = String(values.imageUrlsText || '')
+      .split('\n')
+      .map((item) => item.trim())
+      .filter(Boolean);
+    setCreating(true);
+    try {
+      await createReport({
+        takeoverId: Number(values.takeoverId),
+        reporterUserId: Number(values.reporterUserId),
+        reportedUserId: Number(values.reportedUserId),
+        reportType: values.reportType || 'other',
+        content: values.content || '',
+        imageUrls,
+      });
+      message.success('举报已新增');
+      setCreateOpen(false);
+      await load(1);
+    } catch (error) {
+      message.error(getErrorMessage(error));
+    } finally {
+      setCreating(false);
+    }
   };
 
   const submitHandle = async () => {
@@ -215,7 +328,16 @@ export default function Reports() {
 
   return (
     <>
-      <PageHeader title="举报审核" description="查看接龙成员举报，审核后扣除信誉分或驳回。" extra={tableColumns.button} />
+      <PageHeader
+        title="举报审核"
+        description="查看接龙成员举报，审核后扣除信誉分或驳回。"
+        extra={
+          <Space>
+            {tableColumns.button}
+            <Button type="primary" onClick={openCreate}>新增举报</Button>
+          </Space>
+        }
+      />
       <Card className="filter-card">
         <Form form={form} layout="inline" onFinish={() => load(1)}>
           <Form.Item name="keyword">
@@ -309,6 +431,95 @@ export default function Reports() {
           )}
           <Form.Item label="处理说明" name="note" rules={[{ max: 500, message: '处理说明最多 500 字' }]}>
             <Input.TextArea rows={4} showCount maxLength={500} />
+          </Form.Item>
+        </Form>
+      </Modal>
+      <Modal
+        title="新增举报"
+        open={createOpen}
+        okText="保存"
+        cancelText="取消"
+        confirmLoading={creating}
+        onOk={submitCreate}
+        onCancel={() => setCreateOpen(false)}
+      >
+        <Form form={createForm} layout="vertical">
+          <Form.Item label="接龙" name="takeoverId" rules={[{ required: true, message: '请选择接龙' }]}>
+            <Select
+              allowClear
+              filterOption={false}
+              loading={takeoverLoading}
+              onFocus={() => loadTakeoverOptions()}
+              onSearch={loadTakeoverOptions}
+              onChange={(value) => {
+                createForm.setFieldsValue({ reporterUserId: undefined, reportedUserId: undefined });
+                if (value) {
+                  loadTakeoverMembers(value);
+                } else {
+                  setMembers([]);
+                }
+              }}
+              options={takeoverOptions}
+              placeholder="搜索接龙标题 / ID"
+              showSearch
+            />
+          </Form.Item>
+          <Form.Item
+            label="举报人"
+            name="reporterUserId"
+            dependencies={['reportedUserId']}
+            rules={[
+              { required: true, message: '请选择举报人' },
+              ({ getFieldValue }) => ({
+                validator(_, value) {
+                  if (value && value === getFieldValue('reportedUserId')) {
+                    return Promise.reject(new Error('举报人和被举报人不能相同'));
+                  }
+                  return Promise.resolve();
+                },
+              }),
+            ]}
+          >
+            <Select
+              loading={membersLoading}
+              options={members.map((row) => ({ value: memberId(row), label: memberLabel(row), disabled: memberId(row) === numberId(reportedUserId) }))}
+              placeholder="先选择接龙，再选择举报人"
+              showSearch
+              optionFilterProp="label"
+            />
+          </Form.Item>
+          <Form.Item
+            label="被举报人"
+            name="reportedUserId"
+            dependencies={['reporterUserId']}
+            rules={[
+              { required: true, message: '请选择被举报人' },
+              ({ getFieldValue }) => ({
+                validator(_, value) {
+                  if (value && value === getFieldValue('reporterUserId')) {
+                    return Promise.reject(new Error('举报人和被举报人不能相同'));
+                  }
+                  return Promise.resolve();
+                },
+              }),
+            ]}
+          >
+            <Select
+              loading={membersLoading}
+              options={members.map((row) => ({ value: memberId(row), label: memberLabel(row), disabled: memberId(row) === numberId(reporterUserId) }))}
+              placeholder="先选择接龙，再选择被举报人"
+              showSearch
+              optionFilterProp="label"
+            />
+          </Form.Item>
+          <Form.Item label="举报类型" name="reportType" rules={[{ required: true, message: '请选择举报类型' }]}>
+            <Select options={reportTypeOptions} />
+          </Form.Item>
+          <Form.Item label="举报内容" name="content" rules={[{ required: true, message: '请输入举报内容' }, { max: 500, message: '举报内容最多 500 字' }]}>
+            <Input.TextArea rows={4} showCount maxLength={500} />
+          </Form.Item>
+          <Form.Item label="图片地址" name="imageUrlsText">
+            <Input.TextArea rows={3} placeholder="选填，每行一个图片 URL" />
           </Form.Item>
         </Form>
       </Modal>

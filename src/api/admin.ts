@@ -134,6 +134,10 @@ export function restoreUserCredit(id: React.Key, toScore = 100) {
   return unwrap<null>(http.post(`/admin/users/${id}/credit`, { toScore }));
 }
 
+export function penalizeUserCredit(id: React.Key, values: { penaltyScore: number; reason?: string }) {
+  return unwrap<null>(http.post(`/admin/users/${id}/credit/penalty`, values));
+}
+
 export function batchPublishWhitelist(openids: string[]) {
   return unwrap<{ count: number }>(
     http.post('/admin/publish-whitelist/batch', { openids }),
@@ -170,6 +174,10 @@ export function listReports(params: Query) {
 
 export function getReport(id: React.Key) {
   return unwrap<Record<string, unknown>>(http.get(`/admin/reports/${id}`));
+}
+
+export function createReport(values: Record<string, unknown>) {
+  return unwrap<Record<string, unknown>>(http.post('/admin/reports', values));
 }
 
 export function approveReport(id: React.Key, values: { content?: string; penaltyScore: number }) {

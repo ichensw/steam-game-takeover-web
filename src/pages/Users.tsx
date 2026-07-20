@@ -5,6 +5,7 @@ import {
   Drawer,
   Form,
   Input,
+  InputNumber,
   Modal,
   Popconfirm,
   Select,
@@ -22,6 +23,7 @@ import {
   batchTakeoverView,
   getUser,
   listUsers,
+  penalizeUserCredit,
   restoreUserCredit,
   unbanUser,
 } from '../api/admin';
@@ -66,8 +68,10 @@ export default function Users() {
   const [detail, setDetail] = useState<UserRow | null>(null);
   const [detailLoading, setDetailLoading] = useState(false);
   const [banTarget, setBanTarget] = useState<UserRow | null>(null);
+  const [penaltyTarget, setPenaltyTarget] = useState<UserRow | null>(null);
   const [form] = Form.useForm();
   const [banForm] = Form.useForm<{ reason: string }>();
+  const [penaltyForm] = Form.useForm<{ penaltyScore: number; reason?: string }>();
   const { message } = AntApp.useApp();
 
   const buildParams = (
@@ -128,6 +132,18 @@ export default function Users() {
     setBanTarget(null);
     banForm.resetFields();
     refreshAfterAction('用户已封禁');
+  };
+
+  const submitPenalty = async () => {
+    if (!penaltyTarget) return;
+    const values = await penaltyForm.validateFields();
+    await penalizeUserCredit(penaltyTarget.id, {
+      penaltyScore: Number(values.penaltyScore),
+      reason: values.reason || '',
+    });
+    setPenaltyTarget(null);
+    penaltyForm.resetFields();
+    refreshAfterAction('信誉分已扣除');
   };
 
   const addWhitelist = async () => {
@@ -238,6 +254,12 @@ export default function Users() {
               封禁
             </Button>
           )}
+          <Button size="small" danger onClick={() => {
+            setPenaltyTarget(row);
+            penaltyForm.setFieldsValue({ penaltyScore: 10, reason: '' });
+          }}>
+            扣分
+          </Button>
           <Popconfirm
             title="恢复信誉分"
             description="确认将该用户信誉分恢复到 100？"
@@ -401,6 +423,39 @@ export default function Users() {
             rules={[{ max: 255, message: '封禁原因最多 255 字' }]}
           >
             <Input.TextArea rows={4} placeholder="选填，后台留痕用" showCount maxLength={255} />
+          </Form.Item>
+        </Form>
+      </Modal>
+      <Modal
+        title="扣除信誉分"
+        open={!!penaltyTarget}
+        okText="确认扣分"
+        okButtonProps={{ danger: true }}
+        cancelText="取消"
+        onOk={submitPenalty}
+        onCancel={() => {
+          setPenaltyTarget(null);
+          penaltyForm.resetFields();
+        }}
+      >
+        <p>
+          {penaltyTarget?.nickname || penaltyTarget?.steamId || penaltyTarget?.id || '-'} 当前信誉分：
+          <span className="mono">{penaltyTarget?.creditScore ?? '-'}</span>
+        </p>
+        <Form form={penaltyForm} layout="vertical">
+          <Form.Item
+            label="扣除信誉分"
+            name="penaltyScore"
+            rules={[{ required: true, message: '请输入扣分' }]}
+          >
+            <InputNumber min={1} max={100} precision={0} style={{ width: '100%' }} />
+          </Form.Item>
+          <Form.Item
+            label="扣分原因"
+            name="reason"
+            rules={[{ max: 255, message: '扣分原因最多 255 字' }]}
+          >
+            <Input.TextArea rows={3} placeholder="选填，后台留痕用" showCount maxLength={255} />
           </Form.Item>
         </Form>
       </Modal>
