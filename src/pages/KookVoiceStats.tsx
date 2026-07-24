@@ -35,6 +35,10 @@ function voiceDuration(value?: string) {
   return value || '0秒';
 }
 
+function durationSorter(field: 'durationSeconds' | 'occupiedDurationSeconds' | 'idleDurationSeconds') {
+  return (a: KookVoiceUsage, b: KookVoiceUsage) => (a[field] || 0) - (b[field] || 0);
+}
+
 function sessionStatus(value: string) {
   if (value === 'closed') return <Tag color="green">已结束</Tag>;
   if (value === 'abnormal') return <Tag color="orange">异常补记</Tag>;
@@ -112,9 +116,24 @@ export default function KookVoiceStats() {
   const channelColumns: ColumnsType<KookVoiceUsage> = [
     { title: '频道', render: (_, row) => channelName(row) },
     { title: '频道 ID', dataIndex: 'channelId', className: 'mono' },
-    { title: '人员累计时长', dataIndex: 'durationText' },
-    { title: '占用时长', dataIndex: 'occupiedDurationText', render: voiceDuration },
-    { title: '空闲时长', dataIndex: 'idleDurationText', render: voiceDuration },
+    {
+      title: '人员累计时长',
+      dataIndex: 'durationText',
+      sorter: durationSorter('durationSeconds'),
+      defaultSortOrder: 'descend',
+    },
+    {
+      title: '占用时长',
+      dataIndex: 'occupiedDurationText',
+      render: voiceDuration,
+      sorter: durationSorter('occupiedDurationSeconds'),
+    },
+    {
+      title: '空闲时长',
+      dataIndex: 'idleDurationText',
+      render: voiceDuration,
+      sorter: durationSorter('idleDurationSeconds'),
+    },
     { title: '会话数', dataIndex: 'sessionCount', width: 100 },
   ];
 
