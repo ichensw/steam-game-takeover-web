@@ -31,6 +31,10 @@ function channelName(row: Pick<KookVoiceUsage, 'channelName' | 'channelId'>) {
   return row.channelName || row.channelId || '-';
 }
 
+function voiceDuration(value?: string) {
+  return value || '0秒';
+}
+
 function sessionStatus(value: string) {
   if (value === 'closed') return <Tag color="green">已结束</Tag>;
   if (value === 'abnormal') return <Tag color="orange">异常补记</Tag>;
@@ -108,7 +112,9 @@ export default function KookVoiceStats() {
   const channelColumns: ColumnsType<KookVoiceUsage> = [
     { title: '频道', render: (_, row) => channelName(row) },
     { title: '频道 ID', dataIndex: 'channelId', className: 'mono' },
-    { title: '累计时长', dataIndex: 'durationText' },
+    { title: '人员累计时长', dataIndex: 'durationText' },
+    { title: '占用时长', dataIndex: 'occupiedDurationText', render: voiceDuration },
+    { title: '空闲时长', dataIndex: 'idleDurationText', render: voiceDuration },
     { title: '会话数', dataIndex: 'sessionCount', width: 100 },
   ];
 
@@ -129,7 +135,7 @@ export default function KookVoiceStats() {
     { title: '状态', dataIndex: 'status', render: sessionStatus },
   ];
   const userTableColumns = useTableColumnSettings('kook-voice-users', userColumns);
-  const channelTableColumns = useTableColumnSettings('kook-voice-channels', channelColumns);
+  const channelTableColumns = useTableColumnSettings('kook-voice-channels-v2', channelColumns);
   const dailyTableColumns = useTableColumnSettings('kook-voice-daily', dailyColumns);
   const sessionTableColumns = useTableColumnSettings('kook-voice-sessions', sessionColumns);
   const statsPagination = {
@@ -140,7 +146,7 @@ export default function KookVoiceStats() {
   };
 
   const totals = useMemo(() => {
-    const channelSeconds = data?.channelStats?.reduce((sum, item) => sum + item.durationSeconds, 0) || 0;
+    const channelSeconds = data?.channelStats?.reduce((sum, item) => sum + (item.occupiedDurationSeconds || 0), 0) || 0;
     const activeCount = data?.sessions?.filter((item) => item.status === 'active').length || 0;
     return {
       userCount: data?.userStats?.length || 0,
@@ -199,7 +205,7 @@ export default function KookVoiceStats() {
         </Col>
         <Col xs={24} sm={12} xl={6}>
           <Card className="summary-card orange">
-            <Space align="start" className="summary-head"><ClockCircleOutlined /><Typography.Text>总小时</Typography.Text></Space>
+            <Space align="start" className="summary-head"><ClockCircleOutlined /><Typography.Text>占用小时</Typography.Text></Space>
             <Statistic value={totals.totalHours} precision={2} loading={loading} />
           </Card>
         </Col>

@@ -479,6 +479,10 @@ export type KookVoiceUsage = {
   date?: string;
   durationSeconds: number;
   durationText: string;
+  occupiedDurationSeconds?: number;
+  occupiedDurationText?: string;
+  idleDurationSeconds?: number;
+  idleDurationText?: string;
   sessionCount: number;
   lastJoinedAt?: string;
 };
