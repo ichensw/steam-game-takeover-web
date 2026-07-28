@@ -114,6 +114,7 @@ const defaultWxbotConfig = {
   },
   summary_reminder: {
     enabled: true,
+    jobs: [],
   },
   ai: {
     enabled: false,

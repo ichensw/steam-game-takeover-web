@@ -34,6 +34,7 @@ import {
   createWechatAiJob,
   getWechatAiRoomPersona,
   getWechatAiStatus,
+  listWechatGroups,
   listWechatAiHistoryLearningTasks,
   listWechatAiErrors,
   listWechatAiJobs,
@@ -52,6 +53,7 @@ import {
   type WechatAiPersonaCandidate,
   type WechatAiProfile,
   type WechatAiStatus,
+  type WechatGroup,
 } from '../api/wechatBot';
 import PageHeader from '../components/PageHeader';
 import { formatWechatTime } from '../utils/wechatBot';
@@ -120,6 +122,7 @@ export default function WechatAiMemory() {
   const [actionLoading, setActionLoading] = useState<number>();
   const [creatingLearning, setCreatingLearning] = useState(false);
   const [status, setStatus] = useState<WechatAiStatus>();
+  const [groups, setGroups] = useState<WechatGroup[]>([]);
   const [jobs, setJobs] = useState<WechatAiJob[]>([]);
   const [errors, setErrors] = useState<WechatAiError[]>([]);
   const [learningTasks, setLearningTasks] = useState<WechatAiHistoryLearningTask[]>([]);
@@ -133,7 +136,9 @@ export default function WechatAiMemory() {
   const [learningForm] = Form.useForm<LearningFormValues>();
   const manualJobType = Form.useWatch('jobType', manualForm);
 
-  const roomOptions = (status?.rooms || []).map((room) => ({ label: room.roomId, value: room.roomId }));
+  const groupNameByRoomId = new Map(groups.map((group) => [group.roomId, group.roomName || group.roomId]));
+  const roomLabel = (roomId: string) => groupNameByRoomId.get(roomId) || roomId;
+  const roomOptions = (status?.rooms || []).map((room) => ({ label: roomLabel(room.roomId), value: room.roomId }));
   const modelOptions = Array.from(new Set([
     status?.models.summary,
     status?.models.merge,
@@ -280,6 +285,9 @@ export default function WechatAiMemory() {
 
   useEffect(() => {
     void loadOverview();
+    void listWechatGroups()
+      .then(setGroups)
+      .catch((error) => message.error(error instanceof Error ? error.message : '群聊列表加载失败'));
     const timer = window.setInterval(() => void loadOverview(true), 12000);
     return () => window.clearInterval(timer);
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -294,7 +302,7 @@ export default function WechatAiMemory() {
 
   const jobsColumns: ColumnsType<WechatAiJob> = [
     { title: '任务', dataIndex: 'id', width: 82, render: (value) => `#${value}` },
-    { title: '群聊', dataIndex: 'roomId', ellipsis: true },
+    { title: '群聊', dataIndex: 'roomId', ellipsis: true, render: (value: string) => roomLabel(value) },
     { title: '类型', dataIndex: 'jobType', width: 112, render: (value: WechatAiJob['jobType']) => jobTypeLabel[value] },
     { title: '状态', dataIndex: 'status', width: 100, render: (value: WechatAiJob['status']) => <Tag color={jobStatusColor[value]}>{jobStatusLabel[value]}</Tag> },
     { title: '模型', dataIndex: 'model', width: 112, ellipsis: true },
@@ -311,7 +319,7 @@ export default function WechatAiMemory() {
 
   const errorsColumns: ColumnsType<WechatAiError> = [
     { title: '失败', dataIndex: 'id', width: 76, render: (value) => `#${value}` },
-    { title: '群聊', dataIndex: 'roomId', ellipsis: true },
+    { title: '群聊', dataIndex: 'roomId', ellipsis: true, render: (value: string) => roomLabel(value) },
     { title: '类型', dataIndex: 'jobType', width: 112, render: (value: WechatAiJob['jobType']) => jobTypeLabel[value] },
     { title: '错误', dataIndex: 'errorMessage', ellipsis: true },
     { title: '耗时', dataIndex: 'elapsedMs', width: 94, render: (value) => `${value || 0} ms` },
@@ -331,7 +339,7 @@ export default function WechatAiMemory() {
 
   const learningColumns: ColumnsType<WechatAiHistoryLearningTask> = [
     { title: '任务', dataIndex: 'id', width: 82, render: (value) => `#${value}` },
-    { title: '群聊', dataIndex: 'roomId', ellipsis: true },
+    { title: '群聊', dataIndex: 'roomId', ellipsis: true, render: (value: string) => roomLabel(value) },
     { title: '状态', dataIndex: 'status', width: 100, render: (value: WechatAiHistoryLearningTask['status']) => <Tag color={jobStatusColor[value]}>{jobStatusLabel[value]}</Tag> },
     { title: '阶段', dataIndex: 'stage', width: 118, render: (value: WechatAiHistoryLearningTask['stage']) => learningStageLabel[value] || value },
     {
@@ -417,7 +425,7 @@ export default function WechatAiMemory() {
                     <Row gutter={[16, 0]}>
                       <Col xs={24} md={12}>
                         <Form.Item name="roomId" label="群聊" rules={[{ required: true, message: '请选择群聊' }]}>
-                          <Select options={roomOptions} placeholder="选择群聊" />
+                          <Select showSearch optionFilterProp="label" options={roomOptions} placeholder="选择群聊" />
                         </Form.Item>
                       </Col>
                       <Col xs={24} md={12}>
@@ -446,7 +454,7 @@ export default function WechatAiMemory() {
                   <Row gutter={[16, 0]}>
                     <Col xs={24} md={12}>
                       <Form.Item name="roomId" label="群聊" rules={[{ required: true, message: '请选择群聊' }]}>
-                        <Select options={roomOptions} placeholder="选择群聊" />
+                        <Select showSearch optionFilterProp="label" options={roomOptions} placeholder="选择群聊" />
                       </Form.Item>
                     </Col>
                     <Col xs={24} md={12}>
@@ -482,7 +490,7 @@ export default function WechatAiMemory() {
             label: '记忆查看',
             children: (
               <Space direction="vertical" size={16} style={{ display: 'flex' }}>
-                <Select value={selectedRoomId || undefined} options={roomOptions} placeholder="选择群聊" onChange={setSelectedRoomId} style={{ maxWidth: 420 }} />
+                <Select value={selectedRoomId || undefined} showSearch optionFilterProp="label" options={roomOptions} placeholder="选择群聊" onChange={setSelectedRoomId} style={{ maxWidth: 420 }} />
                 {selectedRoomId ? (
                   <Tabs
                     items={[

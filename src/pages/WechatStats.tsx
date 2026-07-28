@@ -13,7 +13,7 @@ import {
 } from '../api/wechatBot';
 import PageHeader from '../components/PageHeader';
 import { useTableColumnSettings } from '../components/tableColumnSettings';
-import { lastNDaysRange } from '../utils/wechatBot';
+import { todayString } from '../utils/wechatBot';
 
 type DateLike = { format: (template: string) => string };
 
@@ -25,7 +25,10 @@ const emptyTotals = {
 };
 
 export default function WechatStats() {
-  const defaultRange = useMemo(() => lastNDaysRange(7), []);
+  const defaultRange = useMemo(() => {
+    const today = todayString();
+    return { start: today, end: today };
+  }, []);
   const [data, setData] = useState<WechatDailyStats | null>(null);
   const [groups, setGroups] = useState<WechatGroup[]>([]);
   const [loading, setLoading] = useState(false);
