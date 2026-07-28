@@ -126,6 +126,28 @@ const summaryText = (run?: WechatAiMemoryRun) => {
   return typeof value === 'string' ? value : '-';
 };
 
+const qualityScore = (run?: WechatAiMemoryRun) => {
+  const value = Number(run?.resultJson?.qualityScore);
+  return Number.isFinite(value) ? Math.max(0, Math.min(100, Math.round(value))) : undefined;
+};
+
+const qualityReasonText = (run?: WechatAiMemoryRun) => {
+  const value = run?.resultJson?.qualityReasons;
+  return Array.isArray(value) ? value.join(' / ') : '';
+};
+
+const qualityColor = (score: number) => {
+  if (score >= 80) return 'success';
+  if (score >= 60) return 'processing';
+  if (score >= 40) return 'warning';
+  return 'error';
+};
+
+const qualityTag = (run?: WechatAiMemoryRun) => {
+  const score = qualityScore(run);
+  return score === undefined ? '-' : <Tag color={qualityColor(score)} title={qualityReasonText(run)}>{score}</Tag>;
+};
+
 const learningPercent = (task: WechatAiHistoryLearningTask) => (
   task.totalMsgCount > 0 ? Math.round((task.processedMsgCount / task.totalMsgCount) * 100) : 0
 );
@@ -445,6 +467,7 @@ export default function WechatAiMemory() {
     { title: '记忆', dataIndex: 'id', width: 82, render: (value) => `#${value}` },
     { title: '片段结束', dataIndex: 'windowEnd', width: 170, render: (value) => formatWechatTime(value) || '-' },
     { title: '消息数', dataIndex: 'inputMsgCount', width: 86 },
+    { title: '质量', width: 82, render: (_, row) => qualityTag(row) },
     { title: '摘要', render: (_, row) => <Typography.Text ellipsis={{ tooltip: summaryText(row) }}>{summaryText(row)}</Typography.Text> },
     { title: '详情', width: 72, render: (_, row) => <Button type="text" icon={<EyeOutlined />} aria-label="查看分段记忆" onClick={() => setJsonModal({ title: `记忆 #${row.id}`, value: row.resultJson })} /> },
   ];
@@ -483,6 +506,7 @@ export default function WechatAiMemory() {
     { title: '分段', dataIndex: 'id', width: 82, render: (value) => `#${value}` },
     { title: '时间', dataIndex: 'windowEnd', width: 170, render: (value) => formatWechatTime(value) || '-' },
     { title: '消息数', dataIndex: 'inputMsgCount', width: 86 },
+    { title: '质量', width: 82, render: (_, row) => qualityTag(row) },
     { title: '摘要', render: (_, row) => <Typography.Text ellipsis={{ tooltip: summaryText(row) }}>{summaryText(row)}</Typography.Text> },
   ];
   const evidenceMessageColumns: ColumnsType<WechatMessage> = [
