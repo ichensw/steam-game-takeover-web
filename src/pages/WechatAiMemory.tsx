@@ -2,6 +2,7 @@ import {
   CheckOutlined,
   CloseOutlined,
   EyeOutlined,
+  PlayCircleOutlined,
   ReloadOutlined,
   RedoOutlined,
 } from '@ant-design/icons';
@@ -14,7 +15,9 @@ import {
   Empty,
   Form,
   Input,
+  InputNumber,
   Modal,
+  Progress,
   Row,
   Select,
   Space,
@@ -27,9 +30,11 @@ import {
 import type { ColumnsType } from 'antd/es/table';
 import { useEffect, useState } from 'react';
 import {
+  createWechatAiHistoryLearningTask,
   createWechatAiJob,
   getWechatAiRoomPersona,
   getWechatAiStatus,
+  listWechatAiHistoryLearningTasks,
   listWechatAiErrors,
   listWechatAiJobs,
   listWechatAiMemoryRuns,
@@ -40,6 +45,7 @@ import {
   resolveWechatAiError,
   retryWechatAiError,
   type WechatAiError,
+  type WechatAiHistoryLearningTask,
   type WechatAiJob,
   type WechatAiMemoryRun,
   type WechatAiPersona,
@@ -58,6 +64,12 @@ type ManualFormValues = {
   end?: string;
   model?: string;
   reason?: string;
+};
+type LearningFormValues = {
+  roomId: string;
+  start?: string;
+  end?: string;
+  maxMessages?: number;
 };
 
 const jobTypeLabel: Record<WechatAiJob['jobType'], string> = {
@@ -82,6 +94,14 @@ const jobStatusLabel: Record<WechatAiJob['status'], string> = {
   failed: '失败',
 };
 
+const learningStageLabel: Record<WechatAiHistoryLearningTask['stage'], string> = {
+  segment: '分段总结',
+  profile_merge: '画像合并',
+  culture_update: '群文化更新',
+  persona_candidate: '人格候选',
+  done: '完成',
+};
+
 const jsonText = (value: unknown) => JSON.stringify(value ?? {}, null, 2);
 
 const summaryText = (run?: WechatAiMemoryRun) => {
@@ -89,14 +109,20 @@ const summaryText = (run?: WechatAiMemoryRun) => {
   return typeof value === 'string' ? value : '-';
 };
 
+const learningPercent = (task: WechatAiHistoryLearningTask) => (
+  task.totalMsgCount > 0 ? Math.round((task.processedMsgCount / task.totalMsgCount) * 100) : 0
+);
+
 export default function WechatAiMemory() {
   const { message } = AntApp.useApp();
   const [loading, setLoading] = useState(false);
   const [memoryLoading, setMemoryLoading] = useState(false);
   const [actionLoading, setActionLoading] = useState<number>();
+  const [creatingLearning, setCreatingLearning] = useState(false);
   const [status, setStatus] = useState<WechatAiStatus>();
   const [jobs, setJobs] = useState<WechatAiJob[]>([]);
   const [errors, setErrors] = useState<WechatAiError[]>([]);
+  const [learningTasks, setLearningTasks] = useState<WechatAiHistoryLearningTask[]>([]);
   const [runs, setRuns] = useState<WechatAiMemoryRun[]>([]);
   const [profiles, setProfiles] = useState<WechatAiProfile[]>([]);
   const [persona, setPersona] = useState<WechatAiPersona>();
@@ -104,6 +130,7 @@ export default function WechatAiMemory() {
   const [selectedRoomId, setSelectedRoomId] = useState('');
   const [jsonModal, setJsonModal] = useState<{ title: string; value: unknown }>();
   const [manualForm] = Form.useForm<ManualFormValues>();
+  const [learningForm] = Form.useForm<LearningFormValues>();
   const manualJobType = Form.useWatch('jobType', manualForm);
 
   const roomOptions = (status?.rooms || []).map((room) => ({ label: room.roomId, value: room.roomId }));
@@ -116,14 +143,16 @@ export default function WechatAiMemory() {
   const loadOverview = async (quiet = false) => {
     if (!quiet) setLoading(true);
     try {
-      const [nextStatus, nextJobs, nextErrors] = await Promise.all([
+      const [nextStatus, nextJobs, nextErrors, nextLearning] = await Promise.all([
         getWechatAiStatus(),
         listWechatAiJobs({ limit: 100 }),
         listWechatAiErrors({ limit: 100 }),
+        listWechatAiHistoryLearningTasks({ limit: 100 }),
       ]);
       setStatus(nextStatus);
       setJobs(nextJobs.items || []);
       setErrors(nextErrors.items || []);
+      setLearningTasks(nextLearning.items || []);
       setSelectedRoomId((current) => (
         current && nextStatus.rooms.some((room) => room.roomId === current)
           ? current
@@ -186,6 +215,25 @@ export default function WechatAiMemory() {
     }
   };
 
+  const createHistoryLearning = async () => {
+    const values = await learningForm.validateFields();
+    setCreatingLearning(true);
+    try {
+      await createWechatAiHistoryLearningTask({
+        roomId: values.roomId,
+        start: values.start || undefined,
+        end: values.end || undefined,
+        maxMessages: values.maxMessages || undefined,
+      });
+      message.success('历史聊天学习已开始');
+      await loadOverview();
+    } catch (error) {
+      message.error(error instanceof Error ? error.message : '历史聊天学习启动失败');
+    } finally {
+      setCreatingLearning(false);
+    }
+  };
+
   const retryError = async (errorId: number) => {
     setActionLoading(errorId);
     try {
@@ -240,6 +288,7 @@ export default function WechatAiMemory() {
   useEffect(() => {
     void loadMemory(selectedRoomId);
     manualForm.setFieldValue('roomId', selectedRoomId);
+    learningForm.setFieldValue('roomId', selectedRoomId);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [selectedRoomId]);
 
@@ -278,6 +327,23 @@ export default function WechatAiMemory() {
         </Space>
       ),
     },
+  ];
+
+  const learningColumns: ColumnsType<WechatAiHistoryLearningTask> = [
+    { title: '任务', dataIndex: 'id', width: 82, render: (value) => `#${value}` },
+    { title: '群聊', dataIndex: 'roomId', ellipsis: true },
+    { title: '状态', dataIndex: 'status', width: 100, render: (value: WechatAiHistoryLearningTask['status']) => <Tag color={jobStatusColor[value]}>{jobStatusLabel[value]}</Tag> },
+    { title: '阶段', dataIndex: 'stage', width: 118, render: (value: WechatAiHistoryLearningTask['stage']) => learningStageLabel[value] || value },
+    {
+      title: '进度',
+      width: 190,
+      render: (_, row) => <Progress percent={learningPercent(row)} size="small" status={row.status === 'failed' ? 'exception' : row.status === 'succeeded' ? 'success' : 'active'} />,
+    },
+    { title: '消息', width: 120, render: (_, row) => `${row.processedMsgCount || 0}/${row.totalMsgCount || 0}` },
+    { title: '分段', dataIndex: 'segmentJobCount', width: 82 },
+    { title: '当前子任务', dataIndex: 'currentJobId', width: 108, render: (value) => value ? `#${value}` : '-' },
+    { title: '更新时间', dataIndex: 'updatedAt', width: 170, render: (value) => formatWechatTime(value) || '-' },
+    { title: '错误', dataIndex: 'errorMessage', ellipsis: true, render: (value) => value || '-' },
   ];
 
   const runsColumns: ColumnsType<WechatAiMemoryRun> = [
@@ -337,6 +403,36 @@ export default function WechatAiMemory() {
                 </Row>
                 <Card title="最近任务" loading={loading}>
                   <Table rowKey="id" size="small" columns={jobsColumns} dataSource={jobs} pagination={{ pageSize: 10, showSizeChanger: false }} scroll={{ x: 960 }} />
+                </Card>
+              </Space>
+            ),
+          },
+          {
+            key: 'history-learning',
+            label: '历史聊天学习',
+            children: (
+              <Space direction="vertical" size={16} style={{ display: 'flex' }}>
+                <Card>
+                  <Form form={learningForm} layout="vertical" onFinish={() => void createHistoryLearning()}>
+                    <Row gutter={[16, 0]}>
+                      <Col xs={24} md={12}>
+                        <Form.Item name="roomId" label="群聊" rules={[{ required: true, message: '请选择群聊' }]}>
+                          <Select options={roomOptions} placeholder="选择群聊" />
+                        </Form.Item>
+                      </Col>
+                      <Col xs={24} md={12}>
+                        <Form.Item name="maxMessages" label="最大消息数">
+                          <InputNumber min={1} precision={0} style={{ width: '100%' }} placeholder="不限制" />
+                        </Form.Item>
+                      </Col>
+                      <Col xs={24} md={12}><Form.Item name="start" label="开始时间"><Input type="datetime-local" /></Form.Item></Col>
+                      <Col xs={24} md={12}><Form.Item name="end" label="结束时间"><Input type="datetime-local" /></Form.Item></Col>
+                    </Row>
+                    <Button type="primary" icon={<PlayCircleOutlined />} loading={creatingLearning} htmlType="submit">开始学习</Button>
+                  </Form>
+                </Card>
+                <Card title="学习进度" loading={loading}>
+                  <Table rowKey="id" size="small" columns={learningColumns} dataSource={learningTasks} pagination={{ pageSize: 10, showSizeChanger: false }} scroll={{ x: 1180 }} />
                 </Card>
               </Space>
             ),

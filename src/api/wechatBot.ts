@@ -204,6 +204,29 @@ export type WechatAiPersonaCandidate = {
   reviewedAt?: ApiUnixTime;
 };
 
+export type WechatAiHistoryLearningTask = {
+  id: number;
+  roomId: string;
+  status: 'queued' | 'running' | 'succeeded' | 'failed';
+  stage: 'segment' | 'profile_merge' | 'culture_update' | 'persona_candidate' | 'done';
+  windowStart: ApiUnixTime;
+  windowEnd: ApiUnixTime;
+  maxMessages: number;
+  totalMsgCount: number;
+  processedMsgCount: number;
+  segmentJobCount: number;
+  cursorTime?: ApiUnixTime;
+  cursorMsgId?: string;
+  currentJobId?: number;
+  profileJobId?: number;
+  cultureJobId?: number;
+  personaJobId?: number;
+  errorMessage?: string;
+  createdAt?: ApiUnixTime;
+  updatedAt?: ApiUnixTime;
+  finishedAt?: ApiUnixTime;
+};
+
 export type WechatAiStatus = {
   enabled: boolean;
   configured: boolean;
@@ -372,6 +395,12 @@ export const createWechatAiJob = (body: { roomId: string; jobType: Exclude<Wecha
   unwrap<WechatAiJob>(http.post(`${aiRoot}/jobs`, body));
 
 export const getWechatAiJob = (id: number) => unwrap<WechatAiJob>(http.get(`${aiRoot}/jobs/${id}`));
+
+export const listWechatAiHistoryLearningTasks = (params?: { roomId?: string; limit?: number }) =>
+  unwrap<{ items: WechatAiHistoryLearningTask[] }>(http.get(`${aiRoot}/history-learning`, { params }));
+
+export const createWechatAiHistoryLearningTask = (body: { roomId: string; start?: string; end?: string; maxMessages?: number }) =>
+  unwrap<WechatAiHistoryLearningTask>(http.post(`${aiRoot}/history-learning`, body));
 
 export const listWechatAiErrors = (params?: { roomId?: string; unresolvedOnly?: boolean; limit?: number }) =>
   unwrap<{ items: WechatAiError[] }>(http.get(`${aiRoot}/errors`, { params }));
