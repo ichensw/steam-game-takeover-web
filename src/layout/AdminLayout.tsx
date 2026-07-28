@@ -10,6 +10,7 @@ import {
   FormOutlined,
   LogoutOutlined,
   MenuOutlined,
+  RobotOutlined,
   SettingOutlined,
   TeamOutlined,
   ThunderboltOutlined,
@@ -65,7 +66,7 @@ export const buildMenuItems = (visibleKeys?: string[]): MenuItem[] => {
           ...(can('kook-voice-stats') ? [{ key: '/kook-voice-stats', icon: <BarChartOutlined />, label: '语音统计' }] : []),
         ],
   } as MenuItem] : []),
-  ...((can('wechat-messages') || can('wechat-summary') || can('wechat-stats') || can('wechat-database') || can('wechat-wxbot-control')) ? [{
+  ...((can('wechat-messages') || can('wechat-summary') || can('wechat-stats') || can('wechat-database') || can('wechat-ai-memory') || can('wechat-wxbot-control')) ? [{
     key: 'wechat-group',
     icon: <WechatOutlined />,
     label: '微信Bot',
@@ -74,6 +75,7 @@ export const buildMenuItems = (visibleKeys?: string[]): MenuItem[] => {
       ...(can('wechat-summary') ? [{ key: '/wechat-summary', icon: <FileTextOutlined />, label: 'AI 总结' }] : []),
       ...(can('wechat-stats') ? [{ key: '/wechat-stats', icon: <BarChartOutlined />, label: '聊天统计' }] : []),
       ...(can('wechat-database') ? [{ key: '/wechat-database', icon: <DatabaseOutlined />, label: '数据库浏览' }] : []),
+      ...(can('wechat-ai-memory') ? [{ key: '/wechat-ai-memory', icon: <RobotOutlined />, label: 'AI 记忆' }] : []),
       ...(can('wechat-wxbot-control') ? [{ key: '/wechat-wxbots', icon: <ThunderboltOutlined />, label: '机器人控制' }] : []),
     ],
   } as MenuItem] : []),
@@ -112,6 +114,7 @@ export const openKeyByPath: Record<string, string> = {
   '/wechat-summary': 'wechat-group',
   '/wechat-stats': 'wechat-group',
   '/wechat-database': 'wechat-group',
+  '/wechat-ai-memory': 'wechat-group',
   '/wechat-wxbots': 'wechat-group',
 };
 

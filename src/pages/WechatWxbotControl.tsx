@@ -2,6 +2,7 @@ import { ReloadOutlined, SaveOutlined, ThunderboltOutlined } from '@ant-design/i
 import { App as AntApp, Button, Card, Col, Empty, Form, Input, InputNumber, Row, Select, Space, Switch, Table, Tabs, Tag, Typography } from 'antd';
 import type { ColumnsType } from 'antd/es/table';
 import { useEffect, useState } from 'react';
+import { getSettings } from '../api/admin';
 import {
   getWxbotConfig,
   listWxbots,
@@ -113,6 +114,28 @@ const defaultWxbotConfig = {
   },
   summary_reminder: {
     enabled: true,
+  },
+  ai: {
+    enabled: false,
+    auto_memory_enabled: true,
+    reply_enabled: true,
+    api_base_url: '',
+    api_key: '',
+    reply_model: '5.4 Mini',
+    summary_model: '5.4 Mini',
+    merge_model: '5.5',
+    manual_deep_model: '5.6 Luna',
+    scan_interval_seconds: 300,
+    segment_min_messages: 30,
+    segment_quiet_seconds: 600,
+    segment_stale_seconds: 21600,
+    profile_min_segments: 3,
+    max_segment_messages: 800,
+    reply_context_messages: 100,
+    worker_queue_size: 200,
+    reply_timeout_seconds: 20,
+    summary_timeout_seconds: 180,
+    merge_timeout_seconds: 300,
   },
   wxbot_control: {
     enabled: true,
@@ -242,6 +265,32 @@ const configSections: SectionDef[] = [
     ],
   },
   {
+    key: 'ai',
+    label: 'AI 记忆',
+    fields: [
+      { key: 'enabled', label: '启用 AI Agent', type: 'boolean' },
+      { key: 'auto_memory_enabled', label: '启用自动记忆沉淀', type: 'boolean' },
+      { key: 'reply_enabled', label: '启用 @ 回复', type: 'boolean' },
+      { key: 'api_base_url', label: 'AI API Base URL', type: 'string', wide: true },
+      { key: 'api_key', label: 'AI API Key', type: 'password', wide: true },
+      { key: 'reply_model', label: '回复模型', type: 'select', options: [{ label: '5.4 Mini', value: '5.4 Mini' }, { label: '5.5', value: '5.5' }] },
+      { key: 'summary_model', label: '总结模型', type: 'select', options: [{ label: '5.4 Mini', value: '5.4 Mini' }, { label: '5.5', value: '5.5' }] },
+      { key: 'merge_model', label: '画像与文化模型', type: 'select', options: [{ label: '5.5', value: '5.5' }, { label: '5.4 Mini', value: '5.4 Mini' }] },
+      { key: 'manual_deep_model', label: '手动深度模型', type: 'select', options: [{ label: '5.6 Luna', value: '5.6 Luna' }, { label: '5.6 Terra', value: '5.6 Terra' }, { label: '5.6 Sol', value: '5.6 Sol' }] },
+      { key: 'scan_interval_seconds', label: '扫描间隔秒', type: 'number' },
+      { key: 'segment_min_messages', label: '分段最少消息数', type: 'number' },
+      { key: 'segment_quiet_seconds', label: '安静阈值秒', type: 'number' },
+      { key: 'segment_stale_seconds', label: '最长未总结秒', type: 'number' },
+      { key: 'profile_min_segments', label: '画像最少片段数', type: 'number' },
+      { key: 'max_segment_messages', label: '分段消息上限', type: 'number' },
+      { key: 'reply_context_messages', label: '回复上下文消息数', type: 'number' },
+      { key: 'worker_queue_size', label: '任务队列容量', type: 'number' },
+      { key: 'reply_timeout_seconds', label: '回复超时秒', type: 'number' },
+      { key: 'summary_timeout_seconds', label: '总结超时秒', type: 'number' },
+      { key: 'merge_timeout_seconds', label: '画像与人格超时秒', type: 'number' },
+    ],
+  },
+  {
     key: 'wxbot_control',
     label: '控制中心',
     fields: [
@@ -305,11 +354,14 @@ export default function WechatWxbotControl() {
   const loadConfig = async (botId: string) => {
     setConfigLoading(true);
     try {
-      const detail = await getWxbotConfig(botId);
+      const [detail, settings] = await Promise.all([
+        getWxbotConfig(botId),
+        getSettings().catch(() => ({})),
+      ]);
       const savedConfig = detail.config || {};
       const currentConfig = detail.currentConfig || {};
       const nextConfig = hasConfig(currentConfig) ? mergeConfig(currentConfig, savedConfig) : mergeConfig(defaultWxbotConfig, savedConfig);
-      form.setFieldsValue(configToForm(nextConfig));
+      form.setFieldsValue(configToForm(mergeBackendAiConfig(nextConfig, settings)));
       setConfigSource(configSourceText(savedConfig, currentConfig));
       setConfigUpdatedAt(detail.configUpdatedAt || '');
     } catch (error) {
@@ -482,6 +534,15 @@ function mergeConfig(base: WxbotRemoteConfig, override: WxbotRemoteConfig): Wxbo
   return result as WxbotRemoteConfig;
 }
 
+function mergeBackendAiConfig(config: WxbotRemoteConfig, settings: Record<string, unknown>): WxbotRemoteConfig {
+  const ai = { ...(config.ai || {}) };
+  const apiKey = settingText(settings, 'aiExtractApiKey');
+  const baseUrl = settingText(settings, 'aiExtractBaseUrl').replace(/\/+$/, '');
+  if (apiKey && !ai.api_key) ai.api_key = apiKey;
+  if (baseUrl && !ai.api_base_url) ai.api_base_url = baseUrl;
+  return { ...config, ai };
+}
+
 export function configToForm(config: WxbotRemoteConfig): FormValues {
   const result: FormValues = {};
   configSections.forEach((section) => {
@@ -571,6 +632,26 @@ export function validateWxbotConfig(config: WxbotRemoteConfig) {
       () => requireInt(config.party_site, 'timeout', '接龙网站请求超时'),
     );
   }
+  if (config.ai?.enabled) {
+    checks.push(
+      () => requireText(config.ai, 'api_base_url', 'AI API Base URL'),
+      () => requireText(config.ai, 'reply_model', '回复模型'),
+      () => requireText(config.ai, 'summary_model', '总结模型'),
+      () => requireText(config.ai, 'merge_model', '画像与文化模型'),
+      () => requireText(config.ai, 'manual_deep_model', '手动深度模型'),
+      () => requireInt(config.ai, 'scan_interval_seconds', 'AI 扫描间隔'),
+      () => requireInt(config.ai, 'segment_min_messages', 'AI 分段最少消息数'),
+      () => requireInt(config.ai, 'segment_quiet_seconds', 'AI 安静阈值'),
+      () => requireInt(config.ai, 'segment_stale_seconds', 'AI 最长未总结时间'),
+      () => requireInt(config.ai, 'profile_min_segments', 'AI 画像最少片段数'),
+      () => requireInt(config.ai, 'max_segment_messages', 'AI 分段消息上限'),
+      () => requireInt(config.ai, 'reply_context_messages', 'AI 回复上下文消息数'),
+      () => requireInt(config.ai, 'worker_queue_size', 'AI 任务队列容量'),
+      () => requireInt(config.ai, 'reply_timeout_seconds', 'AI 回复超时'),
+      () => requireInt(config.ai, 'summary_timeout_seconds', 'AI 总结超时'),
+      () => requireInt(config.ai, 'merge_timeout_seconds', 'AI 画像与人格超时'),
+    );
+  }
   if (config.wxbot_control?.enabled) {
     checks.push(
       () => requireText(config.wxbot_control, 'base_url', '控制中心 Base URL'),
@@ -610,6 +691,10 @@ function isPlainObject(value: unknown): value is Record<string, unknown> {
 
 function text(section: Record<string, unknown> | undefined, key: string) {
   return String(section?.[key] ?? '').trim();
+}
+
+function settingText(settings: Record<string, unknown>, key: string) {
+  return String(settings[key] ?? '').trim();
 }
 
 function requireText(section: Record<string, unknown> | undefined, key: string, label: string) {

@@ -128,6 +128,93 @@ export type WechatSummaryTopic = {
   }>;
 };
 
+export type WechatAiJobType = 'reply' | 'segment_summary' | 'profile_merge' | 'culture_update' | 'persona_candidate';
+
+export type WechatAiJob = {
+  id: number;
+  roomId: string;
+  jobType: WechatAiJobType;
+  status: 'queued' | 'running' | 'succeeded' | 'failed';
+  model: string;
+  windowStart?: ApiUnixTime;
+  windowEnd?: ApiUnixTime;
+  sourceMsgId?: string;
+  inputMsgCount: number;
+  resultJson?: Record<string, unknown>;
+  errorId?: number;
+  reason?: string;
+  createdAt?: ApiUnixTime;
+  startedAt?: ApiUnixTime;
+  finishedAt?: ApiUnixTime;
+};
+
+export type WechatAiError = {
+  id: number;
+  jobId: number;
+  roomId: string;
+  jobType: WechatAiJobType;
+  model: string;
+  errorType: string;
+  errorMessage: string;
+  inputMsgCount: number;
+  elapsedMs: number;
+  requestMetaJson?: Record<string, unknown>;
+  retryOfErrorId?: number;
+  resolved: number | boolean;
+  createdAt?: ApiUnixTime;
+};
+
+export type WechatAiMemoryRun = {
+  id: number;
+  jobId: number;
+  roomId: string;
+  windowStart: ApiUnixTime;
+  windowEnd: ApiUnixTime;
+  windowEndMsgId: string;
+  granularity: string;
+  inputMsgCount: number;
+  resultJson: Record<string, unknown>;
+  createdAt?: ApiUnixTime;
+};
+
+export type WechatAiProfile = {
+  roomId: string;
+  memberWxid: string;
+  displayName: string;
+  profileJson: Record<string, unknown>;
+  confidence: number;
+  evidenceMsgIds: string[];
+  updatedAt?: ApiUnixTime;
+};
+
+export type WechatAiPersona = {
+  roomId: string;
+  roomCultureJson: Record<string, unknown>;
+  botPersonaJson: Record<string, unknown>;
+  updatedAt?: ApiUnixTime;
+};
+
+export type WechatAiPersonaCandidate = {
+  id: number;
+  roomId: string;
+  candidateJson: Record<string, unknown>;
+  evidenceRunIds: number[];
+  status: 'pending' | 'promoted' | 'rejected';
+  createdAt?: ApiUnixTime;
+  reviewedAt?: ApiUnixTime;
+};
+
+export type WechatAiStatus = {
+  enabled: boolean;
+  configured: boolean;
+  running: boolean;
+  autoMemoryEnabled: boolean;
+  queues: Record<string, number>;
+  models: Record<string, string>;
+  rooms: Array<{ roomId: string; lastSegment?: WechatAiMemoryRun; activeJobs: WechatAiJob[] }>;
+  recentJobs: WechatAiJob[];
+};
+
 export type WechatStatsTotals = {
   messageCount: number;
   participantCount: number;
@@ -194,6 +281,28 @@ export type WxbotRemoteConfig = {
     enabled?: boolean;
     jobs?: Array<{ room_id: string; time: string }>;
   };
+  ai?: {
+    enabled?: boolean;
+    auto_memory_enabled?: boolean;
+    reply_enabled?: boolean;
+    api_base_url?: string;
+    api_key?: string;
+    reply_model?: string;
+    summary_model?: string;
+    merge_model?: string;
+    manual_deep_model?: string;
+    scan_interval_seconds?: number;
+    segment_min_messages?: number;
+    segment_quiet_seconds?: number;
+    segment_stale_seconds?: number;
+    profile_min_segments?: number;
+    max_segment_messages?: number;
+    reply_context_messages?: number;
+    worker_queue_size?: number;
+    reply_timeout_seconds?: number;
+    summary_timeout_seconds?: number;
+    merge_timeout_seconds?: number;
+  };
   hook?: Record<string, unknown>;
   webhook?: Record<string, unknown>;
   database?: Record<string, unknown>;
@@ -229,6 +338,7 @@ export type WxbotConfigDetail = {
 };
 
 const root = '/admin/wechat-bot';
+const aiRoot = `${root}/ai`;
 
 export const listWechatGroups = () => unwrap<WechatGroup[]>(http.get(`${root}/groups`));
 
@@ -252,6 +362,41 @@ export const getWechatSummary = (id: number) =>
 
 export const listWechatSummaryMessages = (id: number, params: { topicIndex?: number }) =>
   unwrap<{ data: WechatMessage[] }>(http.get(`${root}/messages/summary/${id}/messages`, { params }));
+
+export const getWechatAiStatus = () => unwrap<WechatAiStatus>(http.get(`${aiRoot}/status`));
+
+export const listWechatAiJobs = (params?: { roomId?: string; status?: string; limit?: number }) =>
+  unwrap<{ items: WechatAiJob[] }>(http.get(`${aiRoot}/jobs`, { params }));
+
+export const createWechatAiJob = (body: { roomId: string; jobType: Exclude<WechatAiJobType, 'reply'>; start?: string; end?: string; reason?: string; model?: string }) =>
+  unwrap<WechatAiJob>(http.post(`${aiRoot}/jobs`, body));
+
+export const getWechatAiJob = (id: number) => unwrap<WechatAiJob>(http.get(`${aiRoot}/jobs/${id}`));
+
+export const listWechatAiErrors = (params?: { roomId?: string; unresolvedOnly?: boolean; limit?: number }) =>
+  unwrap<{ items: WechatAiError[] }>(http.get(`${aiRoot}/errors`, { params }));
+
+export const retryWechatAiError = (id: number) => unwrap<WechatAiJob>(http.post(`${aiRoot}/errors/${id}/retry`));
+
+export const resolveWechatAiError = (id: number) => unwrap<{ resolved: boolean }>(http.post(`${aiRoot}/errors/${id}/resolve`));
+
+export const listWechatAiMemoryRuns = (params?: { roomId?: string; limit?: number }) =>
+  unwrap<{ items: WechatAiMemoryRun[] }>(http.get(`${aiRoot}/memory/runs`, { params }));
+
+export const getWechatAiRoomPersona = (roomId?: string) =>
+  unwrap<WechatAiPersona | { items: Array<{ roomId: string; persona: WechatAiPersona }> }>(http.get(`${aiRoot}/memory/room-persona`, { params: roomId ? { roomId } : undefined }));
+
+export const listWechatAiProfiles = (roomId: string) =>
+  unwrap<{ items: WechatAiProfile[] }>(http.get(`${aiRoot}/memory/member-profiles`, { params: { roomId } }));
+
+export const listWechatAiPersonaCandidates = (params?: { roomId?: string; limit?: number }) =>
+  unwrap<{ items: WechatAiPersonaCandidate[] }>(http.get(`${aiRoot}/memory/persona-candidates`, { params }));
+
+export const promoteWechatAiPersonaCandidate = (id: number) =>
+  unwrap<WechatAiPersonaCandidate>(http.post(`${aiRoot}/memory/persona-candidates/${id}/promote`));
+
+export const rejectWechatAiPersonaCandidate = (id: number) =>
+  unwrap<WechatAiPersonaCandidate>(http.post(`${aiRoot}/memory/persona-candidates/${id}/reject`));
 
 export const getWechatDailyStats = (params: { start: string; end: string; roomId?: string }) =>
   unwrap<WechatDailyStats>(http.get(`${root}/stats/daily`, { params }));

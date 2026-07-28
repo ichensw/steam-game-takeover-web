@@ -30,6 +30,7 @@ describe('WeChat bot admin navigation', () => {
     expect(openKeyByPath['/wechat-summary']).toBe('wechat-group');
     expect(openKeyByPath['/wechat-stats']).toBe('wechat-group');
     expect(openKeyByPath['/wechat-database']).toBe('wechat-group');
+    expect(openKeyByPath['/wechat-ai-memory']).toBe('wechat-group');
     expect(openKeyByPath['/wechat-wxbots']).toBe('wechat-group');
   });
 
@@ -37,6 +38,12 @@ describe('WeChat bot admin navigation', () => {
     const items = buildMenuItems(['dashboard', 'wechat-wxbot-control']) as TestMenuItem[];
     const wechat = group(items, 'wechat-group');
     expect(wechat?.children?.map((item) => item?.key)).toEqual(['/wechat-wxbots']);
+  });
+
+  it('shows AI memory for the dedicated permission', () => {
+    const items = buildMenuItems(['dashboard', 'wechat-ai-memory']) as TestMenuItem[];
+    const wechat = group(items, 'wechat-group');
+    expect(wechat?.children?.map((item) => item?.key)).toEqual(['/wechat-ai-memory']);
   });
 
   it('shows user block management for the dedicated permission', () => {
