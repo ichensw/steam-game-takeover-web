@@ -2,9 +2,12 @@ import {
   CheckOutlined,
   CloseOutlined,
   EyeOutlined,
+  FileSearchOutlined,
+  PauseCircleOutlined,
   PlayCircleOutlined,
   ReloadOutlined,
   RedoOutlined,
+  StopOutlined,
 } from '@ant-design/icons';
 import {
   Alert,
@@ -33,6 +36,7 @@ import {
   createWechatAiHistoryLearningTask,
   createWechatAiJob,
   getWechatAiRoomPersona,
+  getWechatAiPersonaCandidateEvidence,
   getWechatAiStatus,
   listWechatGroups,
   listWechatAiHistoryLearningTasks,
@@ -45,15 +49,18 @@ import {
   rejectWechatAiPersonaCandidate,
   resolveWechatAiError,
   retryWechatAiError,
+  updateWechatAiHistoryLearningTask,
   type WechatAiError,
   type WechatAiHistoryLearningTask,
   type WechatAiJob,
   type WechatAiMemoryRun,
   type WechatAiPersona,
   type WechatAiPersonaCandidate,
+  type WechatAiPersonaEvidence,
   type WechatAiProfile,
   type WechatAiStatus,
   type WechatGroup,
+  type WechatMessage,
 } from '../api/wechatBot';
 import PageHeader from '../components/PageHeader';
 import { formatWechatTime } from '../utils/wechatBot';
@@ -89,11 +96,19 @@ const jobStatusColor: Record<WechatAiJob['status'], string> = {
   failed: 'error',
 };
 
-const jobStatusLabel: Record<WechatAiJob['status'], string> = {
+const learningStatusColor: Record<WechatAiHistoryLearningTask['status'], string> = {
+  ...jobStatusColor,
+  paused: 'default',
+  canceled: 'default',
+};
+
+const jobStatusLabel: Record<WechatAiHistoryLearningTask['status'], string> = {
   queued: '排队中',
   running: '执行中',
   succeeded: '成功',
   failed: '失败',
+  paused: '已暂停',
+  canceled: '已取消',
 };
 
 const learningStageLabel: Record<WechatAiHistoryLearningTask['stage'], string> = {
@@ -115,11 +130,26 @@ const learningPercent = (task: WechatAiHistoryLearningTask) => (
   task.totalMsgCount > 0 ? Math.round((task.processedMsgCount / task.totalMsgCount) * 100) : 0
 );
 
+const learningProgressStatus = (status: WechatAiHistoryLearningTask['status']) => {
+  if (status === 'failed') return 'exception';
+  if (status === 'succeeded') return 'success';
+  if (status === 'queued' || status === 'running') return 'active';
+  return 'normal';
+};
+
+type LearningAction = 'pause' | 'resume' | 'cancel' | 'retry';
+const learningActionLabel: Record<LearningAction, string> = {
+  pause: '暂停',
+  resume: '继续',
+  cancel: '取消',
+  retry: '重跑',
+};
+
 export default function WechatAiMemory() {
   const { message } = AntApp.useApp();
   const [loading, setLoading] = useState(false);
   const [memoryLoading, setMemoryLoading] = useState(false);
-  const [actionLoading, setActionLoading] = useState<number>();
+  const [actionLoading, setActionLoading] = useState<string>();
   const [creatingLearning, setCreatingLearning] = useState(false);
   const [status, setStatus] = useState<WechatAiStatus>();
   const [groups, setGroups] = useState<WechatGroup[]>([]);
@@ -132,6 +162,7 @@ export default function WechatAiMemory() {
   const [candidates, setCandidates] = useState<WechatAiPersonaCandidate[]>([]);
   const [selectedRoomId, setSelectedRoomId] = useState('');
   const [jsonModal, setJsonModal] = useState<{ title: string; value: unknown }>();
+  const [evidenceModal, setEvidenceModal] = useState<WechatAiPersonaEvidence>();
   const [manualForm] = Form.useForm<ManualFormValues>();
   const [learningForm] = Form.useForm<LearningFormValues>();
   const manualJobType = Form.useWatch('jobType', manualForm);
@@ -240,7 +271,8 @@ export default function WechatAiMemory() {
   };
 
   const retryError = async (errorId: number) => {
-    setActionLoading(errorId);
+    const key = `error:retry:${errorId}`;
+    setActionLoading(key);
     try {
       await retryWechatAiError(errorId);
       message.success('重试任务已提交');
@@ -253,7 +285,8 @@ export default function WechatAiMemory() {
   };
 
   const resolveError = async (errorId: number) => {
-    setActionLoading(errorId);
+    const key = `error:resolve:${errorId}`;
+    setActionLoading(key);
     try {
       await resolveWechatAiError(errorId);
       message.success('失败记录已解决');
@@ -266,7 +299,8 @@ export default function WechatAiMemory() {
   };
 
   const reviewCandidate = async (candidateId: number, action: 'promote' | 'reject') => {
-    setActionLoading(candidateId);
+    const key = `candidate:${action}:${candidateId}`;
+    setActionLoading(key);
     try {
       if (action === 'promote') {
         await promoteWechatAiPersonaCandidate(candidateId);
@@ -278,6 +312,47 @@ export default function WechatAiMemory() {
       await loadMemory(selectedRoomId);
     } catch (error) {
       message.error(error instanceof Error ? error.message : '审核失败');
+    } finally {
+      setActionLoading(undefined);
+    }
+  };
+
+  const applyHistoryLearningAction = async (taskId: number, action: LearningAction) => {
+    const key = `learning:${action}:${taskId}`;
+    setActionLoading(key);
+    try {
+      await updateWechatAiHistoryLearningTask(taskId, action);
+      message.success(`历史聊天学习已${learningActionLabel[action]}`);
+      await loadOverview();
+    } catch (error) {
+      message.error(error instanceof Error ? error.message : '历史聊天学习操作失败');
+    } finally {
+      setActionLoading(undefined);
+    }
+  };
+
+  const controlHistoryLearning = (task: WechatAiHistoryLearningTask, action: LearningAction) => {
+    if (action !== 'cancel') {
+      void applyHistoryLearningAction(task.id, action);
+      return;
+    }
+    Modal.confirm({
+      title: `取消历史聊天学习 #${task.id}？`,
+      content: '取消后不会继续推进当前学习任务，已沉淀的分段记忆会保留。',
+      okText: '取消任务',
+      okButtonProps: { danger: true },
+      cancelText: '返回',
+      onOk: () => applyHistoryLearningAction(task.id, action),
+    });
+  };
+
+  const openCandidateEvidence = async (candidateId: number) => {
+    const key = `candidate:evidence:${candidateId}`;
+    setActionLoading(key);
+    try {
+      setEvidenceModal(await getWechatAiPersonaCandidateEvidence(candidateId));
+    } catch (error) {
+      message.error(error instanceof Error ? error.message : '证据加载失败');
     } finally {
       setActionLoading(undefined);
     }
@@ -329,8 +404,8 @@ export default function WechatAiMemory() {
       width: 150,
       render: (_, row) => row.resolved ? <Tag>已解决</Tag> : (
         <Space size={0}>
-          <Button type="text" icon={<RedoOutlined />} loading={actionLoading === row.id} aria-label="重试失败任务" onClick={() => void retryError(row.id)} />
-          <Button type="text" icon={<CheckOutlined />} loading={actionLoading === row.id} aria-label="标记失败已解决" onClick={() => void resolveError(row.id)} />
+          <Button type="text" icon={<RedoOutlined />} loading={actionLoading === `error:retry:${row.id}`} aria-label="重试失败任务" onClick={() => void retryError(row.id)} />
+          <Button type="text" icon={<CheckOutlined />} loading={actionLoading === `error:resolve:${row.id}`} aria-label="标记失败已解决" onClick={() => void resolveError(row.id)} />
           {row.requestMetaJson ? <Button type="text" icon={<EyeOutlined />} aria-label="查看失败元数据" onClick={() => setJsonModal({ title: `失败 #${row.id}`, value: row.requestMetaJson })} /> : null}
         </Space>
       ),
@@ -340,18 +415,30 @@ export default function WechatAiMemory() {
   const learningColumns: ColumnsType<WechatAiHistoryLearningTask> = [
     { title: '任务', dataIndex: 'id', width: 82, render: (value) => `#${value}` },
     { title: '群聊', dataIndex: 'roomId', ellipsis: true, render: (value: string) => roomLabel(value) },
-    { title: '状态', dataIndex: 'status', width: 100, render: (value: WechatAiHistoryLearningTask['status']) => <Tag color={jobStatusColor[value]}>{jobStatusLabel[value]}</Tag> },
+    { title: '状态', dataIndex: 'status', width: 100, render: (value: WechatAiHistoryLearningTask['status']) => <Tag color={learningStatusColor[value]}>{jobStatusLabel[value]}</Tag> },
     { title: '阶段', dataIndex: 'stage', width: 118, render: (value: WechatAiHistoryLearningTask['stage']) => learningStageLabel[value] || value },
     {
       title: '进度',
       width: 190,
-      render: (_, row) => <Progress percent={learningPercent(row)} size="small" status={row.status === 'failed' ? 'exception' : row.status === 'succeeded' ? 'success' : 'active'} />,
+      render: (_, row) => <Progress percent={learningPercent(row)} size="small" status={learningProgressStatus(row.status)} />,
     },
     { title: '消息', width: 120, render: (_, row) => `${row.processedMsgCount || 0}/${row.totalMsgCount || 0}` },
     { title: '分段', dataIndex: 'segmentJobCount', width: 82 },
     { title: '当前子任务', dataIndex: 'currentJobId', width: 108, render: (value) => value ? `#${value}` : '-' },
     { title: '更新时间', dataIndex: 'updatedAt', width: 170, render: (value) => formatWechatTime(value) || '-' },
     { title: '错误', dataIndex: 'errorMessage', ellipsis: true, render: (value) => value || '-' },
+    {
+      title: '操作',
+      width: 142,
+      render: (_, row) => (
+        <Space size={0}>
+          {row.status === 'queued' || row.status === 'running' ? <Button type="text" icon={<PauseCircleOutlined />} loading={actionLoading === `learning:pause:${row.id}`} aria-label="暂停历史聊天学习" onClick={() => controlHistoryLearning(row, 'pause')} /> : null}
+          {row.status === 'paused' ? <Button type="text" icon={<PlayCircleOutlined />} loading={actionLoading === `learning:resume:${row.id}`} aria-label="继续历史聊天学习" onClick={() => controlHistoryLearning(row, 'resume')} /> : null}
+          {row.status === 'failed' ? <Button type="text" icon={<RedoOutlined />} loading={actionLoading === `learning:retry:${row.id}`} aria-label="重跑历史聊天学习当前阶段" onClick={() => controlHistoryLearning(row, 'retry')} /> : null}
+          {row.status !== 'succeeded' && row.status !== 'canceled' ? <Button type="text" danger icon={<StopOutlined />} loading={actionLoading === `learning:cancel:${row.id}`} aria-label="取消历史聊天学习" onClick={() => controlHistoryLearning(row, 'cancel')} /> : null}
+        </Space>
+      ),
+    },
   ];
 
   const runsColumns: ColumnsType<WechatAiMemoryRun> = [
@@ -376,13 +463,14 @@ export default function WechatAiMemory() {
     { title: '状态', dataIndex: 'status', width: 100, render: (value) => <Tag color={value === 'pending' ? 'gold' : value === 'promoted' ? 'success' : 'default'}>{value === 'pending' ? '待审核' : value === 'promoted' ? '已晋升' : '已拒绝'}</Tag> },
     { title: '生成时间', dataIndex: 'createdAt', width: 170, render: (value) => formatWechatTime(value) || '-' },
     { title: '内容', render: (_, row) => <Button type="text" icon={<EyeOutlined />} aria-label="查看人格候选" onClick={() => setJsonModal({ title: `人格候选 #${row.id}`, value: row.candidateJson })} /> },
+    { title: '证据', width: 72, render: (_, row) => <Button type="text" icon={<FileSearchOutlined />} loading={actionLoading === `candidate:evidence:${row.id}`} aria-label="查看人格候选证据" onClick={() => void openCandidateEvidence(row.id)} /> },
     {
       title: '审核',
       width: 112,
       render: (_, row) => row.status !== 'pending' ? '-' : (
         <Space size={0}>
-          <Button type="text" icon={<CheckOutlined />} loading={actionLoading === row.id} aria-label="晋升人格候选" onClick={() => void reviewCandidate(row.id, 'promote')} />
-          <Button type="text" danger icon={<CloseOutlined />} loading={actionLoading === row.id} aria-label="拒绝人格候选" onClick={() => void reviewCandidate(row.id, 'reject')} />
+          <Button type="text" icon={<CheckOutlined />} loading={actionLoading === `candidate:promote:${row.id}`} aria-label="晋升人格候选" onClick={() => void reviewCandidate(row.id, 'promote')} />
+          <Button type="text" danger icon={<CloseOutlined />} loading={actionLoading === `candidate:reject:${row.id}`} aria-label="拒绝人格候选" onClick={() => void reviewCandidate(row.id, 'reject')} />
         </Space>
       ),
     },
@@ -391,6 +479,17 @@ export default function WechatAiMemory() {
   const queuedJobs = jobs.filter((job) => job.status === 'queued').length;
   const runningJobs = jobs.filter((job) => job.status === 'running').length;
   const failedJobs = jobs.filter((job) => job.status === 'failed').length;
+  const evidenceRunColumns: ColumnsType<WechatAiMemoryRun> = [
+    { title: '分段', dataIndex: 'id', width: 82, render: (value) => `#${value}` },
+    { title: '时间', dataIndex: 'windowEnd', width: 170, render: (value) => formatWechatTime(value) || '-' },
+    { title: '消息数', dataIndex: 'inputMsgCount', width: 86 },
+    { title: '摘要', render: (_, row) => <Typography.Text ellipsis={{ tooltip: summaryText(row) }}>{summaryText(row)}</Typography.Text> },
+  ];
+  const evidenceMessageColumns: ColumnsType<WechatMessage> = [
+    { title: '时间', dataIndex: 'createdAt', width: 170, render: (value) => formatWechatTime(value) || '-' },
+    { title: '成员', dataIndex: 'senderName', width: 150, ellipsis: true, render: (value, row) => value || row.senderWxid },
+    { title: '内容', dataIndex: 'content', ellipsis: true },
+  ];
 
   return (
     <>
@@ -440,7 +539,7 @@ export default function WechatAiMemory() {
                   </Form>
                 </Card>
                 <Card title="学习进度" loading={loading}>
-                  <Table rowKey="id" size="small" columns={learningColumns} dataSource={learningTasks} pagination={{ pageSize: 10, showSizeChanger: false }} scroll={{ x: 1180 }} />
+                  <Table rowKey="id" size="small" columns={learningColumns} dataSource={learningTasks} pagination={{ pageSize: 10, showSizeChanger: false }} scroll={{ x: 1320 }} />
                 </Card>
               </Space>
             ),
@@ -503,7 +602,7 @@ export default function WechatAiMemory() {
                           <Row gutter={[16, 16]}>
                             <Col xs={24} lg={12}><Card size="small" title="群文化" extra={<Button type="text" icon={<EyeOutlined />} aria-label="查看群文化" onClick={() => setJsonModal({ title: '群文化', value: persona?.roomCultureJson })} />}><Typography.Paragraph ellipsis={{ rows: 8, expandable: true }}>{jsonText(persona?.roomCultureJson)}</Typography.Paragraph></Card></Col>
                             <Col xs={24} lg={12}><Card size="small" title="稳定人格" extra={<Button type="text" icon={<EyeOutlined />} aria-label="查看稳定人格" onClick={() => setJsonModal({ title: '稳定人格', value: persona?.botPersonaJson })} />}><Typography.Paragraph ellipsis={{ rows: 8, expandable: true }}>{jsonText(persona?.botPersonaJson)}</Typography.Paragraph></Card></Col>
-                            <Col span={24}><Card size="small" title="人格候选"><Table loading={memoryLoading} rowKey="id" size="small" columns={candidatesColumns} dataSource={candidates} pagination={{ pageSize: 8, showSizeChanger: false }} scroll={{ x: 620 }} /></Card></Col>
+                            <Col span={24}><Card size="small" title="人格候选"><Table loading={memoryLoading} rowKey="id" size="small" columns={candidatesColumns} dataSource={candidates} pagination={{ pageSize: 8, showSizeChanger: false }} scroll={{ x: 700 }} /></Card></Col>
                           </Row>
                         ),
                       },
@@ -517,6 +616,19 @@ export default function WechatAiMemory() {
       />
       <Modal open={Boolean(jsonModal)} title={jsonModal?.title} footer={null} onCancel={() => setJsonModal(undefined)} width={760}>
         <Typography.Paragraph style={{ marginBottom: 0, whiteSpace: 'pre-wrap', wordBreak: 'break-word' }}>{jsonText(jsonModal?.value)}</Typography.Paragraph>
+      </Modal>
+      <Modal open={Boolean(evidenceModal)} title={evidenceModal ? `人格候选 #${evidenceModal.candidate.id} 证据` : '人格候选证据'} footer={null} onCancel={() => setEvidenceModal(undefined)} width={920}>
+        <Space direction="vertical" size={16} style={{ display: 'flex' }}>
+          <Card size="small" title="候选内容">
+            <Typography.Paragraph style={{ marginBottom: 0, whiteSpace: 'pre-wrap', wordBreak: 'break-word' }}>{jsonText(evidenceModal?.candidate.candidateJson)}</Typography.Paragraph>
+          </Card>
+          <Card size="small" title="分段证据">
+            <Table rowKey="id" size="small" columns={evidenceRunColumns} dataSource={evidenceModal?.runs || []} pagination={false} scroll={{ x: 620 }} />
+          </Card>
+          <Card size="small" title="原始消息">
+            <Table rowKey="msgId" size="small" columns={evidenceMessageColumns} dataSource={evidenceModal?.messages || []} pagination={{ pageSize: 8, showSizeChanger: false }} scroll={{ x: 720 }} />
+          </Card>
+        </Space>
       </Modal>
     </>
   );

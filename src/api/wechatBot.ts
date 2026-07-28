@@ -207,7 +207,7 @@ export type WechatAiPersonaCandidate = {
 export type WechatAiHistoryLearningTask = {
   id: number;
   roomId: string;
-  status: 'queued' | 'running' | 'succeeded' | 'failed';
+  status: 'queued' | 'running' | 'succeeded' | 'failed' | 'paused' | 'canceled';
   stage: 'segment' | 'profile_merge' | 'culture_update' | 'persona_candidate' | 'done';
   windowStart: ApiUnixTime;
   windowEnd: ApiUnixTime;
@@ -225,6 +225,12 @@ export type WechatAiHistoryLearningTask = {
   createdAt?: ApiUnixTime;
   updatedAt?: ApiUnixTime;
   finishedAt?: ApiUnixTime;
+};
+
+export type WechatAiPersonaEvidence = {
+  candidate: WechatAiPersonaCandidate;
+  runs: WechatAiMemoryRun[];
+  messages: WechatMessage[];
 };
 
 export type WechatAiStatus = {
@@ -402,6 +408,9 @@ export const listWechatAiHistoryLearningTasks = (params?: { roomId?: string; lim
 export const createWechatAiHistoryLearningTask = (body: { roomId: string; start?: string; end?: string; maxMessages?: number }) =>
   unwrap<WechatAiHistoryLearningTask>(http.post(`${aiRoot}/history-learning`, body));
 
+export const updateWechatAiHistoryLearningTask = (id: number, action: 'pause' | 'resume' | 'cancel' | 'retry') =>
+  unwrap<WechatAiHistoryLearningTask>(http.post(`${aiRoot}/history-learning/${id}/${action}`));
+
 export const listWechatAiErrors = (params?: { roomId?: string; unresolvedOnly?: boolean; limit?: number }) =>
   unwrap<{ items: WechatAiError[] }>(http.get(`${aiRoot}/errors`, { params }));
 
@@ -420,6 +429,9 @@ export const listWechatAiProfiles = (roomId: string) =>
 
 export const listWechatAiPersonaCandidates = (params?: { roomId?: string; limit?: number }) =>
   unwrap<{ items: WechatAiPersonaCandidate[] }>(http.get(`${aiRoot}/memory/persona-candidates`, { params }));
+
+export const getWechatAiPersonaCandidateEvidence = (id: number) =>
+  unwrap<WechatAiPersonaEvidence>(http.get(`${aiRoot}/memory/persona-candidates/${id}/evidence`));
 
 export const promoteWechatAiPersonaCandidate = (id: number) =>
   unwrap<WechatAiPersonaCandidate>(http.post(`${aiRoot}/memory/persona-candidates/${id}/promote`));
