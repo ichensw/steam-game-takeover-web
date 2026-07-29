@@ -15,6 +15,13 @@ describe('WechatWxbotControl config form mapping', () => {
     expect(formToConfig({ hook: { usedefault: undefined } }).hook?.usedefault).toBe(false);
   });
 
+  it('keeps AI room whitelist as selected room ids', () => {
+    const form = configToForm({ ai: { group_whitelist: ['room-a@chatroom', 'room-b@chatroom'] } });
+
+    expect(form.ai.group_whitelist).toEqual(['room-a@chatroom', 'room-b@chatroom']);
+    expect(formToConfig(form).ai?.group_whitelist).toEqual(['room-a@chatroom', 'room-b@chatroom']);
+  });
+
   it('requires OSS fields only when OSS upload is enabled', () => {
     const config = formToConfig(configToForm({
       bot: { name: 'WeChatHookBot' },

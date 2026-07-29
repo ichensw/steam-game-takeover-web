@@ -5,15 +5,17 @@ import { useEffect, useState } from 'react';
 import { getSettings } from '../api/admin';
 import {
   getWxbotConfig,
+  listWechatGroups,
   listWxbots,
   updateWxbotConfig,
+  type WechatGroup,
   type WxbotRecord,
   type WxbotRemoteConfig,
 } from '../api/wechatBot';
 import PageHeader from '../components/PageHeader';
 import { formatWechatTime } from '../utils/wechatBot';
 
-type FieldType = 'string' | 'password' | 'number' | 'boolean' | 'list' | 'textarea' | 'select';
+type FieldType = 'string' | 'password' | 'number' | 'boolean' | 'list' | 'roomList' | 'textarea' | 'select';
 type ConfigSectionKey = keyof typeof defaultWxbotConfig;
 type FieldDef = {
   key: string;
@@ -118,6 +120,15 @@ const defaultWxbotConfig = {
   },
   ai: {
     enabled: false,
+    group_whitelist: [
+      '47759534463@chatroom',
+      '46348533444@chatroom',
+      '45897744734@chatroom',
+      '44552449886@chatroom',
+      '45707641148@chatroom',
+      '46241809307@chatroom',
+      '43308858460@chatroom',
+    ],
     auto_memory_enabled: true,
     reply_enabled: true,
     api_base_url: '',
@@ -270,6 +281,7 @@ const configSections: SectionDef[] = [
     label: 'AI 记忆',
     fields: [
       { key: 'enabled', label: '启用 AI Agent', type: 'boolean' },
+      { key: 'group_whitelist', label: 'AI 群聊白名单', type: 'roomList', wide: true, extra: '只对选中的群聊进行 AI 回复、记忆沉淀和历史学习。' },
       { key: 'auto_memory_enabled', label: '启用自动记忆沉淀', type: 'boolean' },
       { key: 'reply_enabled', label: '启用 @ 回复', type: 'boolean' },
       { key: 'api_base_url', label: 'AI API Base URL', type: 'string', wide: true },
@@ -323,6 +335,7 @@ const configSections: SectionDef[] = [
 
 export default function WechatWxbotControl() {
   const [bots, setBots] = useState<WxbotRecord[]>([]);
+  const [groups, setGroups] = useState<WechatGroup[]>([]);
   const [selectedBotId, setSelectedBotId] = useState('');
   const [loading, setLoading] = useState(false);
   const [configLoading, setConfigLoading] = useState(false);
@@ -333,6 +346,7 @@ export default function WechatWxbotControl() {
   const { message } = AntApp.useApp();
 
   const selectedBot = bots.find((item) => item.botId === selectedBotId);
+  const groupOptions = groups.map((group) => ({ value: group.roomId, label: group.roomName || group.roomId }));
 
   const loadBots = async () => {
     setLoading(true);
@@ -402,6 +416,9 @@ export default function WechatWxbotControl() {
 
   useEffect(() => {
     void loadBots();
+    void listWechatGroups()
+      .then(setGroups)
+      .catch((error) => message.error(error instanceof Error ? error.message : '群聊列表加载失败'));
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
@@ -482,7 +499,7 @@ export default function WechatWxbotControl() {
                               valuePropName={field.type === 'boolean' ? 'checked' : 'value'}
                               extra={field.extra}
                             >
-                              {renderField(field)}
+                              {renderField(field, groupOptions)}
                             </Form.Item>
                           ))}
                         </div>
@@ -501,12 +518,13 @@ export default function WechatWxbotControl() {
   );
 }
 
-function renderField(field: FieldDef) {
+function renderField(field: FieldDef, groupOptions: Array<{ label: string; value: string }> = []) {
   if (field.type === 'boolean') return <Switch checkedChildren="开" unCheckedChildren="关" />;
   if (field.type === 'number') return <InputNumber min={0} precision={0} style={{ width: '100%' }} />;
   if (field.type === 'password') return <Input.Password autoComplete="off" className="mono" />;
   if (field.type === 'textarea') return <Input.TextArea rows={4} />;
   if (field.type === 'list') return <Input.TextArea rows={5} className="mono" />;
+  if (field.type === 'roomList') return <Select mode="multiple" allowClear showSearch optionFilterProp="label" options={groupOptions} placeholder="选择群聊" />;
   if (field.type === 'select') return <Select options={field.options || []} />;
   return <Input className="mono" />;
 }
@@ -553,6 +571,8 @@ export function configToForm(config: WxbotRemoteConfig): FormValues {
       const value = source[field.key];
       if (field.type === 'list') {
         result[section.key][field.key] = Array.isArray(value) ? value.join('\n') : '';
+      } else if (field.type === 'roomList') {
+        result[section.key][field.key] = Array.isArray(value) ? value : [];
       } else if (field.type === 'boolean') {
         result[section.key][field.key] = asBool(value);
       } else {
@@ -572,6 +592,8 @@ export function formToConfig(values: FormValues): WxbotRemoteConfig {
       const value = source[field.key];
       if (field.type === 'list') {
         result[section.key][field.key] = splitLines(value);
+      } else if (field.type === 'roomList') {
+        result[section.key][field.key] = Array.isArray(value) ? value : [];
       } else if (field.type === 'boolean') {
         result[section.key][field.key] = asBool(value);
       } else if (field.type === 'number') {

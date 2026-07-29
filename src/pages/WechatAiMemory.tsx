@@ -202,9 +202,16 @@ export default function WechatAiMemory() {
   const [learningForm] = Form.useForm<LearningFormValues>();
   const manualJobType = Form.useWatch('jobType', manualForm);
 
-  const groupNameByRoomId = new Map(groups.map((group) => [group.roomId, group.roomName || group.roomId]));
+  const groupNameByRoomId = new Map<string, string>();
+  groups.forEach((group) => groupNameByRoomId.set(group.roomId, group.roomName || group.roomId));
+  (status?.rooms || []).forEach((room) => {
+    if (room.roomName) groupNameByRoomId.set(room.roomId, room.roomName);
+  });
   const roomLabel = (roomId: string) => groupNameByRoomId.get(roomId) || roomId;
-  const roomOptions = (status?.rooms || []).map((room) => ({ label: roomLabel(room.roomId), value: room.roomId }));
+  const roomOptions = Array.from(new Set([
+    ...(status?.rooms || []).map((room) => room.roomId),
+    ...groups.map((group) => group.roomId),
+  ])).map((roomId) => ({ label: roomLabel(roomId), value: roomId }));
   const modelOptions = Array.from(new Set([
     status?.models.summary,
     status?.models.merge,

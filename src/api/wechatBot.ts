@@ -262,7 +262,7 @@ export type WechatAiStatus = {
   autoMemoryEnabled: boolean;
   queues: Record<string, number>;
   models: Record<string, string>;
-  rooms: Array<{ roomId: string; lastSegment?: WechatAiMemoryRun; activeJobs: WechatAiJob[] }>;
+  rooms: Array<{ roomId: string; roomName?: string; lastSegment?: WechatAiMemoryRun; activeJobs: WechatAiJob[] }>;
   recentJobs: WechatAiJob[];
 };
 
@@ -334,6 +334,7 @@ export type WxbotRemoteConfig = {
   };
   ai?: {
     enabled?: boolean;
+    group_whitelist?: string[];
     auto_memory_enabled?: boolean;
     reply_enabled?: boolean;
     api_base_url?: string;
