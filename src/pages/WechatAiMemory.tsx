@@ -208,10 +208,7 @@ export default function WechatAiMemory() {
     if (room.roomName) groupNameByRoomId.set(room.roomId, room.roomName);
   });
   const roomLabel = (roomId: string) => groupNameByRoomId.get(roomId) || roomId;
-  const roomOptions = Array.from(new Set([
-    ...(status?.rooms || []).map((room) => room.roomId),
-    ...groups.map((group) => group.roomId),
-  ])).map((roomId) => ({ label: roomLabel(roomId), value: roomId }));
+  const roomOptions = groups.map((group) => ({ label: roomLabel(group.roomId), value: group.roomId }));
   const modelOptions = Array.from(new Set([
     status?.models.summary,
     status?.models.merge,
@@ -233,11 +230,6 @@ export default function WechatAiMemory() {
       setErrors(nextErrors.items || []);
       setLearningTasks(nextLearning.items || []);
       setObservation(nextObservation);
-      setSelectedRoomId((current) => (
-        current && nextStatus.rooms.some((room) => room.roomId === current)
-          ? current
-          : nextStatus.rooms[0]?.roomId || ''
-      ));
     } catch (error) {
       if (!quiet) message.error(error instanceof Error ? error.message : 'AI 状态加载失败');
     } finally {
@@ -447,6 +439,14 @@ export default function WechatAiMemory() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [selectedRoomId]);
 
+  useEffect(() => {
+    setSelectedRoomId((current) => (
+      current && groups.some((group) => group.roomId === current)
+        ? current
+        : groups[0]?.roomId || ''
+    ));
+  }, [groups]);
+
   const jobsColumns: ColumnsType<WechatAiJob> = [
     { title: '任务', dataIndex: 'id', width: 82, render: (value) => `#${value}` },
     { title: '群聊', dataIndex: 'roomId', ellipsis: true, render: (value: string) => roomLabel(value) },
@@ -604,7 +604,7 @@ export default function WechatAiMemory() {
                   <Col xs={12} md={6}><Card size="small"><Statistic title="排队" value={queuedJobs} /></Card></Col>
                   <Col xs={12} md={6}><Card size="small"><Statistic title="执行中" value={runningJobs} /></Card></Col>
                   <Col xs={12} md={6}><Card size="small"><Statistic title="失败" value={failedJobs} /></Card></Col>
-                  <Col xs={12} md={6}><Card size="small"><Statistic title="群聊" value={status?.rooms.length || 0} /></Card></Col>
+                  <Col xs={12} md={6}><Card size="small"><Statistic title="群聊" value={groups.length} /></Card></Col>
                 </Row>
                 <Card title="最近任务" loading={loading}>
                   <Table rowKey="id" size="small" columns={jobsColumns} dataSource={jobs} pagination={{ pageSize: 10, showSizeChanger: false }} scroll={{ x: 960 }} />
