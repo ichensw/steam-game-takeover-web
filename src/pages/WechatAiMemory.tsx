@@ -35,6 +35,7 @@ import { useEffect, useState } from 'react';
 import {
   createWechatAiHistoryLearningTask,
   createWechatAiJob,
+  getWechatAiObservation,
   getWechatAiRoomPersona,
   getWechatAiPersonaCandidateEvidence,
   getWechatAiStatus,
@@ -44,9 +45,11 @@ import {
   listWechatAiJobs,
   listWechatAiMemoryRuns,
   listWechatAiPersonaCandidates,
+  listWechatAiPersonaVersions,
   listWechatAiProfiles,
   promoteWechatAiPersonaCandidate,
   rejectWechatAiPersonaCandidate,
+  rollbackWechatAiPersonaVersion,
   resolveWechatAiError,
   retryWechatAiError,
   updateWechatAiHistoryLearningTask,
@@ -54,9 +57,11 @@ import {
   type WechatAiHistoryLearningTask,
   type WechatAiJob,
   type WechatAiMemoryRun,
+  type WechatAiObservation,
   type WechatAiPersona,
   type WechatAiPersonaCandidate,
   type WechatAiPersonaEvidence,
+  type WechatAiPersonaVersion,
   type WechatAiProfile,
   type WechatAiStatus,
   type WechatGroup,
@@ -167,6 +172,12 @@ const learningActionLabel: Record<LearningAction, string> = {
   retry: '重跑',
 };
 
+const personaVersionSourceLabel = (source?: string) => ({
+  candidate_promote: '候选晋升',
+  rollback: '回滚生效',
+  rollback_backup: '回滚备份',
+}[source || ''] || source || '-');
+
 export default function WechatAiMemory() {
   const { message } = AntApp.useApp();
   const [loading, setLoading] = useState(false);
@@ -175,6 +186,7 @@ export default function WechatAiMemory() {
   const [creatingLearning, setCreatingLearning] = useState(false);
   const [status, setStatus] = useState<WechatAiStatus>();
   const [groups, setGroups] = useState<WechatGroup[]>([]);
+  const [observation, setObservation] = useState<WechatAiObservation>();
   const [jobs, setJobs] = useState<WechatAiJob[]>([]);
   const [errors, setErrors] = useState<WechatAiError[]>([]);
   const [learningTasks, setLearningTasks] = useState<WechatAiHistoryLearningTask[]>([]);
@@ -182,6 +194,7 @@ export default function WechatAiMemory() {
   const [profiles, setProfiles] = useState<WechatAiProfile[]>([]);
   const [persona, setPersona] = useState<WechatAiPersona>();
   const [candidates, setCandidates] = useState<WechatAiPersonaCandidate[]>([]);
+  const [personaVersions, setPersonaVersions] = useState<WechatAiPersonaVersion[]>([]);
   const [selectedRoomId, setSelectedRoomId] = useState('');
   const [jsonModal, setJsonModal] = useState<{ title: string; value: unknown }>();
   const [evidenceModal, setEvidenceModal] = useState<WechatAiPersonaEvidence>();
@@ -201,16 +214,18 @@ export default function WechatAiMemory() {
   const loadOverview = async (quiet = false) => {
     if (!quiet) setLoading(true);
     try {
-      const [nextStatus, nextJobs, nextErrors, nextLearning] = await Promise.all([
+      const [nextStatus, nextJobs, nextErrors, nextLearning, nextObservation] = await Promise.all([
         getWechatAiStatus(),
         listWechatAiJobs({ limit: 100 }),
         listWechatAiErrors({ limit: 100 }),
         listWechatAiHistoryLearningTasks({ limit: 100 }),
+        getWechatAiObservation({ days: 7 }),
       ]);
       setStatus(nextStatus);
       setJobs(nextJobs.items || []);
       setErrors(nextErrors.items || []);
       setLearningTasks(nextLearning.items || []);
+      setObservation(nextObservation);
       setSelectedRoomId((current) => (
         current && nextStatus.rooms.some((room) => room.roomId === current)
           ? current
@@ -229,20 +244,23 @@ export default function WechatAiMemory() {
       setProfiles([]);
       setPersona(undefined);
       setCandidates([]);
+      setPersonaVersions([]);
       return;
     }
     setMemoryLoading(true);
     try {
-      const [nextRuns, nextProfiles, nextPersona, nextCandidates] = await Promise.all([
+      const [nextRuns, nextProfiles, nextPersona, nextCandidates, nextVersions] = await Promise.all([
         listWechatAiMemoryRuns({ roomId, limit: 100 }),
         listWechatAiProfiles(roomId),
         getWechatAiRoomPersona(roomId),
         listWechatAiPersonaCandidates({ roomId, limit: 100 }),
+        listWechatAiPersonaVersions({ roomId, limit: 100 }),
       ]);
       setRuns(nextRuns.items || []);
       setProfiles(nextProfiles.items || []);
       setPersona('items' in nextPersona ? undefined : nextPersona);
       setCandidates(nextCandidates.items || []);
+      setPersonaVersions(nextVersions.items || []);
     } catch (error) {
       message.error(error instanceof Error ? error.message : '记忆数据加载失败');
     } finally {
@@ -332,11 +350,36 @@ export default function WechatAiMemory() {
         message.success('人格候选已拒绝');
       }
       await loadMemory(selectedRoomId);
+      await loadOverview(true);
     } catch (error) {
       message.error(error instanceof Error ? error.message : '审核失败');
     } finally {
       setActionLoading(undefined);
     }
+  };
+
+  const rollbackPersonaVersion = (version: WechatAiPersonaVersion) => {
+    Modal.confirm({
+      title: `回滚到人格版本 v${version.versionNo}？`,
+      content: '回滚会立刻替换当前稳定人格，并保留回滚前快照。',
+      okText: '回滚',
+      okButtonProps: { danger: true },
+      cancelText: '返回',
+      onOk: async () => {
+        const key = `persona:rollback:${version.id}`;
+        setActionLoading(key);
+        try {
+          await rollbackWechatAiPersonaVersion(version.id);
+          message.success('稳定人格已回滚');
+          await loadMemory(selectedRoomId);
+          await loadOverview(true);
+        } catch (error) {
+          message.error(error instanceof Error ? error.message : '回滚失败');
+        } finally {
+          setActionLoading(undefined);
+        }
+      },
+    });
   };
 
   const applyHistoryLearningAction = async (taskId: number, action: LearningAction) => {
@@ -499,9 +542,33 @@ export default function WechatAiMemory() {
     },
   ];
 
+  const personaVersionColumns: ColumnsType<WechatAiPersonaVersion> = [
+    { title: '版本', dataIndex: 'versionNo', width: 82, render: (value) => `v${value}` },
+    { title: '来源', dataIndex: 'sourceType', width: 112, render: (value) => personaVersionSourceLabel(value) },
+    { title: '来源ID', dataIndex: 'sourceId', width: 86, render: (value) => value ? `#${value}` : '-' },
+    { title: '时间', dataIndex: 'createdAt', width: 170, render: (value) => formatWechatTime(value) || '-' },
+    { title: '备注', dataIndex: 'note', ellipsis: true, render: (value) => value || '-' },
+    { title: '内容', width: 72, render: (_, row) => <Button type="text" icon={<EyeOutlined />} aria-label="查看人格版本" onClick={() => setJsonModal({ title: `人格版本 v${row.versionNo}`, value: row.botPersonaJson })} /> },
+    {
+      title: '操作',
+      width: 86,
+      render: (_, row) => <Button type="text" danger icon={<RedoOutlined />} loading={actionLoading === `persona:rollback:${row.id}`} aria-label="回滚人格版本" onClick={() => rollbackPersonaVersion(row)} />,
+    },
+  ];
+
+  const observationJobColumns: ColumnsType<WechatAiObservation['jobStats'][number]> = [
+    { title: '类型', dataIndex: 'jobType', render: (value: WechatAiJob['jobType']) => jobTypeLabel[value] || value },
+    { title: '状态', dataIndex: 'status', width: 100, render: (value: WechatAiJob['status']) => <Tag color={jobStatusColor[value]}>{jobStatusLabel[value]}</Tag> },
+    { title: '数量', dataIndex: 'count', width: 90 },
+    { title: '平均输入', dataIndex: 'avgInputMsgCount', width: 110, render: (value) => Number(value || 0).toFixed(1) },
+  ];
+
   const queuedJobs = jobs.filter((job) => job.status === 'queued').length;
   const runningJobs = jobs.filter((job) => job.status === 'running').length;
   const failedJobs = jobs.filter((job) => job.status === 'failed').length;
+  const observedSegments = Number(observation?.memoryStats?.segmentCount || 0);
+  const observedAvgQuality = Number(observation?.memoryStats?.avgQualityScore || 0);
+  const observedLowQuality = Number(observation?.memoryStats?.lowQualityCount || 0);
   const evidenceRunColumns: ColumnsType<WechatAiMemoryRun> = [
     { title: '分段', dataIndex: 'id', width: 82, render: (value) => `#${value}` },
     { title: '时间', dataIndex: 'windowEnd', width: 170, render: (value) => formatWechatTime(value) || '-' },
@@ -534,6 +601,32 @@ export default function WechatAiMemory() {
                 </Row>
                 <Card title="最近任务" loading={loading}>
                   <Table rowKey="id" size="small" columns={jobsColumns} dataSource={jobs} pagination={{ pageSize: 10, showSizeChanger: false }} scroll={{ x: 960 }} />
+                </Card>
+              </Space>
+            ),
+          },
+          {
+            key: 'observation',
+            label: '观察面板',
+            children: (
+              <Space direction="vertical" size={16} style={{ display: 'flex' }}>
+                <Row gutter={[16, 16]}>
+                  <Col xs={12} md={6}><Card size="small"><Statistic title="7天分段" value={observedSegments} /></Card></Col>
+                  <Col xs={12} md={6}><Card size="small"><Statistic title="平均质量" value={observedAvgQuality} precision={1} /></Card></Col>
+                  <Col xs={12} md={6}><Card size="small"><Statistic title="低质量" value={observedLowQuality} /></Card></Col>
+                  <Col xs={12} md={6}><Card size="small"><Statistic title="未解决失败" value={observation?.recentErrors.length || 0} /></Card></Col>
+                </Row>
+                <Card title="任务分布" loading={loading}>
+                  <Table rowKey={(row) => `${row.jobType}:${row.status}`} size="small" columns={observationJobColumns} dataSource={observation?.jobStats || []} pagination={false} />
+                </Card>
+                <Card title="进行中的历史学习" loading={loading}>
+                  <Table rowKey="id" size="small" columns={learningColumns} dataSource={observation?.activeLearning || []} pagination={false} scroll={{ x: 1320 }} />
+                </Card>
+                <Card title="最近未解决失败" loading={loading}>
+                  <Table rowKey="id" size="small" columns={errorsColumns} dataSource={observation?.recentErrors || []} pagination={false} scroll={{ x: 980 }} />
+                </Card>
+                <Card title="最近人格版本" loading={loading}>
+                  <Table rowKey="id" size="small" columns={personaVersionColumns} dataSource={observation?.recentVersions || []} pagination={false} scroll={{ x: 720 }} />
                 </Card>
               </Space>
             ),
@@ -626,6 +719,7 @@ export default function WechatAiMemory() {
                           <Row gutter={[16, 16]}>
                             <Col xs={24} lg={12}><Card size="small" title="群文化" extra={<Button type="text" icon={<EyeOutlined />} aria-label="查看群文化" onClick={() => setJsonModal({ title: '群文化', value: persona?.roomCultureJson })} />}><Typography.Paragraph ellipsis={{ rows: 8, expandable: true }}>{jsonText(persona?.roomCultureJson)}</Typography.Paragraph></Card></Col>
                             <Col xs={24} lg={12}><Card size="small" title="稳定人格" extra={<Button type="text" icon={<EyeOutlined />} aria-label="查看稳定人格" onClick={() => setJsonModal({ title: '稳定人格', value: persona?.botPersonaJson })} />}><Typography.Paragraph ellipsis={{ rows: 8, expandable: true }}>{jsonText(persona?.botPersonaJson)}</Typography.Paragraph></Card></Col>
+                            <Col span={24}><Card size="small" title="人格版本"><Table loading={memoryLoading} rowKey="id" size="small" columns={personaVersionColumns} dataSource={personaVersions} pagination={{ pageSize: 8, showSizeChanger: false }} scroll={{ x: 720 }} /></Card></Col>
                             <Col span={24}><Card size="small" title="人格候选"><Table loading={memoryLoading} rowKey="id" size="small" columns={candidatesColumns} dataSource={candidates} pagination={{ pageSize: 8, showSizeChanger: false }} scroll={{ x: 700 }} /></Card></Col>
                           </Row>
                         ),

@@ -204,6 +204,18 @@ export type WechatAiPersonaCandidate = {
   reviewedAt?: ApiUnixTime;
 };
 
+export type WechatAiPersonaVersion = {
+  id: number;
+  roomId: string;
+  versionNo: number;
+  roomCultureJson: Record<string, unknown>;
+  botPersonaJson: Record<string, unknown>;
+  sourceType: string;
+  sourceId?: number;
+  note?: string;
+  createdAt?: ApiUnixTime;
+};
+
 export type WechatAiHistoryLearningTask = {
   id: number;
   roomId: string;
@@ -231,6 +243,16 @@ export type WechatAiPersonaEvidence = {
   candidate: WechatAiPersonaCandidate;
   runs: WechatAiMemoryRun[];
   messages: WechatMessage[];
+};
+
+export type WechatAiObservation = {
+  days: number;
+  roomId?: string;
+  jobStats: Array<{ jobType: WechatAiJobType; status: WechatAiJob['status']; count: number; avgInputMsgCount?: number }>;
+  memoryStats: { segmentCount?: number; avgQualityScore?: number; lowQualityCount?: number };
+  activeLearning: WechatAiHistoryLearningTask[];
+  recentErrors: WechatAiError[];
+  recentVersions: WechatAiPersonaVersion[];
 };
 
 export type WechatAiStatus = {
@@ -394,6 +416,9 @@ export const listWechatSummaryMessages = (id: number, params: { topicIndex?: num
 
 export const getWechatAiStatus = () => unwrap<WechatAiStatus>(http.get(`${aiRoot}/status`));
 
+export const getWechatAiObservation = (params?: { roomId?: string; days?: number }) =>
+  unwrap<WechatAiObservation>(http.get(`${aiRoot}/observation`, { params }));
+
 export const listWechatAiJobs = (params?: { roomId?: string; status?: string; limit?: number }) =>
   unwrap<{ items: WechatAiJob[] }>(http.get(`${aiRoot}/jobs`, { params }));
 
@@ -432,6 +457,12 @@ export const listWechatAiPersonaCandidates = (params?: { roomId?: string; limit?
 
 export const getWechatAiPersonaCandidateEvidence = (id: number) =>
   unwrap<WechatAiPersonaEvidence>(http.get(`${aiRoot}/memory/persona-candidates/${id}/evidence`));
+
+export const listWechatAiPersonaVersions = (params?: { roomId?: string; limit?: number }) =>
+  unwrap<{ items: WechatAiPersonaVersion[] }>(http.get(`${aiRoot}/memory/persona-versions`, { params }));
+
+export const rollbackWechatAiPersonaVersion = (id: number) =>
+  unwrap<{ persona: WechatAiPersona; rolledBackFrom: WechatAiPersonaVersion }>(http.post(`${aiRoot}/memory/persona-versions/${id}/rollback`));
 
 export const promoteWechatAiPersonaCandidate = (id: number) =>
   unwrap<WechatAiPersonaCandidate>(http.post(`${aiRoot}/memory/persona-candidates/${id}/promote`));
