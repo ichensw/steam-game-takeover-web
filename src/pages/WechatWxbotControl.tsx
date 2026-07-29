@@ -34,6 +34,47 @@ type SectionDef = {
 
 type FormValues = Record<string, Record<string, unknown>>;
 
+const aiModelOptions = [
+  { label: 'GPT-5.4 Mini', value: 'gpt-5.4-mini' },
+  { label: 'GPT-5.4', value: 'gpt-5.4' },
+  { label: 'GPT-5.5', value: 'gpt-5.5' },
+  { label: 'GPT-5.2', value: 'gpt-5.2' },
+  { label: 'GPT-5.6 Luna', value: 'gpt-5.6-luna' },
+  { label: 'GPT-5.6 Terra', value: 'gpt-5.6-terra' },
+  { label: 'GPT-5.6 Sol', value: 'gpt-5.6-sol' },
+  { label: 'GPT-5.6', value: 'gpt-5.6' },
+  { label: 'GPT-5.3 Codex Spark', value: 'gpt-5.3-codex-spark' },
+  { label: 'Codex Mini', value: 'codex-mini-latest' },
+];
+
+const modelAliases: Record<string, string> = {
+  '5.2': 'gpt-5.2',
+  'gpt-5.2': 'gpt-5.2',
+  '5.4': 'gpt-5.4',
+  'gpt-5.4': 'gpt-5.4',
+  '5.4 mini': 'gpt-5.4-mini',
+  'gpt-5.4 mini': 'gpt-5.4-mini',
+  'gpt-5.4-mini': 'gpt-5.4-mini',
+  '5.5': 'gpt-5.5',
+  'gpt-5.5': 'gpt-5.5',
+  '5.6': 'gpt-5.6',
+  'gpt-5.6': 'gpt-5.6',
+  'gpt-5.6 (sol)': 'gpt-5.6',
+  '5.6 luna': 'gpt-5.6-luna',
+  'gpt-5.6 luna': 'gpt-5.6-luna',
+  'gpt-5.6-luna': 'gpt-5.6-luna',
+  '5.6 terra': 'gpt-5.6-terra',
+  'gpt-5.6 terra': 'gpt-5.6-terra',
+  'gpt-5.6-terra': 'gpt-5.6-terra',
+  '5.6 sol': 'gpt-5.6-sol',
+  'gpt-5.6 sol': 'gpt-5.6-sol',
+  'gpt-5.6-sol': 'gpt-5.6-sol',
+  'gpt-5.3 codex spark': 'gpt-5.3-codex-spark',
+  'gpt-5.3-codex-spark': 'gpt-5.3-codex-spark',
+  'codex mini': 'codex-mini-latest',
+  'codex-mini-latest': 'codex-mini-latest',
+};
+
 const defaultWxbotConfig = {
   bot: {
     name: 'WeChatHookBot',
@@ -133,10 +174,10 @@ const defaultWxbotConfig = {
     reply_enabled: true,
     api_base_url: '',
     api_key: '',
-    reply_model: '5.4 Mini',
-    summary_model: '5.4 Mini',
-    merge_model: '5.5',
-    manual_deep_model: '5.6 Luna',
+    reply_model: 'gpt-5.4-mini',
+    summary_model: 'gpt-5.4-mini',
+    merge_model: 'gpt-5.5',
+    manual_deep_model: 'gpt-5.6-luna',
     scan_interval_seconds: 300,
     segment_min_messages: 30,
     segment_quiet_seconds: 600,
@@ -286,10 +327,10 @@ const configSections: SectionDef[] = [
       { key: 'reply_enabled', label: '启用 @ 回复', type: 'boolean' },
       { key: 'api_base_url', label: 'AI API Base URL', type: 'string', wide: true },
       { key: 'api_key', label: 'AI API Key', type: 'password', wide: true },
-      { key: 'reply_model', label: '回复模型', type: 'select', options: [{ label: '5.4 Mini', value: '5.4 Mini' }, { label: '5.5', value: '5.5' }] },
-      { key: 'summary_model', label: '总结模型', type: 'select', options: [{ label: '5.4 Mini', value: '5.4 Mini' }, { label: '5.5', value: '5.5' }] },
-      { key: 'merge_model', label: '画像与文化模型', type: 'select', options: [{ label: '5.5', value: '5.5' }, { label: '5.4 Mini', value: '5.4 Mini' }] },
-      { key: 'manual_deep_model', label: '手动深度模型', type: 'select', options: [{ label: '5.6 Luna', value: '5.6 Luna' }, { label: '5.6 Terra', value: '5.6 Terra' }, { label: '5.6 Sol', value: '5.6 Sol' }] },
+      { key: 'reply_model', label: '回复模型', type: 'select', options: aiModelOptions },
+      { key: 'summary_model', label: '总结模型', type: 'select', options: aiModelOptions },
+      { key: 'merge_model', label: '画像与文化模型', type: 'select', options: aiModelOptions },
+      { key: 'manual_deep_model', label: '手动深度模型', type: 'select', options: aiModelOptions },
       { key: 'scan_interval_seconds', label: '扫描间隔秒', type: 'number' },
       { key: 'segment_min_messages', label: '分段最少消息数', type: 'number' },
       { key: 'segment_quiet_seconds', label: '安静阈值秒', type: 'number' },
@@ -575,6 +616,8 @@ export function configToForm(config: WxbotRemoteConfig): FormValues {
         result[section.key][field.key] = Array.isArray(value) ? value : [];
       } else if (field.type === 'boolean') {
         result[section.key][field.key] = asBool(value);
+      } else if (section.key === 'ai' && field.key.endsWith('_model')) {
+        result[section.key][field.key] = normalizeAiModel(value);
       } else {
         result[section.key][field.key] = value;
       }
@@ -596,6 +639,8 @@ export function formToConfig(values: FormValues): WxbotRemoteConfig {
         result[section.key][field.key] = Array.isArray(value) ? value : [];
       } else if (field.type === 'boolean') {
         result[section.key][field.key] = asBool(value);
+      } else if (section.key === 'ai' && field.key.endsWith('_model')) {
+        result[section.key][field.key] = normalizeAiModel(value);
       } else if (field.type === 'number') {
         result[section.key][field.key] = Number(value || 0);
       } else {
@@ -718,6 +763,11 @@ function text(section: Record<string, unknown> | undefined, key: string) {
 
 function settingText(settings: Record<string, unknown>, key: string) {
   return String(settings[key] ?? '').trim();
+}
+
+function normalizeAiModel(value: unknown) {
+  const textValue = String(value || '').trim();
+  return modelAliases[textValue.toLowerCase()] || textValue;
 }
 
 function requireText(section: Record<string, unknown> | undefined, key: string, label: string) {
