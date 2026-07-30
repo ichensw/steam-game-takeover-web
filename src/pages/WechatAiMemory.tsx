@@ -45,6 +45,7 @@ import {
   deleteWechatAiReplyConversationSample,
   deleteWechatAiReplyStyleSample,
   getWechatAiObservation,
+  listWechatAiPromptInstructions,
   getWechatAiRoleCard,
   getWechatAiRoomPersona,
   getWechatAiPersonaCandidateEvidence,
@@ -66,6 +67,7 @@ import {
   resolveWechatAiError,
   retryWechatAiError,
   reviewWechatAiReplyLog,
+  updateWechatAiPromptInstruction,
   updateWechatAiRoleCard,
   updateWechatAiHistoryLearningTask,
   type WechatAiError,
@@ -77,6 +79,7 @@ import {
   type WechatAiPersonaCandidate,
   type WechatAiPersonaEvidence,
   type WechatAiPersonaVersion,
+  type WechatAiPromptInstructionKey,
   type WechatAiProfile,
   type WechatAiReplyConversationSample,
   type WechatAiReplyLog,
@@ -105,6 +108,7 @@ type LearningFormValues = {
   maxMessages?: number;
 };
 type RoleCardFormValues = { content: string };
+type PromptInstructionFormValues = Partial<Record<WechatAiPromptInstructionKey, string>>;
 type ReplySampleFormValues = {
   roomId?: string;
   scenario?: string;
@@ -235,6 +239,12 @@ const scenarioLabel: Record<string, string> = {
   meme: '玩梗',
 };
 
+const promptInstructionItems: Array<{ key: WechatAiPromptInstructionKey; label: string }> = [
+  { key: 'segment_summary', label: '分段提取' },
+  { key: 'profile_merge', label: '画像合并' },
+  { key: 'takeover_recruitment', label: '接龙摇人' },
+];
+
 export default function WechatAiMemory() {
   const { message } = AntApp.useApp();
   const [loading, setLoading] = useState(false);
@@ -243,6 +253,7 @@ export default function WechatAiMemory() {
   const [actionLoading, setActionLoading] = useState<string>();
   const [creatingLearning, setCreatingLearning] = useState(false);
   const [savingRoleCard, setSavingRoleCard] = useState(false);
+  const [savingPromptInstructions, setSavingPromptInstructions] = useState(false);
   const [creatingReplySample, setCreatingReplySample] = useState(false);
   const [creatingConversationSample, setCreatingConversationSample] = useState(false);
   const [status, setStatus] = useState<WechatAiStatus>();
@@ -266,6 +277,7 @@ export default function WechatAiMemory() {
   const [manualForm] = Form.useForm<ManualFormValues>();
   const [learningForm] = Form.useForm<LearningFormValues>();
   const [roleCardForm] = Form.useForm<RoleCardFormValues>();
+  const [promptInstructionForm] = Form.useForm<PromptInstructionFormValues>();
   const [replySampleForm] = Form.useForm<ReplySampleFormValues>();
   const [conversationSampleForm] = Form.useForm<ReplyConversationSampleFormValues>();
   const manualJobType = Form.useWatch('jobType', manualForm);
@@ -338,8 +350,9 @@ export default function WechatAiMemory() {
   const loadStyle = async (quiet = false) => {
     if (!quiet) setStyleLoading(true);
     try {
-      const [nextRoleCard, nextSamples, nextConversationSamples, nextLogs] = await Promise.all([
+      const [nextRoleCard, nextInstructions, nextSamples, nextConversationSamples, nextLogs] = await Promise.all([
         getWechatAiRoleCard(),
+        listWechatAiPromptInstructions(),
         listWechatAiReplyStyleSamples({ limit: 200 }),
         listWechatAiReplyConversationSamples({ limit: 200 }),
         listWechatAiReplyLogs({ limit: 100 }),
@@ -349,6 +362,9 @@ export default function WechatAiMemory() {
       setConversationSamples(nextConversationSamples.items || []);
       setReplyLogs(nextLogs.items || []);
       roleCardForm.setFieldsValue({ content: nextRoleCard.content });
+      promptInstructionForm.setFieldsValue(Object.fromEntries(
+        (nextInstructions.items || []).map((item) => [item.key, item.content]),
+      ) as PromptInstructionFormValues);
     } catch (error) {
       if (!quiet) message.error(error instanceof Error ? error.message : '角色与样本加载失败');
     } finally {
@@ -411,6 +427,24 @@ export default function WechatAiMemory() {
       message.error(error instanceof Error ? error.message : '角色卡保存失败');
     } finally {
       setSavingRoleCard(false);
+    }
+  };
+
+  const savePromptInstructions = async () => {
+    const values = await promptInstructionForm.validateFields();
+    setSavingPromptInstructions(true);
+    try {
+      const updated = await Promise.all(promptInstructionItems.map(({ key }) =>
+        updateWechatAiPromptInstruction(key, values[key] || ''),
+      ));
+      promptInstructionForm.setFieldsValue(Object.fromEntries(
+        updated.map((item) => [item.key, item.content]),
+      ) as PromptInstructionFormValues);
+      message.success('任务指令已保存');
+    } catch (error) {
+      message.error(error instanceof Error ? error.message : '任务指令保存失败');
+    } finally {
+      setSavingPromptInstructions(false);
     }
   };
 
@@ -994,6 +1028,20 @@ export default function WechatAiMemory() {
                     </Form.Item>
                     <Button type="primary" htmlType="submit" loading={savingRoleCard}>保存角色卡</Button>
                     {roleCard?.isDefault ? <Tag style={{ marginLeft: 8 }}>内置默认</Tag> : null}
+                  </Form>
+                </Card>
+                <Card title="记忆与招募指令" loading={styleLoading}>
+                  <Form form={promptInstructionForm} layout="vertical" onFinish={() => void savePromptInstructions()}>
+                    <Row gutter={[16, 0]}>
+                      {promptInstructionItems.map(({ key, label }) => (
+                        <Col xs={24} md={key === 'takeover_recruitment' ? 24 : 12} key={key}>
+                          <Form.Item name={key} label={label} rules={[{ max: 4000, message: '不能超过 4000 个字符' }]}>
+                            <Input.TextArea autoSize={{ minRows: 3, maxRows: 8 }} />
+                          </Form.Item>
+                        </Col>
+                      ))}
+                    </Row>
+                    <Button type="primary" htmlType="submit" loading={savingPromptInstructions}>保存任务指令</Button>
                   </Form>
                 </Card>
                 <Card title="添加表达样本" loading={styleLoading}>

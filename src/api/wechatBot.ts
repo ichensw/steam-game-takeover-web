@@ -170,6 +170,14 @@ export type WechatAiRoleCard = {
   updatedAt?: ApiUnixTime;
 };
 
+export type WechatAiPromptInstructionKey = 'segment_summary' | 'profile_merge' | 'takeover_recruitment';
+
+export type WechatAiPromptInstruction = {
+  key: WechatAiPromptInstructionKey;
+  content: string;
+  updatedAt?: ApiUnixTime;
+};
+
 export type WechatAiReplyStyleSample = {
   id: number;
   roomId: string;
@@ -479,6 +487,12 @@ export const getWechatAiRoleCard = () => unwrap<WechatAiRoleCard>(http.get(`${ai
 
 export const updateWechatAiRoleCard = (content: string) =>
   unwrap<WechatAiRoleCard>(http.put(`${aiRoot}/role-card`, { content }));
+
+export const listWechatAiPromptInstructions = () =>
+  unwrap<{ items: WechatAiPromptInstruction[] }>(http.get(`${aiRoot}/prompt-instructions`));
+
+export const updateWechatAiPromptInstruction = (key: WechatAiPromptInstructionKey, content: string) =>
+  unwrap<WechatAiPromptInstruction>(http.put(`${aiRoot}/prompt-instructions`, { key, content }));
 
 export const listWechatAiReplyStyleSamples = (params?: { roomId?: string; limit?: number }) =>
   unwrap<{ items: WechatAiReplyStyleSample[] }>(http.get(`${aiRoot}/reply-samples`, { params }));
