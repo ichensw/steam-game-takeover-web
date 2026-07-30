@@ -713,7 +713,7 @@ export default function WechatAiMemory() {
             label: '记忆查看',
             children: (
               <Space direction="vertical" size={16} style={{ display: 'flex' }}>
-                <Select value={selectedRoomId || undefined} showSearch optionFilterProp="label" options={roomOptions} placeholder="选择群聊" onChange={setSelectedRoomId} style={{ maxWidth: 420 }} />
+                <Select value={selectedRoomId || undefined} showSearch optionFilterProp="label" options={roomOptions} placeholder="选择群聊" onChange={setSelectedRoomId} style={{ width: '100%', maxWidth: 680 }} />
                 {selectedRoomId ? (
                   <Tabs
                     items={[
