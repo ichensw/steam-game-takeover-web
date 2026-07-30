@@ -164,6 +164,8 @@ const learningProgressStatus = (status: WechatAiHistoryLearningTask['status']) =
   return 'normal';
 };
 
+export const observationErrorCount = (errors: WechatAiError[] | null | undefined) => errors?.length || 0;
+
 type LearningAction = 'pause' | 'resume' | 'cancel' | 'retry';
 const learningActionLabel: Record<LearningAction, string> = {
   pause: '暂停',
@@ -621,7 +623,7 @@ export default function WechatAiMemory() {
                   <Col xs={12} md={6}><Card size="small"><Statistic title="7天分段" value={observedSegments} /></Card></Col>
                   <Col xs={12} md={6}><Card size="small"><Statistic title="平均质量" value={observedAvgQuality} precision={1} /></Card></Col>
                   <Col xs={12} md={6}><Card size="small"><Statistic title="低质量" value={observedLowQuality} /></Card></Col>
-                  <Col xs={12} md={6}><Card size="small"><Statistic title="未解决失败" value={observation?.recentErrors.length || 0} /></Card></Col>
+                  <Col xs={12} md={6}><Card size="small"><Statistic title="未解决失败" value={observationErrorCount(observation?.recentErrors)} /></Card></Col>
                 </Row>
                 <Card title="任务分布" loading={loading}>
                   <Table rowKey={(row) => `${row.jobType}:${row.status}`} size="small" columns={observationJobColumns} dataSource={observation?.jobStats || []} pagination={false} />
