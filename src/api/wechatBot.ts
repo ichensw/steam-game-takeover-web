@@ -164,6 +164,46 @@ export type WechatAiError = {
   createdAt?: ApiUnixTime;
 };
 
+export type WechatAiRoleCard = {
+  content: string;
+  isDefault?: boolean;
+  updatedAt?: ApiUnixTime;
+};
+
+export type WechatAiReplyStyleSample = {
+  id: number;
+  roomId: string;
+  scenario: string;
+  triggerText: string;
+  replyText: string;
+  sourceReplyLogId?: number;
+  createdAt?: ApiUnixTime;
+  updatedAt?: ApiUnixTime;
+};
+
+export type WechatAiReplyConversationSample = {
+  id: number;
+  roomId: string;
+  scenario: string;
+  contextText: string;
+  replyText: string;
+  sourceReplyLogId?: number;
+  createdAt?: ApiUnixTime;
+  updatedAt?: ApiUnixTime;
+};
+
+export type WechatAiReplyLog = {
+  id: number;
+  roomId: string;
+  triggerMsgId: string;
+  triggerContent?: string;
+  decisionJson: Record<string, unknown>;
+  replyText: string;
+  feedback?: 'human' | 'too_ai' | 'too_much' | '';
+  feedbackAt?: ApiUnixTime;
+  createdAt?: ApiUnixTime;
+};
+
 export type WechatAiMemoryRun = {
   id: number;
   jobId: number;
@@ -434,6 +474,35 @@ export const getWechatAiStatus = () => unwrap<WechatAiStatus>(http.get(`${aiRoot
 
 export const getWechatAiObservation = (params?: { roomId?: string; days?: number }) =>
   unwrap<WechatAiObservation>(http.get(`${aiRoot}/observation`, { params }));
+
+export const getWechatAiRoleCard = () => unwrap<WechatAiRoleCard>(http.get(`${aiRoot}/role-card`));
+
+export const updateWechatAiRoleCard = (content: string) =>
+  unwrap<WechatAiRoleCard>(http.put(`${aiRoot}/role-card`, { content }));
+
+export const listWechatAiReplyStyleSamples = (params?: { roomId?: string; limit?: number }) =>
+  unwrap<{ items: WechatAiReplyStyleSample[] }>(http.get(`${aiRoot}/reply-samples`, { params }));
+
+export const createWechatAiReplyStyleSample = (body: { roomId?: string; scenario?: string; triggerText: string; replyText: string }) =>
+  unwrap<WechatAiReplyStyleSample>(http.post(`${aiRoot}/reply-samples`, body));
+
+export const deleteWechatAiReplyStyleSample = (id: number) =>
+  unwrap<{ deleted: boolean }>(http.delete(`${aiRoot}/reply-samples/${id}`));
+
+export const listWechatAiReplyConversationSamples = (params?: { roomId?: string; limit?: number }) =>
+  unwrap<{ items: WechatAiReplyConversationSample[] }>(http.get(`${aiRoot}/reply-conversation-samples`, { params }));
+
+export const createWechatAiReplyConversationSample = (body: { roomId?: string; scenario?: string; contextText: string; replyText: string }) =>
+  unwrap<WechatAiReplyConversationSample>(http.post(`${aiRoot}/reply-conversation-samples`, body));
+
+export const deleteWechatAiReplyConversationSample = (id: number) =>
+  unwrap<{ deleted: boolean }>(http.delete(`${aiRoot}/reply-conversation-samples/${id}`));
+
+export const listWechatAiReplyLogs = (params?: { roomId?: string; limit?: number }) =>
+  unwrap<{ items: WechatAiReplyLog[] }>(http.get(`${aiRoot}/reply-logs`, { params }));
+
+export const reviewWechatAiReplyLog = (id: number, feedback: Exclude<WechatAiReplyLog['feedback'], ''>) =>
+  unwrap<{ feedback: string; sampleActive: boolean }>(http.post(`${aiRoot}/reply-logs/${id}/feedback`, { feedback }));
 
 export const listWechatAiJobs = (params?: { roomId?: string; status?: string; limit?: number }) =>
   unwrap<{ items: WechatAiJob[] }>(http.get(`${aiRoot}/jobs`, { params }));

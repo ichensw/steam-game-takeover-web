@@ -1,13 +1,17 @@
 import {
   CheckOutlined,
   CloseOutlined,
+  DeleteOutlined,
+  DislikeOutlined,
   EyeOutlined,
   FileSearchOutlined,
+  LikeOutlined,
   PauseCircleOutlined,
   PlayCircleOutlined,
   ReloadOutlined,
   RedoOutlined,
   StopOutlined,
+  WarningOutlined,
 } from '@ant-design/icons';
 import {
   Alert,
@@ -28,6 +32,7 @@ import {
   Table,
   Tabs,
   Tag,
+  Tooltip,
   Typography,
 } from 'antd';
 import type { ColumnsType } from 'antd/es/table';
@@ -35,7 +40,12 @@ import { useEffect, useState } from 'react';
 import {
   createWechatAiHistoryLearningTask,
   createWechatAiJob,
+  createWechatAiReplyConversationSample,
+  createWechatAiReplyStyleSample,
+  deleteWechatAiReplyConversationSample,
+  deleteWechatAiReplyStyleSample,
   getWechatAiObservation,
+  getWechatAiRoleCard,
   getWechatAiRoomPersona,
   getWechatAiPersonaCandidateEvidence,
   getWechatAiStatus,
@@ -47,11 +57,16 @@ import {
   listWechatAiPersonaCandidates,
   listWechatAiPersonaVersions,
   listWechatAiProfiles,
+  listWechatAiReplyConversationSamples,
+  listWechatAiReplyLogs,
+  listWechatAiReplyStyleSamples,
   promoteWechatAiPersonaCandidate,
   rejectWechatAiPersonaCandidate,
   rollbackWechatAiPersonaVersion,
   resolveWechatAiError,
   retryWechatAiError,
+  reviewWechatAiReplyLog,
+  updateWechatAiRoleCard,
   updateWechatAiHistoryLearningTask,
   type WechatAiError,
   type WechatAiHistoryLearningTask,
@@ -63,6 +78,10 @@ import {
   type WechatAiPersonaEvidence,
   type WechatAiPersonaVersion,
   type WechatAiProfile,
+  type WechatAiReplyConversationSample,
+  type WechatAiReplyLog,
+  type WechatAiReplyStyleSample,
+  type WechatAiRoleCard,
   type WechatAiStatus,
   type WechatGroup,
   type WechatMessage,
@@ -84,6 +103,19 @@ type LearningFormValues = {
   start?: string;
   end?: string;
   maxMessages?: number;
+};
+type RoleCardFormValues = { content: string };
+type ReplySampleFormValues = {
+  roomId?: string;
+  scenario?: string;
+  triggerText: string;
+  replyText: string;
+};
+type ReplyConversationSampleFormValues = {
+  roomId?: string;
+  scenario?: string;
+  contextText: string;
+  replyText: string;
 };
 
 const jobTypeLabel: Record<WechatAiJob['jobType'], string> = {
@@ -180,12 +212,39 @@ const personaVersionSourceLabel = (source?: string) => ({
   rollback_backup: '回滚备份',
 }[source || ''] || source || '-');
 
+type ReplyFeedback = Exclude<NonNullable<WechatAiReplyLog['feedback']>, ''>;
+
+const feedbackLabel: Record<ReplyFeedback, string> = {
+  human: '像人',
+  too_ai: '太 AI',
+  too_much: '太过火',
+};
+
+const feedbackColor: Record<ReplyFeedback, string> = {
+  human: 'success',
+  too_ai: 'warning',
+  too_much: 'error',
+};
+
+const scenarioLabel: Record<string, string> = {
+  general: '日常接话',
+  greeting: '招呼',
+  quote: '引用回复',
+  game: '游戏接龙',
+  teasing: '调侃',
+  meme: '玩梗',
+};
+
 export default function WechatAiMemory() {
   const { message } = AntApp.useApp();
   const [loading, setLoading] = useState(false);
   const [memoryLoading, setMemoryLoading] = useState(false);
+  const [styleLoading, setStyleLoading] = useState(false);
   const [actionLoading, setActionLoading] = useState<string>();
   const [creatingLearning, setCreatingLearning] = useState(false);
+  const [savingRoleCard, setSavingRoleCard] = useState(false);
+  const [creatingReplySample, setCreatingReplySample] = useState(false);
+  const [creatingConversationSample, setCreatingConversationSample] = useState(false);
   const [status, setStatus] = useState<WechatAiStatus>();
   const [groups, setGroups] = useState<WechatGroup[]>([]);
   const [observation, setObservation] = useState<WechatAiObservation>();
@@ -197,11 +256,18 @@ export default function WechatAiMemory() {
   const [persona, setPersona] = useState<WechatAiPersona>();
   const [candidates, setCandidates] = useState<WechatAiPersonaCandidate[]>([]);
   const [personaVersions, setPersonaVersions] = useState<WechatAiPersonaVersion[]>([]);
+  const [roleCard, setRoleCard] = useState<WechatAiRoleCard>();
+  const [replySamples, setReplySamples] = useState<WechatAiReplyStyleSample[]>([]);
+  const [conversationSamples, setConversationSamples] = useState<WechatAiReplyConversationSample[]>([]);
+  const [replyLogs, setReplyLogs] = useState<WechatAiReplyLog[]>([]);
   const [selectedRoomId, setSelectedRoomId] = useState('');
   const [jsonModal, setJsonModal] = useState<{ title: string; value: unknown }>();
   const [evidenceModal, setEvidenceModal] = useState<WechatAiPersonaEvidence>();
   const [manualForm] = Form.useForm<ManualFormValues>();
   const [learningForm] = Form.useForm<LearningFormValues>();
+  const [roleCardForm] = Form.useForm<RoleCardFormValues>();
+  const [replySampleForm] = Form.useForm<ReplySampleFormValues>();
+  const [conversationSampleForm] = Form.useForm<ReplyConversationSampleFormValues>();
   const manualJobType = Form.useWatch('jobType', manualForm);
 
   const groupNameByRoomId = new Map<string, string>();
@@ -269,9 +335,31 @@ export default function WechatAiMemory() {
     }
   };
 
+  const loadStyle = async (quiet = false) => {
+    if (!quiet) setStyleLoading(true);
+    try {
+      const [nextRoleCard, nextSamples, nextConversationSamples, nextLogs] = await Promise.all([
+        getWechatAiRoleCard(),
+        listWechatAiReplyStyleSamples({ limit: 200 }),
+        listWechatAiReplyConversationSamples({ limit: 200 }),
+        listWechatAiReplyLogs({ limit: 100 }),
+      ]);
+      setRoleCard(nextRoleCard);
+      setReplySamples(nextSamples.items || []);
+      setConversationSamples(nextConversationSamples.items || []);
+      setReplyLogs(nextLogs.items || []);
+      roleCardForm.setFieldsValue({ content: nextRoleCard.content });
+    } catch (error) {
+      if (!quiet) message.error(error instanceof Error ? error.message : '角色与样本加载失败');
+    } finally {
+      if (!quiet) setStyleLoading(false);
+    }
+  };
+
   const refresh = async () => {
     await loadOverview();
     await loadMemory(selectedRoomId);
+    await loadStyle();
   };
 
   const createJob = async () => {
@@ -308,6 +396,125 @@ export default function WechatAiMemory() {
       message.error(error instanceof Error ? error.message : '历史聊天学习启动失败');
     } finally {
       setCreatingLearning(false);
+    }
+  };
+
+  const saveRoleCard = async () => {
+    const values = await roleCardForm.validateFields();
+    setSavingRoleCard(true);
+    try {
+      const nextRoleCard = await updateWechatAiRoleCard(values.content || '');
+      setRoleCard(nextRoleCard);
+      roleCardForm.setFieldsValue({ content: nextRoleCard.content });
+      message.success(nextRoleCard.isDefault ? '已恢复内置角色卡' : '角色卡已保存');
+    } catch (error) {
+      message.error(error instanceof Error ? error.message : '角色卡保存失败');
+    } finally {
+      setSavingRoleCard(false);
+    }
+  };
+
+  const createReplySample = async () => {
+    const values = await replySampleForm.validateFields();
+    setCreatingReplySample(true);
+    try {
+      await createWechatAiReplyStyleSample({
+        roomId: values.roomId || undefined,
+        scenario: values.scenario || 'general',
+        triggerText: values.triggerText,
+        replyText: values.replyText,
+      });
+      replySampleForm.setFieldsValue({ triggerText: '', replyText: '' });
+      message.success('表达样本已加入回复召回');
+      await loadStyle(true);
+    } catch (error) {
+      message.error(error instanceof Error ? error.message : '表达样本保存失败');
+    } finally {
+      setCreatingReplySample(false);
+    }
+  };
+
+  const deleteReplySample = (sample: WechatAiReplyStyleSample) => {
+    Modal.confirm({
+      title: '删除这个表达样本？',
+      content: '删除后它不会再被实时回复召回。',
+      okText: '删除',
+      okButtonProps: { danger: true },
+      cancelText: '返回',
+      onOk: async () => {
+        const key = `sample:delete:${sample.id}`;
+        setActionLoading(key);
+        try {
+          await deleteWechatAiReplyStyleSample(sample.id);
+          message.success('表达样本已删除');
+          await loadStyle(true);
+        } catch (error) {
+          message.error(error instanceof Error ? error.message : '删除表达样本失败');
+        } finally {
+          setActionLoading(undefined);
+        }
+      },
+    });
+  };
+
+  const createReplyConversationSample = async () => {
+    const values = await conversationSampleForm.validateFields();
+    setCreatingConversationSample(true);
+    try {
+      await createWechatAiReplyConversationSample({
+        roomId: values.roomId || undefined,
+        scenario: values.scenario || 'general',
+        contextText: values.contextText,
+        replyText: values.replyText,
+      });
+      conversationSampleForm.setFieldsValue({ contextText: '', replyText: '' });
+      message.success('对话片段已加入回复召回');
+      await loadStyle(true);
+    } catch (error) {
+      message.error(error instanceof Error ? error.message : '对话片段保存失败');
+    } finally {
+      setCreatingConversationSample(false);
+    }
+  };
+
+  const deleteReplyConversationSample = (sample: WechatAiReplyConversationSample) => {
+    Modal.confirm({
+      title: '删除这个对话片段？',
+      content: '删除后它不会再被实时回复召回。',
+      okText: '删除',
+      okButtonProps: { danger: true },
+      cancelText: '返回',
+      onOk: async () => {
+        const key = `conversation-sample:delete:${sample.id}`;
+        setActionLoading(key);
+        try {
+          await deleteWechatAiReplyConversationSample(sample.id);
+          message.success('对话片段已删除');
+          await loadStyle(true);
+        } catch (error) {
+          message.error(error instanceof Error ? error.message : '删除对话片段失败');
+        } finally {
+          setActionLoading(undefined);
+        }
+      },
+    });
+  };
+
+  const reviewReplyLog = async (log: WechatAiReplyLog, feedback: ReplyFeedback) => {
+    const key = `reply-log:${feedback}:${log.id}`;
+    setActionLoading(key);
+    try {
+      const result = await reviewWechatAiReplyLog(log.id, feedback);
+      if (feedback === 'human') {
+        message.success(result.sampleActive ? '已加入可召回的表达样本' : '已记录反馈，原消息不可用，未加入样本');
+      } else {
+        message.success(`已标记为${feedbackLabel[feedback]}`);
+      }
+      await loadStyle(true);
+    } catch (error) {
+      message.error(error instanceof Error ? error.message : '回复反馈保存失败');
+    } finally {
+      setActionLoading(undefined);
     }
   };
 
@@ -426,6 +633,7 @@ export default function WechatAiMemory() {
 
   useEffect(() => {
     void loadOverview();
+    void loadStyle();
     void listWechatGroups()
       .then(setGroups)
       .catch((error) => message.error(error instanceof Error ? error.message : '群聊列表加载失败'));
@@ -590,6 +798,70 @@ export default function WechatAiMemory() {
     { title: '成员', dataIndex: 'senderName', width: 150, ellipsis: true, render: (value, row) => value || row.senderWxid },
     { title: '内容', dataIndex: 'content', ellipsis: true },
   ];
+  const replySampleColumns: ColumnsType<WechatAiReplyStyleSample> = [
+    { title: '范围', dataIndex: 'roomId', width: 150, ellipsis: true, render: (value) => value ? roomLabel(value) : <Tag>全局</Tag> },
+    { title: '场景', dataIndex: 'scenario', width: 108, render: (value) => scenarioLabel[value] || value || '日常接话' },
+    { title: '用户的话', dataIndex: 'triggerText', ellipsis: true },
+    { title: '理想接话', dataIndex: 'replyText', ellipsis: true },
+    { title: '更新时间', dataIndex: 'updatedAt', width: 170, render: (value) => formatWechatTime(value) || '-' },
+    {
+      title: '操作',
+      width: 72,
+      render: (_, row) => (
+        <Tooltip title="删除表达样本">
+          <Button type="text" danger icon={<DeleteOutlined />} loading={actionLoading === `sample:delete:${row.id}`} aria-label="删除表达样本" onClick={() => deleteReplySample(row)} />
+        </Tooltip>
+      ),
+    },
+  ];
+  const conversationSampleColumns: ColumnsType<WechatAiReplyConversationSample> = [
+    { title: '范围', dataIndex: 'roomId', width: 150, ellipsis: true, render: (value) => value ? roomLabel(value) : <Tag>全局</Tag> },
+    { title: '场景', dataIndex: 'scenario', width: 108, render: (value) => scenarioLabel[value] || value || '日常接话' },
+    { title: '前文对话', dataIndex: 'contextText', ellipsis: true },
+    { title: '理想接话', dataIndex: 'replyText', ellipsis: true },
+    { title: '更新时间', dataIndex: 'updatedAt', width: 170, render: (value) => formatWechatTime(value) || '-' },
+    {
+      title: '操作',
+      width: 72,
+      render: (_, row) => (
+        <Tooltip title="删除对话片段">
+          <Button type="text" danger icon={<DeleteOutlined />} loading={actionLoading === `conversation-sample:delete:${row.id}`} aria-label="删除对话片段" onClick={() => deleteReplyConversationSample(row)} />
+        </Tooltip>
+      ),
+    },
+  ];
+  const replyLogColumns: ColumnsType<WechatAiReplyLog> = [
+    { title: '群聊', dataIndex: 'roomId', width: 150, ellipsis: true, render: (value) => roomLabel(value) },
+    { title: '触发消息', dataIndex: 'triggerContent', ellipsis: true, render: (value) => value || '-' },
+    { title: '机器人回复', dataIndex: 'replyText', ellipsis: true },
+    {
+      title: '反馈',
+      dataIndex: 'feedback',
+      width: 92,
+      render: (value: WechatAiReplyLog['feedback']) => {
+        const feedback = value as ReplyFeedback;
+        return feedback && feedbackLabel[feedback] ? <Tag color={feedbackColor[feedback]}>{feedbackLabel[feedback]}</Tag> : '-';
+      },
+    },
+    { title: '时间', dataIndex: 'createdAt', width: 170, render: (value) => formatWechatTime(value) || '-' },
+    {
+      title: '操作',
+      width: 126,
+      render: (_, row) => (
+        <Space size={0}>
+          <Tooltip title="像人，加入样本库">
+            <Button type="text" icon={<LikeOutlined />} loading={actionLoading === `reply-log:human:${row.id}`} aria-label="像人，加入样本库" onClick={() => void reviewReplyLog(row, 'human')} />
+          </Tooltip>
+          <Tooltip title="太 AI">
+            <Button type="text" icon={<DislikeOutlined />} loading={actionLoading === `reply-log:too_ai:${row.id}`} aria-label="太 AI" onClick={() => void reviewReplyLog(row, 'too_ai')} />
+          </Tooltip>
+          <Tooltip title="太过火">
+            <Button type="text" danger icon={<WarningOutlined />} loading={actionLoading === `reply-log:too_much:${row.id}`} aria-label="太过火" onClick={() => void reviewReplyLog(row, 'too_much')} />
+          </Tooltip>
+        </Space>
+      ),
+    },
+  ];
 
   return (
     <>
@@ -708,6 +980,90 @@ export default function WechatAiMemory() {
               <Card loading={loading}>
                 <Table rowKey="id" size="small" columns={errorsColumns} dataSource={errors} pagination={{ pageSize: 10, showSizeChanger: false }} scroll={{ x: 980 }} />
               </Card>
+            ),
+          },
+          {
+            key: 'style',
+            label: '角色与样本',
+            children: (
+              <Space direction="vertical" size={16} style={{ display: 'flex' }}>
+                <Card title="角色卡" loading={styleLoading}>
+                  <Form form={roleCardForm} layout="vertical" onFinish={() => void saveRoleCard()}>
+                    <Form.Item name="content" label="稳定角色" rules={[{ max: 8000, message: '角色卡不能超过 8000 个字符' }]}>
+                      <Input.TextArea autoSize={{ minRows: 5, maxRows: 10 }} />
+                    </Form.Item>
+                    <Button type="primary" htmlType="submit" loading={savingRoleCard}>保存角色卡</Button>
+                    {roleCard?.isDefault ? <Tag style={{ marginLeft: 8 }}>内置默认</Tag> : null}
+                  </Form>
+                </Card>
+                <Card title="添加表达样本" loading={styleLoading}>
+                  <Form form={replySampleForm} layout="vertical" initialValues={{ scenario: 'general' }} onFinish={() => void createReplySample()}>
+                    <Row gutter={[16, 0]}>
+                      <Col xs={24} md={8}>
+                        <Form.Item name="roomId" label="适用群聊">
+                          <Select allowClear showSearch optionFilterProp="label" options={roomOptions} placeholder="留空则全局生效" />
+                        </Form.Item>
+                      </Col>
+                      <Col xs={24} md={8}>
+                        <Form.Item name="scenario" label="场景">
+                          <Select options={Object.entries(scenarioLabel).map(([value, label]) => ({ value, label }))} />
+                        </Form.Item>
+                      </Col>
+                    </Row>
+                    <Row gutter={[16, 0]}>
+                      <Col xs={24} md={12}>
+                        <Form.Item name="triggerText" label="用户的话" rules={[{ required: true, message: '请输入用户的话' }, { max: 2000, message: '不能超过 2000 个字符' }]}>
+                          <Input.TextArea autoSize={{ minRows: 2, maxRows: 5 }} />
+                        </Form.Item>
+                      </Col>
+                      <Col xs={24} md={12}>
+                        <Form.Item name="replyText" label="理想接话" rules={[{ required: true, message: '请输入理想接话' }, { max: 1000, message: '不能超过 1000 个字符' }]}>
+                          <Input.TextArea autoSize={{ minRows: 2, maxRows: 5 }} />
+                        </Form.Item>
+                      </Col>
+                    </Row>
+                    <Button type="primary" htmlType="submit" loading={creatingReplySample}>加入样本库</Button>
+                  </Form>
+                </Card>
+                <Card title="添加对话片段样本" loading={styleLoading}>
+                  <Form form={conversationSampleForm} layout="vertical" initialValues={{ scenario: 'general' }} onFinish={() => void createReplyConversationSample()}>
+                    <Row gutter={[16, 0]}>
+                      <Col xs={24} md={8}>
+                        <Form.Item name="roomId" label="适用群聊">
+                          <Select allowClear showSearch optionFilterProp="label" options={roomOptions} placeholder="留空则全局生效" />
+                        </Form.Item>
+                      </Col>
+                      <Col xs={24} md={8}>
+                        <Form.Item name="scenario" label="场景">
+                          <Select options={Object.entries(scenarioLabel).map(([value, label]) => ({ value, label }))} />
+                        </Form.Item>
+                      </Col>
+                    </Row>
+                    <Row gutter={[16, 0]}>
+                      <Col xs={24} md={14}>
+                        <Form.Item name="contextText" label="前文对话" rules={[{ required: true, message: '请输入前文对话' }, { max: 8000, message: '不能超过 8000 个字符' }]}>
+                          <Input.TextArea autoSize={{ minRows: 4, maxRows: 10 }} />
+                        </Form.Item>
+                      </Col>
+                      <Col xs={24} md={10}>
+                        <Form.Item name="replyText" label="理想接话" rules={[{ required: true, message: '请输入理想接话' }, { max: 1000, message: '不能超过 1000 个字符' }]}>
+                          <Input.TextArea autoSize={{ minRows: 4, maxRows: 10 }} />
+                        </Form.Item>
+                      </Col>
+                    </Row>
+                    <Button type="primary" htmlType="submit" loading={creatingConversationSample}>加入对话样本库</Button>
+                  </Form>
+                </Card>
+                <Card title="生效样本" loading={styleLoading}>
+                  <Table rowKey="id" size="small" columns={replySampleColumns} dataSource={replySamples} pagination={{ pageSize: 10, showSizeChanger: false }} scroll={{ x: 980 }} />
+                </Card>
+                <Card title="对话片段样本" loading={styleLoading}>
+                  <Table rowKey="id" size="small" columns={conversationSampleColumns} dataSource={conversationSamples} pagination={{ pageSize: 10, showSizeChanger: false }} scroll={{ x: 980 }} />
+                </Card>
+                <Card title="最近 AI 回复" loading={styleLoading}>
+                  <Table rowKey="id" size="small" columns={replyLogColumns} dataSource={replyLogs} pagination={{ pageSize: 10, showSizeChanger: false }} scroll={{ x: 1080 }} />
+                </Card>
+              </Space>
             ),
           },
           {
