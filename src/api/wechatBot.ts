@@ -335,8 +335,10 @@ export type WxbotRemoteConfig = {
   ai?: {
     enabled?: boolean;
     group_whitelist?: string[];
+    mention_aliases?: string[];
     auto_memory_enabled?: boolean;
     reply_enabled?: boolean;
+    takeover_recruitment_enabled?: boolean;
     api_base_url?: string;
     api_key?: string;
     reply_model?: string;
@@ -364,6 +366,15 @@ export type WxbotRemoteConfig = {
   oss?: Record<string, unknown>;
 };
 
+export const WXBOT_CONFIG_SCHEMA_VERSION = 1;
+
+export type WxbotConfigEnvelope = {
+  schemaVersion?: number;
+  config?: WxbotRemoteConfig;
+};
+
+export type WxbotConfigPayload = WxbotRemoteConfig | WxbotConfigEnvelope;
+
 export type WxbotRecord = {
   botId: string;
   name: string;
@@ -375,8 +386,10 @@ export type WxbotRecord = {
   online: boolean;
   startedAt?: string;
   lastSeenAt?: string;
-  config: WxbotRemoteConfig;
-  currentConfig?: WxbotRemoteConfig;
+  configSchemaVersion?: number;
+  lastConfigError?: string;
+  config: WxbotConfigPayload;
+  currentConfig?: WxbotConfigPayload;
   configUpdatedAt?: string;
   configAppliedAt?: string;
   updatedAt?: string;
@@ -384,8 +397,10 @@ export type WxbotRecord = {
 
 export type WxbotConfigDetail = {
   botId: string;
-  config: WxbotRemoteConfig;
-  currentConfig?: WxbotRemoteConfig;
+  config: WxbotConfigPayload;
+  currentConfig?: WxbotConfigPayload;
+  configSchemaVersion?: number;
+  lastConfigError?: string;
   configUpdatedAt?: string;
 };
 
@@ -490,4 +505,6 @@ export const getWxbotConfig = (botId: string) =>
   unwrap<WxbotConfigDetail>(http.get(`${root}/wxbots/${encodeURIComponent(botId)}/config`));
 
 export const updateWxbotConfig = (botId: string, config: WxbotRemoteConfig) =>
-  unwrap<WxbotConfigDetail>(http.put(`${root}/wxbots/${encodeURIComponent(botId)}/config`, { config }));
+  unwrap<WxbotConfigDetail>(http.put(`${root}/wxbots/${encodeURIComponent(botId)}/config`, {
+    config: { schemaVersion: WXBOT_CONFIG_SCHEMA_VERSION, config },
+  }));

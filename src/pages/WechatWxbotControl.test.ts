@@ -22,6 +22,13 @@ describe('WechatWxbotControl config form mapping', () => {
     expect(formToConfig(form).ai?.group_whitelist).toEqual(['room-a@chatroom', 'room-b@chatroom']);
   });
 
+  it('keeps automatic takeover recruitment as an opt-in switch', () => {
+    const form = configToForm({ ai: { takeover_recruitment_enabled: true } });
+
+    expect(form.ai.takeover_recruitment_enabled).toBe(true);
+    expect(formToConfig(form).ai?.takeover_recruitment_enabled).toBe(true);
+  });
+
   it('requires OSS fields only when OSS upload is enabled', () => {
     const config = formToConfig(configToForm({
       bot: { name: 'WeChatHookBot' },

@@ -8,7 +8,9 @@ import {
   listWechatGroups,
   listWxbots,
   updateWxbotConfig,
+  WXBOT_CONFIG_SCHEMA_VERSION,
   type WechatGroup,
+  type WxbotConfigPayload,
   type WxbotRecord,
   type WxbotRemoteConfig,
 } from '../api/wechatBot';
@@ -170,8 +172,10 @@ const defaultWxbotConfig = {
       '46241809307@chatroom',
       '43308858460@chatroom',
     ],
+    mention_aliases: ['智能小助手'],
     auto_memory_enabled: true,
     reply_enabled: true,
+    takeover_recruitment_enabled: false,
     api_base_url: '',
     api_key: '',
     reply_model: 'gpt-5.4-mini',
@@ -323,8 +327,10 @@ const configSections: SectionDef[] = [
     fields: [
       { key: 'enabled', label: '启用 AI Agent', type: 'boolean' },
       { key: 'group_whitelist', label: 'AI 群聊白名单', type: 'roomList', wide: true, extra: '只对选中的群聊进行 AI 回复、记忆沉淀和历史学习。' },
+      { key: 'mention_aliases', label: '机器人别名', type: 'list', wide: true, extra: '每行一个 @ 别名。' },
       { key: 'auto_memory_enabled', label: '启用自动记忆沉淀', type: 'boolean' },
       { key: 'reply_enabled', label: '启用 @ 回复', type: 'boolean' },
+      { key: 'takeover_recruitment_enabled', label: '启用定时自动摇人', type: 'boolean' },
       { key: 'api_base_url', label: 'AI API Base URL', type: 'string', wide: true },
       { key: 'api_key', label: 'AI API Key', type: 'password', wide: true },
       { key: 'reply_model', label: '回复模型', type: 'select', options: aiModelOptions },
@@ -414,8 +420,8 @@ export default function WechatWxbotControl() {
         getWxbotConfig(botId),
         getSettings().catch(() => ({})),
       ]);
-      const savedConfig = detail.config || {};
-      const currentConfig = detail.currentConfig || {};
+      const savedConfig = unwrapWxbotConfig(detail.config);
+      const currentConfig = unwrapWxbotConfig(detail.currentConfig);
       const nextConfig = hasConfig(currentConfig) ? mergeConfig(currentConfig, savedConfig) : mergeConfig(defaultWxbotConfig, savedConfig);
       form.setFieldsValue(configToForm(mergeBackendAiConfig(nextConfig, settings)));
       setConfigSource(configSourceText(savedConfig, currentConfig));
@@ -519,6 +525,9 @@ export default function WechatWxbotControl() {
                 <div className="wxbot-config-meta">
                   <Typography.Text type="secondary">配置更新时间：{formatWechatTime(configUpdatedAt) || '-'}</Typography.Text>
                   <Typography.Text type="secondary">应用时间：{formatWechatTime(selectedBot.configAppliedAt) || '-'}</Typography.Text>
+                  <Typography.Text type={selectedBot.lastConfigError ? 'danger' : 'secondary'}>
+                    配置状态：{selectedBot.lastConfigError ? `失败：${selectedBot.lastConfigError}` : `v${selectedBot.configSchemaVersion || WXBOT_CONFIG_SCHEMA_VERSION}`}
+                  </Typography.Text>
                   <Typography.Text type="secondary">当前展示：{configSource || '-'}</Typography.Text>
                   <Typography.Text type="secondary">主机：{selectedBot.host || '-'}</Typography.Text>
                 </div>
@@ -572,6 +581,15 @@ function renderField(field: FieldDef, groupOptions: Array<{ label: string; value
 
 function hasConfig(config: WxbotRemoteConfig) {
   return Object.keys(config || {}).length > 0;
+}
+
+function unwrapWxbotConfig(payload?: WxbotConfigPayload): WxbotRemoteConfig {
+  if (!payload) return {};
+  const maybeEnvelope = payload as { schemaVersion?: number; config?: WxbotRemoteConfig };
+  if ('schemaVersion' in maybeEnvelope || 'config' in maybeEnvelope) {
+    return maybeEnvelope.config || {};
+  }
+  return payload as WxbotRemoteConfig;
 }
 
 function configSourceText(savedConfig: WxbotRemoteConfig, currentConfig: WxbotRemoteConfig) {
