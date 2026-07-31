@@ -7,6 +7,56 @@ export type WechatSummaryDailySchedule = {
   name?: string;
 };
 
+export type AIProvider = 'gpt' | 'doubao';
+
+export const DOUBAO_API_BASE_URL = 'https://ark.cn-beijing.volces.com/api/v3';
+
+export const aiProviderOptions = [
+  { label: 'GPT', value: 'gpt' },
+  { label: '豆包', value: 'doubao' },
+];
+
+export const aiModelOptionsByProvider: Record<AIProvider, Array<{ label: string; value: string }>> = {
+  gpt: [
+    { label: 'GPT-5.4 Mini', value: 'gpt-5.4-mini' },
+    { label: 'GPT-5.5', value: 'gpt-5.5' },
+    { label: 'GPT-5.2', value: 'gpt-5.2' },
+  ],
+  doubao: [
+    { label: '豆包 Seed 2.0 Mini', value: 'doubao-seed-2-0-mini-260428' },
+    { label: '豆包 Seed 2.1 Turbo', value: 'doubao-seed-2-1-turbo-260628' },
+    { label: '豆包 Seed 2.1 Pro', value: 'doubao-seed-2-1-pro-260628' },
+  ],
+};
+
+export const aiModelDefaults: Record<AIProvider, string> = {
+  gpt: 'gpt-5.4-mini',
+  doubao: 'doubao-seed-2-0-mini-260428',
+};
+
+export function normalizeAIProvider(value: unknown): AIProvider {
+  const provider = String(value || '').trim().toLowerCase();
+  return provider === 'doubao' || provider === '豆包' ? 'doubao' : 'gpt';
+}
+
+export function isDoubaoAPIBaseURL(value: unknown) {
+  return String(value || '')
+    .trim()
+    .replace(/\/+$/, '')
+    .replace(/\/chat\/completions$/, '')
+    .toLowerCase() === DOUBAO_API_BASE_URL;
+}
+
+export function isAIModel(provider: AIProvider, value: unknown) {
+  const model = String(value || '').trim();
+  return aiModelOptionsByProvider[provider].some((item) => item.value === model);
+}
+
+export function normalizeAIModel(provider: AIProvider, value: unknown) {
+  const model = String(value || '').trim();
+  return isAIModel(provider, model) ? model : aiModelDefaults[provider];
+}
+
 export type SettingsValues = {
   publishTakeoverEnabled?: boolean;
   dailyTakeoverExpirationDays?: number;
@@ -17,6 +67,10 @@ export type SettingsValues = {
   kookVerifyToken?: string;
   kookEncryptKey?: string;
   aiExtractEnabled?: boolean;
+  aiExtractProvider?: AIProvider;
+  aiExtractGptBaseUrl?: string;
+  aiExtractGptApiKey?: string;
+  aiExtractDoubaoApiKey?: string;
   aiExtractApiKey?: string;
   aiExtractBaseUrl?: string;
   aiExtractModel?: string;
@@ -30,13 +84,16 @@ export type SettingsValues = {
   wechatSummaryDailySchedules?: WechatSummaryDailySchedule[];
 };
 
-export const sensitiveSettingsKeys: Array<keyof SettingsValues> = [
+export type NormalizedSettingsValues = Omit<SettingsValues, 'aiExtractApiKey' | 'aiExtractBaseUrl'>;
+
+export const sensitiveSettingsKeys: Array<keyof NormalizedSettingsValues> = [
   'uapiKey',
   'steamWebApiKey',
   'kookBotToken',
   'kookVerifyToken',
   'kookEncryptKey',
-  'aiExtractApiKey',
+  'aiExtractGptApiKey',
+  'aiExtractDoubaoApiKey',
 ];
 
 function normalizeCSV(value?: string) {
@@ -86,9 +143,15 @@ function normalizeDailySchedules(values?: WechatSummaryDailySchedule[]): WechatS
   return schedules.length ? schedules : defaultWechatSummaryDailySchedules;
 }
 
-export function normalizeSettings(values: SettingsValues) {
+export function normalizeSettings(values: SettingsValues): NormalizedSettingsValues {
   const expirationDays = Number(values.dailyTakeoverExpirationDays);
   const summaryMaxMessages = Number(values.wechatSummaryMaxMessages);
+  const legacyBaseURL = values.aiExtractBaseUrl?.trim().replace(/\/+$/, '') || '';
+  const legacyAPIKey = values.aiExtractApiKey?.trim() || '';
+  const provider = normalizeAIProvider(values.aiExtractProvider || (isDoubaoAPIBaseURL(legacyBaseURL) ? 'doubao' : 'gpt'));
+  const gptBaseURL = values.aiExtractGptBaseUrl?.trim().replace(/\/+$/, '') || (provider === 'gpt' ? legacyBaseURL : '');
+  const gptAPIKey = values.aiExtractGptApiKey?.trim() || (provider === 'gpt' ? legacyAPIKey : '');
+  const doubaoAPIKey = values.aiExtractDoubaoApiKey?.trim() || (provider === 'doubao' ? legacyAPIKey : '');
   return {
     publishTakeoverEnabled: Boolean(values.publishTakeoverEnabled),
     dailyTakeoverExpirationDays: Number.isInteger(expirationDays)
@@ -103,9 +166,11 @@ export function normalizeSettings(values: SettingsValues) {
     kookVerifyToken: values.kookVerifyToken?.trim() || '',
     kookEncryptKey: values.kookEncryptKey?.trim() || '',
     aiExtractEnabled: Boolean(values.aiExtractEnabled),
-    aiExtractApiKey: values.aiExtractApiKey?.trim() || '',
-    aiExtractBaseUrl: values.aiExtractBaseUrl?.trim().replace(/\/+$/, '') || '',
-    aiExtractModel: values.aiExtractModel?.trim() || '',
+    aiExtractProvider: provider,
+    aiExtractGptBaseUrl: gptBaseURL,
+    aiExtractGptApiKey: gptAPIKey,
+    aiExtractDoubaoApiKey: doubaoAPIKey,
+    aiExtractModel: normalizeAIModel(provider, values.aiExtractModel),
     wechatSummaryMaxMessages: Number.isInteger(summaryMaxMessages)
       && summaryMaxMessages >= 1
       && summaryMaxMessages <= 10000
@@ -113,7 +178,9 @@ export function normalizeSettings(values: SettingsValues) {
       : 1000,
     wechatSummaryPrompt: values.wechatSummaryPrompt?.trim() || '',
     wechatSummaryStyle: normalizeSummaryStyle(values.wechatSummaryStyle),
-    wechatSummaryModel: values.wechatSummaryModel?.trim() || '',
+    wechatSummaryModel: values.wechatSummaryModel?.trim()
+      ? normalizeAIModel(provider, values.wechatSummaryModel)
+      : '',
     wechatSummaryCompareModels: normalizeCSV(values.wechatSummaryCompareModels),
     wechatSummaryAutoSend: Boolean(values.wechatSummaryAutoSend),
     wechatSummaryAutoDaily: Boolean(values.wechatSummaryAutoDaily),

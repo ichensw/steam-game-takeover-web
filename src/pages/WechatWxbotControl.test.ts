@@ -29,6 +29,65 @@ describe('WechatWxbotControl config form mapping', () => {
     expect(formToConfig(form).ai?.takeover_recruitment_enabled).toBe(true);
   });
 
+  it('migrates a legacy Ark connection into the Doubao provider', () => {
+    const form = configToForm({
+      ai: {
+        api_base_url: 'https://ark.cn-beijing.volces.com/api/v3',
+        api_key: 'ark-key',
+      },
+    });
+
+    expect(form.ai.provider).toBe('doubao');
+    expect(form.ai.doubao_api_key).toBe('ark-key');
+    expect(formToConfig(form).ai).toMatchObject({
+      provider: 'doubao',
+      api_base_url: 'https://ark.cn-beijing.volces.com/api/v3',
+      api_key: 'ark-key',
+    });
+  });
+
+  it('keeps the GPT endpoint and key separate from the active legacy fields', () => {
+    const form = configToForm({
+      ai: {
+        api_base_url: 'https://gpt.example.com/v1',
+        api_key: 'gpt-key',
+      },
+    });
+
+    expect(form.ai.provider).toBe('gpt');
+    expect(form.ai.gpt_api_base_url).toBe('https://gpt.example.com/v1');
+    expect(form.ai.gpt_api_key).toBe('gpt-key');
+    expect(formToConfig(form).ai).toMatchObject({
+      provider: 'gpt',
+      api_base_url: 'https://gpt.example.com/v1',
+      api_key: 'gpt-key',
+    });
+  });
+
+  it('keeps provider credentials isolated and replaces models from the other provider', () => {
+    const form = configToForm({
+      ai: {
+        provider: 'doubao',
+        gpt_api_base_url: 'https://gpt.example.com/v1',
+        gpt_api_key: 'gpt-key',
+        doubao_api_key: 'ark-key',
+        reply_model: 'gpt-5.5',
+        summary_model: 'doubao-seed-2-1-turbo-260628',
+      },
+    });
+
+    expect(form.ai.reply_model).toBe('doubao-seed-2-0-mini-260428');
+    expect(form.ai.summary_model).toBe('doubao-seed-2-1-turbo-260628');
+    expect(formToConfig(form).ai).toMatchObject({
+      provider: 'doubao',
+      api_base_url: 'https://ark.cn-beijing.volces.com/api/v3',
+      api_key: 'ark-key',
+      gpt_api_base_url: 'https://gpt.example.com/v1',
+      gpt_api_key: 'gpt-key',
+      doubao_api_key: 'ark-key',
+    });
+  });
+
   it('requires OSS fields only when OSS upload is enabled', () => {
     const config = formToConfig(configToForm({
       bot: { name: 'WeChatHookBot' },

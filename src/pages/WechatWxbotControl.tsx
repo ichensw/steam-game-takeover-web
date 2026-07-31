@@ -15,9 +15,19 @@ import {
   type WxbotRemoteConfig,
 } from '../api/wechatBot';
 import PageHeader from '../components/PageHeader';
+import {
+  DOUBAO_API_BASE_URL,
+  aiModelOptionsByProvider,
+  aiProviderOptions,
+  isAIModel,
+  isDoubaoAPIBaseURL as isDoubaoApiBaseUrl,
+  normalizeAIProvider as normalizeAiProvider,
+  type AIProvider,
+} from '../utils/settings';
 import { formatWechatTime } from '../utils/wechatBot';
 
 type FieldType = 'string' | 'password' | 'number' | 'boolean' | 'list' | 'roomList' | 'textarea' | 'select';
+type AiProvider = AIProvider;
 type ConfigSectionKey = keyof typeof defaultWxbotConfig;
 type FieldDef = {
   key: string;
@@ -26,6 +36,7 @@ type FieldDef = {
   extra?: string;
   options?: Array<{ label: string; value: string }>;
   wide?: boolean;
+  visible?: (provider: AiProvider) => boolean;
 };
 
 type SectionDef = {
@@ -36,18 +47,20 @@ type SectionDef = {
 
 type FormValues = Record<string, Record<string, unknown>>;
 
-const aiModelOptions = [
-  { label: 'GPT-5.4 Mini', value: 'gpt-5.4-mini' },
-  { label: 'GPT-5.4', value: 'gpt-5.4' },
-  { label: 'GPT-5.5', value: 'gpt-5.5' },
-  { label: 'GPT-5.2', value: 'gpt-5.2' },
-  { label: 'GPT-5.6 Luna', value: 'gpt-5.6-luna' },
-  { label: 'GPT-5.6 Terra', value: 'gpt-5.6-terra' },
-  { label: 'GPT-5.6 Sol', value: 'gpt-5.6-sol' },
-  { label: 'GPT-5.6', value: 'gpt-5.6' },
-  { label: 'GPT-5.3 Codex Spark', value: 'gpt-5.3-codex-spark' },
-  { label: 'Codex Mini', value: 'codex-mini-latest' },
-];
+const aiTaskModelDefaults: Record<AiProvider, Record<string, string>> = {
+  gpt: {
+    reply_model: 'gpt-5.4-mini',
+    summary_model: 'gpt-5.5',
+    merge_model: 'gpt-5.5',
+    manual_deep_model: 'gpt-5.2',
+  },
+  doubao: {
+    reply_model: 'doubao-seed-2-0-mini-260428',
+    summary_model: 'doubao-seed-2-1-turbo-260628',
+    merge_model: 'doubao-seed-2-1-pro-260628',
+    manual_deep_model: 'doubao-seed-2-1-pro-260628',
+  },
+};
 
 const modelAliases: Record<string, string> = {
   '5.2': 'gpt-5.2',
@@ -176,12 +189,16 @@ const defaultWxbotConfig = {
     auto_memory_enabled: true,
     reply_enabled: true,
     takeover_recruitment_enabled: false,
+    provider: 'gpt',
+    gpt_api_base_url: '',
+    gpt_api_key: '',
+    doubao_api_key: '',
     api_base_url: '',
     api_key: '',
     reply_model: 'gpt-5.4-mini',
-    summary_model: 'gpt-5.4-mini',
+    summary_model: 'gpt-5.5',
     merge_model: 'gpt-5.5',
-    manual_deep_model: 'gpt-5.6-luna',
+    manual_deep_model: 'gpt-5.2',
     scan_interval_seconds: 300,
     segment_min_messages: 30,
     segment_quiet_seconds: 600,
@@ -331,12 +348,14 @@ const configSections: SectionDef[] = [
       { key: 'auto_memory_enabled', label: '启用自动记忆沉淀', type: 'boolean' },
       { key: 'reply_enabled', label: '启用 @ 回复', type: 'boolean' },
       { key: 'takeover_recruitment_enabled', label: '启用定时自动摇人', type: 'boolean' },
-      { key: 'api_base_url', label: 'AI API Base URL', type: 'string', wide: true },
-      { key: 'api_key', label: 'AI API Key', type: 'password', wide: true },
-      { key: 'reply_model', label: '回复模型', type: 'select', options: aiModelOptions },
-      { key: 'summary_model', label: '总结模型', type: 'select', options: aiModelOptions },
-      { key: 'merge_model', label: '画像与文化模型', type: 'select', options: aiModelOptions },
-      { key: 'manual_deep_model', label: '手动深度模型', type: 'select', options: aiModelOptions },
+      { key: 'provider', label: 'AI 服务商', type: 'select', options: aiProviderOptions },
+      { key: 'gpt_api_base_url', label: 'GPT API Base URL', type: 'string', wide: true, visible: (provider) => provider === 'gpt' },
+      { key: 'gpt_api_key', label: 'GPT API Key', type: 'password', wide: true, visible: (provider) => provider === 'gpt' },
+      { key: 'doubao_api_key', label: '豆包 Ark API Key', type: 'password', wide: true, visible: (provider) => provider === 'doubao' },
+      { key: 'reply_model', label: '回复模型', type: 'select' },
+      { key: 'summary_model', label: '总结模型', type: 'select' },
+      { key: 'merge_model', label: '画像与文化模型', type: 'select' },
+      { key: 'manual_deep_model', label: '手动深度模型', type: 'select' },
       { key: 'scan_interval_seconds', label: '扫描间隔秒', type: 'number' },
       { key: 'segment_min_messages', label: '分段最少消息数', type: 'number' },
       { key: 'segment_quiet_seconds', label: '安静阈值秒', type: 'number' },
@@ -389,6 +408,7 @@ export default function WechatWxbotControl() {
   const [saving, setSaving] = useState(false);
   const [configUpdatedAt, setConfigUpdatedAt] = useState('');
   const [configSource, setConfigSource] = useState('');
+  const [aiProvider, setAiProvider] = useState<AiProvider>('gpt');
   const [form] = Form.useForm<FormValues>();
   const { message } = AntApp.useApp();
 
@@ -423,7 +443,9 @@ export default function WechatWxbotControl() {
       const savedConfig = unwrapWxbotConfig(detail.config);
       const currentConfig = unwrapWxbotConfig(detail.currentConfig);
       const nextConfig = hasConfig(currentConfig) ? mergeConfig(currentConfig, savedConfig) : mergeConfig(defaultWxbotConfig, savedConfig);
-      form.setFieldsValue(configToForm(mergeBackendAiConfig(nextConfig, settings)));
+      const formConfig = configToForm(mergeBackendAiConfig(nextConfig, settings));
+      form.setFieldsValue(formConfig);
+      setAiProvider(normalizeAiProvider(formConfig.ai?.provider));
       setConfigSource(configSourceText(savedConfig, currentConfig));
       setConfigUpdatedAt(detail.configUpdatedAt || '');
     } catch (error) {
@@ -436,6 +458,20 @@ export default function WechatWxbotControl() {
   const selectBot = (botId: string) => {
     setSelectedBotId(botId);
     void loadConfig(botId);
+  };
+
+  const handleConfigValuesChange = (changedValues: Partial<FormValues>) => {
+    const nextProviderValue = changedValues.ai?.provider;
+    if (nextProviderValue === undefined) return;
+    const nextProvider = normalizeAiProvider(nextProviderValue);
+    setAiProvider(nextProvider);
+    form.setFieldsValue({
+      ai: {
+        provider: nextProvider,
+        ...aiTaskModelDefaults[nextProvider],
+        ...(nextProvider === 'doubao' ? { api_base_url: DOUBAO_API_BASE_URL } : {}),
+      },
+    });
   };
 
   const saveConfig = async () => {
@@ -531,7 +567,7 @@ export default function WechatWxbotControl() {
                   <Typography.Text type="secondary">当前展示：{configSource || '-'}</Typography.Text>
                   <Typography.Text type="secondary">主机：{selectedBot.host || '-'}</Typography.Text>
                 </div>
-                <Form form={form} layout="vertical" className="wxbot-config-form">
+                <Form form={form} layout="vertical" className="wxbot-config-form" onValuesChange={handleConfigValuesChange}>
                   <Tabs
                     className="wxbot-config-tabs"
                     tabPosition="left"
@@ -540,7 +576,7 @@ export default function WechatWxbotControl() {
                       label: section.label,
                       children: (
                         <div className="wxbot-field-grid">
-                          {section.fields.map((field) => (
+                          {section.fields.filter((field) => !field.visible || field.visible(aiProvider)).map((field) => (
                             <Form.Item
                               key={`${section.key}.${field.key}`}
                               className={field.wide ? 'wxbot-wide-field' : undefined}
@@ -549,7 +585,7 @@ export default function WechatWxbotControl() {
                               valuePropName={field.type === 'boolean' ? 'checked' : 'value'}
                               extra={field.extra}
                             >
-                              {renderField(field, groupOptions)}
+                              {renderField(field, groupOptions, aiProvider)}
                             </Form.Item>
                           ))}
                         </div>
@@ -568,14 +604,14 @@ export default function WechatWxbotControl() {
   );
 }
 
-function renderField(field: FieldDef, groupOptions: Array<{ label: string; value: string }> = []) {
+function renderField(field: FieldDef, groupOptions: Array<{ label: string; value: string }> = [], aiProvider: AiProvider = 'gpt') {
   if (field.type === 'boolean') return <Switch checkedChildren="开" unCheckedChildren="关" />;
   if (field.type === 'number') return <InputNumber min={0} precision={0} style={{ width: '100%' }} />;
   if (field.type === 'password') return <Input.Password autoComplete="off" className="mono" />;
   if (field.type === 'textarea') return <Input.TextArea rows={4} />;
   if (field.type === 'list') return <Input.TextArea rows={5} className="mono" />;
   if (field.type === 'roomList') return <Select mode="multiple" allowClear showSearch optionFilterProp="label" options={groupOptions} placeholder="选择群聊" />;
-  if (field.type === 'select') return <Select options={field.options || []} />;
+  if (field.type === 'select') return <Select options={field.key.endsWith('_model') ? aiModelOptionsByProvider[aiProvider] : field.options || []} />;
   return <Input className="mono" />;
 }
 
@@ -614,10 +650,30 @@ function mergeConfig(base: WxbotRemoteConfig, override: WxbotRemoteConfig): Wxbo
 
 function mergeBackendAiConfig(config: WxbotRemoteConfig, settings: Record<string, unknown>): WxbotRemoteConfig {
   const ai = { ...(config.ai || {}) };
-  const apiKey = settingText(settings, 'aiExtractApiKey');
-  const baseUrl = settingText(settings, 'aiExtractBaseUrl').replace(/\/+$/, '');
-  if (apiKey && !ai.api_key) ai.api_key = apiKey;
-  if (baseUrl && !ai.api_base_url) ai.api_base_url = baseUrl;
+  const provider = normalizeAiProvider(ai.provider || inferAiProvider(ai.api_base_url));
+  const backendProvider = normalizeAiProvider(
+    settingText(settings, 'aiExtractProvider') || inferAiProvider(settingText(settings, 'aiExtractBaseUrl')),
+  );
+  ai.provider = provider;
+  if (provider === 'doubao') {
+    const backendKey = backendProvider === 'doubao'
+      ? settingText(settings, 'aiExtractDoubaoApiKey') || settingText(settings, 'aiExtractApiKey')
+      : '';
+    ai.doubao_api_key = text(ai, 'doubao_api_key') || (isDoubaoApiBaseUrl(ai.api_base_url) ? text(ai, 'api_key') : '') || backendKey;
+    ai.api_base_url = DOUBAO_API_BASE_URL;
+    ai.api_key = ai.doubao_api_key;
+  } else {
+    const backendBaseURL = backendProvider === 'gpt'
+      ? settingText(settings, 'aiExtractGptBaseUrl') || settingText(settings, 'aiExtractBaseUrl').replace(/\/+$/, '')
+      : '';
+    const backendKey = backendProvider === 'gpt'
+      ? settingText(settings, 'aiExtractGptApiKey') || settingText(settings, 'aiExtractApiKey')
+      : '';
+    ai.gpt_api_base_url = text(ai, 'gpt_api_base_url') || text(ai, 'api_base_url') || backendBaseURL;
+    ai.gpt_api_key = text(ai, 'gpt_api_key') || text(ai, 'api_key') || backendKey;
+    ai.api_base_url = ai.gpt_api_base_url;
+    ai.api_key = ai.gpt_api_key;
+  }
   return { ...config, ai };
 }
 
@@ -634,13 +690,22 @@ export function configToForm(config: WxbotRemoteConfig): FormValues {
         result[section.key][field.key] = Array.isArray(value) ? value : [];
       } else if (field.type === 'boolean') {
         result[section.key][field.key] = asBool(value);
-      } else if (section.key === 'ai' && field.key.endsWith('_model')) {
-        result[section.key][field.key] = normalizeAiModel(value);
       } else {
         result[section.key][field.key] = value;
       }
     });
   });
+  const aiSource = (config.ai || {}) as Record<string, unknown>;
+  const ai = result.ai || {};
+  const provider = normalizeAiProvider(aiSource.provider || inferAiProvider(aiSource.api_base_url));
+  ai.provider = provider;
+  ai.gpt_api_base_url = text(aiSource, 'gpt_api_base_url') || (provider === 'gpt' ? text(aiSource, 'api_base_url') : '');
+  ai.gpt_api_key = text(aiSource, 'gpt_api_key') || (provider === 'gpt' ? text(aiSource, 'api_key') : '');
+  ai.doubao_api_key = text(aiSource, 'doubao_api_key') || (provider === 'doubao' ? text(aiSource, 'api_key') : '');
+  Object.entries(aiTaskModelDefaults[provider]).forEach(([field, defaultValue]) => {
+    ai[field] = normalizeAiTaskModel(provider, ai[field], defaultValue);
+  });
+  result.ai = ai;
   return result;
 }
 
@@ -657,8 +722,6 @@ export function formToConfig(values: FormValues): WxbotRemoteConfig {
         result[section.key][field.key] = Array.isArray(value) ? value : [];
       } else if (field.type === 'boolean') {
         result[section.key][field.key] = asBool(value);
-      } else if (section.key === 'ai' && field.key.endsWith('_model')) {
-        result[section.key][field.key] = normalizeAiModel(value);
       } else if (field.type === 'number') {
         result[section.key][field.key] = Number(value || 0);
       } else {
@@ -666,6 +729,20 @@ export function formToConfig(values: FormValues): WxbotRemoteConfig {
       }
     });
   });
+  const ai = result.ai || {};
+  const provider = normalizeAiProvider(ai.provider);
+  ai.provider = provider;
+  Object.entries(aiTaskModelDefaults[provider]).forEach(([field, defaultValue]) => {
+    ai[field] = normalizeAiTaskModel(provider, ai[field], defaultValue);
+  });
+  if (provider === 'doubao') {
+    ai.api_base_url = DOUBAO_API_BASE_URL;
+    ai.api_key = text(ai, 'doubao_api_key');
+  } else {
+    ai.api_base_url = text(ai, 'gpt_api_base_url');
+    ai.api_key = text(ai, 'gpt_api_key');
+  }
+  result.ai = ai;
   return result as WxbotRemoteConfig;
 }
 
@@ -720,7 +797,6 @@ export function validateWxbotConfig(config: WxbotRemoteConfig) {
   }
   if (config.ai?.enabled) {
     checks.push(
-      () => requireText(config.ai, 'api_base_url', 'AI API Base URL'),
       () => requireText(config.ai, 'reply_model', '回复模型'),
       () => requireText(config.ai, 'summary_model', '总结模型'),
       () => requireText(config.ai, 'merge_model', '画像与文化模型'),
@@ -737,6 +813,9 @@ export function validateWxbotConfig(config: WxbotRemoteConfig) {
       () => requireInt(config.ai, 'summary_timeout_seconds', 'AI 总结超时'),
       () => requireInt(config.ai, 'merge_timeout_seconds', 'AI 画像与人格超时'),
     );
+    if (normalizeAiProvider(config.ai.provider) === 'gpt') {
+      checks.push(() => requireText(config.ai, 'gpt_api_base_url', 'GPT API Base URL'));
+    }
   }
   if (config.wxbot_control?.enabled) {
     checks.push(
@@ -783,9 +862,14 @@ function settingText(settings: Record<string, unknown>, key: string) {
   return String(settings[key] ?? '').trim();
 }
 
-function normalizeAiModel(value: unknown) {
+function normalizeAiTaskModel(provider: AiProvider, value: unknown, fallback: string) {
   const textValue = String(value || '').trim();
-  return modelAliases[textValue.toLowerCase()] || textValue;
+  const model = modelAliases[textValue.toLowerCase()] || textValue;
+  return isAIModel(provider, model) ? model : fallback;
+}
+
+function inferAiProvider(value: unknown): AiProvider {
+  return isDoubaoApiBaseUrl(value) ? 'doubao' : 'gpt';
 }
 
 function requireText(section: Record<string, unknown> | undefined, key: string, label: string) {

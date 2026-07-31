@@ -68,4 +68,27 @@ describe('admin settings normalization', () => {
     expect(normalizeSettings({ wechatSummaryStyle: 'random' }).wechatSummaryStyle).toBe('');
     expect(normalizeSettings({ wechatSummaryStyle: 'fun' }).wechatSummaryStyle).toBe('fun');
   });
+
+  it('migrates legacy AI credentials into the selected provider', () => {
+    const gpt = normalizeSettings({
+      aiExtractBaseUrl: 'https://gpt.example.com/v1/',
+      aiExtractApiKey: 'gpt-key',
+    });
+    expect(gpt.aiExtractProvider).toBe('gpt');
+    expect(gpt.aiExtractGptBaseUrl).toBe('https://gpt.example.com/v1');
+    expect(gpt.aiExtractGptApiKey).toBe('gpt-key');
+
+    const doubao = normalizeSettings({
+      aiExtractBaseUrl: 'https://ark.cn-beijing.volces.com/api/v3',
+      aiExtractApiKey: 'ark-key',
+    });
+    expect(doubao.aiExtractProvider).toBe('doubao');
+    expect(doubao.aiExtractDoubaoApiKey).toBe('ark-key');
+    expect(doubao.aiExtractGptApiKey).toBe('');
+  });
+
+  it('uses only models available from the selected provider', () => {
+    expect(normalizeSettings({ aiExtractProvider: 'gpt', aiExtractModel: 'gpt-5.5' }).aiExtractModel).toBe('gpt-5.5');
+    expect(normalizeSettings({ aiExtractProvider: 'doubao', aiExtractModel: 'gpt-5.5' }).aiExtractModel).toBe('doubao-seed-2-0-mini-260428');
+  });
 });

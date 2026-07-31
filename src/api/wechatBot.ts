@@ -387,6 +387,10 @@ export type WxbotRemoteConfig = {
     auto_memory_enabled?: boolean;
     reply_enabled?: boolean;
     takeover_recruitment_enabled?: boolean;
+    provider?: 'gpt' | 'doubao';
+    gpt_api_base_url?: string;
+    gpt_api_key?: string;
+    doubao_api_key?: string;
     api_base_url?: string;
     api_key?: string;
     reply_model?: string;

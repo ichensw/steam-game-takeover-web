@@ -15,7 +15,16 @@ import {
 import { useEffect, useState } from 'react';
 import { getSettings, updateSettings } from '../api/admin';
 import PageHeader from '../components/PageHeader';
-import { normalizeSettings, sensitiveSettingsKeys, type SettingsValues } from '../utils/settings';
+import {
+  aiModelOptionsByProvider,
+  aiProviderOptions,
+  isAIModel,
+  normalizeAIModel,
+  normalizeAIProvider,
+  normalizeSettings,
+  sensitiveSettingsKeys,
+  type SettingsValues,
+} from '../utils/settings';
 import {
   isSettingsSectionKey,
   settingsSections,
@@ -47,6 +56,7 @@ export default function Settings() {
   const [initialValues, setInitialValues] = useState<SettingsValues>({});
   const { message, modal } = AntApp.useApp();
   const currentValues = normalizeSettings(Form.useWatch([], form) || initialValues);
+  const aiProvider = currentValues.aiExtractProvider || 'gpt';
   const webhookUrl = kookWebhookUrl();
   const activeSectionMeta = settingsSections.find((section) => section.key === activeSection)!;
 
@@ -79,6 +89,17 @@ export default function Settings() {
     } finally {
       setSubmitting(false);
     }
+  };
+
+  const handleValuesChange = (changedValues: Partial<SettingsValues>) => {
+    if (changedValues.aiExtractProvider === undefined) return;
+    const provider = normalizeAIProvider(changedValues.aiExtractProvider);
+    const values = form.getFieldsValue(true) as SettingsValues;
+    form.setFieldsValue({
+      aiExtractProvider: provider,
+      aiExtractModel: normalizeAIModel(provider, values.aiExtractModel),
+      wechatSummaryModel: isAIModel(provider, values.wechatSummaryModel) ? values.wechatSummaryModel : '',
+    });
   };
 
   const onFinish = async (values: SettingsValues) => {
@@ -175,7 +196,7 @@ export default function Settings() {
               <Typography.Text type="secondary">{activeSectionMeta.description}</Typography.Text>
             </div>
 
-            <Form form={form} layout="vertical" onFinish={onFinish} disabled={submitting}>
+            <Form form={form} layout="vertical" onFinish={onFinish} onValuesChange={handleValuesChange} disabled={submitting}>
               <section className="settings-panel" hidden={activeSection !== 'takeover'}>
                 <Form.Item
                   label="全局允许发布接龙"
@@ -298,16 +319,27 @@ export default function Settings() {
                   <Switch checkedChildren="开启" unCheckedChildren="关闭" />
                 </Form.Item>
                 <div className="settings-field-grid">
-                  <Form.Item label="AI OpenAI Compatible Base URL" name="aiExtractBaseUrl">
-                    <Input placeholder="https://xxx/compatible-mode/v1" className="mono" />
+                  <Form.Item label="AI 服务商" name="aiExtractProvider" rules={[{ required: true }]}>
+                    <Select options={aiProviderOptions} />
                   </Form.Item>
-                  <Form.Item label="AI 模型 / Agent ID" name="aiExtractModel">
-                    <Input placeholder="模型名或 Agent ID" className="mono" />
+                  <Form.Item label="AI 提取模型" name="aiExtractModel" rules={[{ required: true }]}>
+                    <Select options={aiModelOptionsByProvider[aiProvider]} />
                   </Form.Item>
                 </div>
-                <Form.Item label="AI API Key" name="aiExtractApiKey">
-                  <Input.Password placeholder="AI API Key" autoComplete="off" />
-                </Form.Item>
+                {aiProvider === 'gpt' ? (
+                  <div className="settings-field-grid">
+                    <Form.Item label="GPT API Base URL" name="aiExtractGptBaseUrl">
+                      <Input placeholder="https://xxx/compatible-mode/v1" className="mono" />
+                    </Form.Item>
+                    <Form.Item label="GPT API Key" name="aiExtractGptApiKey">
+                      <Input.Password placeholder="GPT API Key" autoComplete="off" />
+                    </Form.Item>
+                  </div>
+                ) : (
+                  <Form.Item label="豆包 Ark API Key" name="aiExtractDoubaoApiKey">
+                    <Input.Password placeholder="豆包 Ark API Key" autoComplete="off" />
+                  </Form.Item>
+                )}
                 <Form.Item
                   label="微信 AI 总结消息上限"
                   name="wechatSummaryMaxMessages"
@@ -336,7 +368,7 @@ export default function Settings() {
                     />
                   </Form.Item>
                   <Form.Item label="微信总结主模型" name="wechatSummaryModel" extra="为空时使用微信 Bot 后端默认模型。">
-                    <Input placeholder="例如 gpt-5.5" className="mono" />
+                    <Select allowClear placeholder="跟随微信 Bot 默认模型" options={aiModelOptionsByProvider[aiProvider]} />
                   </Form.Item>
                 </div>
                 <Form.Item
@@ -401,14 +433,17 @@ export default function Settings() {
                   <Typography.Text type={currentValues.aiExtractEnabled ? 'success' : 'secondary'}>
                     AI 提取 {currentValues.aiExtractEnabled ? '已开启' : '未开启'}
                   </Typography.Text>
-                  <Typography.Text type={currentValues.aiExtractBaseUrl ? 'success' : 'danger'}>
-                    Base URL {currentValues.aiExtractBaseUrl ? '已填写' : '未填写'}
+                  <Typography.Text type="secondary">
+                    服务商 {aiProvider === 'doubao' ? '豆包' : 'GPT'}
+                  </Typography.Text>
+                  <Typography.Text type={aiProvider === 'doubao' || currentValues.aiExtractGptBaseUrl ? 'success' : 'danger'}>
+                    Base URL {aiProvider === 'doubao' ? '方舟固定' : currentValues.aiExtractGptBaseUrl ? '已填写' : '未填写'}
                   </Typography.Text>
                   <Typography.Text type={currentValues.aiExtractModel ? 'success' : 'danger'}>
                     模型 {currentValues.aiExtractModel ? '已填写' : '未填写'}
                   </Typography.Text>
-                  <Typography.Text type={currentValues.aiExtractApiKey ? 'success' : 'danger'}>
-                    API Key {currentValues.aiExtractApiKey ? '已填写' : '未填写'}
+                  <Typography.Text type={aiProvider === 'doubao' ? currentValues.aiExtractDoubaoApiKey ? 'success' : 'danger' : currentValues.aiExtractGptApiKey ? 'success' : 'danger'}>
+                    API Key {aiProvider === 'doubao' ? currentValues.aiExtractDoubaoApiKey ? '已填写' : '未填写' : currentValues.aiExtractGptApiKey ? '已填写' : '未填写'}
                   </Typography.Text>
                   <Typography.Text type="secondary">
                     微信总结上限 {currentValues.wechatSummaryMaxMessages || 1000} 条
