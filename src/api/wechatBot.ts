@@ -128,7 +128,7 @@ export type WechatSummaryTopic = {
   }>;
 };
 
-export type WechatAiJobType = 'reply' | 'segment_summary' | 'profile_merge' | 'culture_update' | 'persona_candidate';
+export type WechatAiJobType = 'reply' | 'segment_summary' | 'profile_merge' | 'culture_update' | 'persona_candidate' | 'proactive_intervention';
 
 export type WechatAiJob = {
   id: number;

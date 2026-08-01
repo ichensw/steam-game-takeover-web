@@ -140,6 +140,7 @@ const jobTypeLabel: Record<WechatAiJob['jobType'], string> = {
   profile_merge: '画像合并',
   culture_update: '群文化更新',
   persona_candidate: '人格候选',
+  proactive_intervention: '主动介入',
 };
 
 const jobStatusColor: Record<WechatAiJob['status'], string> = {
@@ -309,6 +310,7 @@ export default function WechatAiMemory() {
   const [brainInterventions, setBrainInterventions] = useState<WechatAiIntervention[]>([]);
   const [brainFeedbacks, setBrainFeedbacks] = useState<WechatAiMemoryFeedback[]>([]);
   const [selectedRoomId, setSelectedRoomId] = useState('');
+  const [activeTab, setActiveTab] = useState('overview');
   const [jsonModal, setJsonModal] = useState<{ title: string; value: unknown }>();
   const [evidenceModal, setEvidenceModal] = useState<WechatAiPersonaEvidence>();
   const [manualForm] = Form.useForm<ManualFormValues>();
@@ -901,6 +903,10 @@ export default function WechatAiMemory() {
   const queuedJobs = jobs.filter((job) => job.status === 'queued').length;
   const runningJobs = jobs.filter((job) => job.status === 'running').length;
   const failedJobs = jobs.filter((job) => job.status === 'failed').length;
+  const unresolvedInterventions = brainInterventions.filter((item) => item.state !== 'addressed');
+  const proactiveFailures = errors.filter((item) => (
+    item.roomId === selectedRoomId && item.jobType === 'proactive_intervention' && !item.resolved
+  ));
   const observedSegments = Number(observation?.memoryStats?.segmentCount || 0);
   const observedAvgQuality = Number(observation?.memoryStats?.avgQualityScore || 0);
   const observedLowQuality = Number(observation?.memoryStats?.lowQualityCount || 0);
@@ -1006,6 +1012,8 @@ export default function WechatAiMemory() {
     <>
       <PageHeader title="AI 记忆" description="微信 Bot" extra={<Button icon={<ReloadOutlined />} loading={loading} onClick={() => void refresh()}>刷新</Button>} />
       <Tabs
+        activeKey={activeTab}
+        onChange={setActiveTab}
         items={[
           {
             key: 'overview',
@@ -1095,7 +1103,7 @@ export default function WechatAiMemory() {
                     </Col>
                     <Col xs={24} md={12}>
                       <Form.Item name="jobType" label="任务类型" initialValue="segment_summary" rules={[{ required: true }]}>
-                        <Select options={Object.entries(jobTypeLabel).filter(([value]) => value !== 'reply').map(([value, label]) => ({ value, label }))} />
+                        <Select options={Object.entries(jobTypeLabel).filter(([value]) => value !== 'reply' && value !== 'proactive_intervention').map(([value, label]) => ({ value, label }))} />
                       </Form.Item>
                     </Col>
                     {manualJobType === 'segment_summary' ? (
@@ -1293,10 +1301,21 @@ export default function WechatAiMemory() {
                 </Card>
                 {selectedRoomId ? (
                   <>
+                    {unresolvedInterventions.length ? (
+                      <Alert
+                        type={proactiveFailures.length ? 'warning' : 'info'}
+                        showIcon
+                        message={`有 ${unresolvedInterventions.length} 条主动介入尚未完成`}
+                        description={proactiveFailures.length
+                          ? `其中 ${proactiveFailures.length} 个后台任务失败。修复失败原因后，从失败记录重试即可。`
+                          : '这些记录由机器人自动评估，无需手工回复。'}
+                        action={proactiveFailures.length ? <Button size="small" onClick={() => setActiveTab('errors')}>查看失败记录</Button> : undefined}
+                      />
+                    ) : null}
                     <Row gutter={[16, 16]}>
                       <Col xs={12} md={6}><Card size="small"><Statistic title="群事实" value={brainFacts.length} /></Card></Col>
                       <Col xs={12} md={6}><Card size="small"><Statistic title="群事件" value={brainEvents.length} /></Card></Col>
-                      <Col xs={12} md={6}><Card size="small"><Statistic title="待处理介入" value={brainInterventions.filter((item) => item.state === 'new').length} /></Card></Col>
+                      <Col xs={12} md={6}><Card size="small"><Statistic title="未完成介入" value={unresolvedInterventions.length} /></Card></Col>
                       <Col xs={12} md={6}><Card size="small"><Statistic title="待核实纠正" value={brainFeedbacks.filter((item) => item.status === 'pending').length} /></Card></Col>
                     </Row>
                     <Tabs
