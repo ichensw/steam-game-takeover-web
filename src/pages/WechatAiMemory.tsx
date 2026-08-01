@@ -165,6 +165,19 @@ const jobStatusLabel: Record<WechatAiHistoryLearningTask['status'], string> = {
   canceled: '已取消',
 };
 
+const proactiveDelivery = (result?: Record<string, unknown>) => {
+  if (!result) return { label: '待评估', color: 'default' };
+  if (result.sent === true || result.deliveryStatus === 'submitted') return { label: '微信接口已受理', color: 'success' };
+  if (result.deliveryStatus === 'send_failed') return { label: '发送失败', color: 'error' };
+  if (result.deliveryStatus === 'risk_blocked') return { label: '风险拦截，未发送', color: 'gold' };
+  if (result.deliveryStatus === 'low_benefit') return { label: '收益不足，未发送', color: 'default' };
+  if (result.deliveryStatus === 'empty_reply') return { label: '无回复内容', color: 'default' };
+  if (result.deliveryStatus === 'member_resolved' || result.skipped) return { label: '成员已处理', color: 'default' };
+  if (result.shouldIntervene === false) return { label: '模型静默', color: 'default' };
+  if (result.shouldIntervene === true && Number(result.riskScore) > 0.35) return { label: '风险拦截，未发送', color: 'gold' };
+  return { label: '未发送', color: 'default' };
+};
+
 const learningStageLabel: Record<WechatAiHistoryLearningTask['stage'], string> = {
   segment: '分段总结',
   profile_merge: '画像合并',
@@ -781,9 +794,23 @@ export default function WechatAiMemory() {
     { title: '任务', dataIndex: 'id', width: 82, render: (value) => `#${value}` },
     { title: '群聊', dataIndex: 'roomId', ellipsis: true, render: (value: string) => roomLabel(value) },
     { title: '类型', dataIndex: 'jobType', width: 112, render: (value: WechatAiJob['jobType']) => jobTypeLabel[value] },
-    { title: '状态', dataIndex: 'status', width: 100, render: (value: WechatAiJob['status']) => <Tag color={jobStatusColor[value]}>{jobStatusLabel[value]}</Tag> },
+    {
+      title: '状态',
+      dataIndex: 'status',
+      width: 100,
+      render: (value: WechatAiJob['status'], row) => <Tag color={jobStatusColor[value]}>{row.jobType === 'proactive_intervention' && value === 'succeeded' ? '评估完成' : jobStatusLabel[value]}</Tag>,
+    },
     { title: '模型', dataIndex: 'model', width: 112, ellipsis: true },
     { title: '输入', dataIndex: 'inputMsgCount', width: 78, render: (value) => value || '-' },
+    {
+      title: '发送',
+      width: 132,
+      render: (_, row) => {
+        if (row.jobType !== 'proactive_intervention') return '-';
+        const delivery = proactiveDelivery(row.resultJson);
+        return <Tag color={delivery.color}>{delivery.label}</Tag>;
+      },
+    },
     { title: '完成时间', dataIndex: 'finishedAt', width: 170, render: (value) => formatWechatTime(value) || '-' },
     {
       title: '结果',
@@ -998,6 +1025,16 @@ export default function WechatAiMemory() {
     { title: '事件', dataIndex: 'eventType', width: 140 },
     { title: '状态', dataIndex: 'state', width: 100, render: (value) => <Tag color={brainStateColor[value]}>{value}</Tag> },
     { title: '处理者', dataIndex: 'addressedBy', width: 110, render: (value) => value || '-' },
+    {
+      title: '执行结果',
+      width: 132,
+      render: (_, row) => {
+        if (!row.decisionJson && row.addressedBy === 'member') return <Tag>成员已处理</Tag>;
+        if (!row.decisionJson) return '-';
+        const delivery = proactiveDelivery(row.decisionJson);
+        return <Tag color={delivery.color}>{delivery.label}</Tag>;
+      },
+    },
     { title: '回复', dataIndex: 'replyText', ellipsis: true, render: (value) => value || '-' },
     { title: '更新时间', dataIndex: 'updatedAt', width: 170, render: (value) => formatWechatTime(value) || '-' },
   ];

@@ -322,6 +322,7 @@ export type WechatAiIntervention = {
   roomId: string;
   eventType: string;
   state: 'new' | 'addressed' | 'reopened';
+  decisionJson?: Record<string, unknown>;
   replyText?: string;
   addressedBy?: string;
   updatedAt?: ApiUnixTime;
