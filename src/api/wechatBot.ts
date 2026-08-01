@@ -303,6 +303,48 @@ export type WechatAiObservation = {
   recentVersions: WechatAiPersonaVersion[];
 };
 
+export type WechatAiKnowledgeRecord = {
+  id: number;
+  roomId: string;
+  state: string;
+  kind?: 'fact' | 'hypothesis' | 'judgement';
+  confidence?: number;
+  content?: string;
+  summary?: string;
+  evidenceMsgIds?: string[];
+  leftMemberWxid?: string;
+  rightMemberWxid?: string;
+  updatedAt?: ApiUnixTime;
+};
+
+export type WechatAiIntervention = {
+  id: number;
+  roomId: string;
+  eventType: string;
+  state: 'new' | 'addressed' | 'reopened';
+  replyText?: string;
+  addressedBy?: string;
+  updatedAt?: ApiUnixTime;
+};
+
+export type WechatAiMemoryFeedback = {
+  id: number;
+  roomId: string;
+  targetType: 'fact' | 'relationship' | 'event';
+  targetId: number;
+  stance: 'correct' | 'deny' | 'question';
+  feedbackText: string;
+  status: 'pending' | 'applied' | 'rejected';
+  createdAt?: ApiUnixTime;
+};
+
+export type WechatAiProactiveConfig = {
+  proactiveEnabled: boolean;
+  proactiveObserverIntervalSeconds: number;
+  proactiveSettleSeconds: number;
+  proactiveTimeoutSeconds: number;
+};
+
 export type WechatAiStatus = {
   enabled: boolean;
   configured: boolean;
@@ -486,6 +528,32 @@ export const getWechatAiStatus = () => unwrap<WechatAiStatus>(http.get(`${aiRoot
 
 export const getWechatAiObservation = (params?: { roomId?: string; days?: number }) =>
   unwrap<WechatAiObservation>(http.get(`${aiRoot}/observation`, { params }));
+
+export const listWechatAiFacts = (params: { roomId: string; state?: string }) =>
+  unwrap<{ items: WechatAiKnowledgeRecord[] }>(http.get(`${aiRoot}/memory/facts`, { params }));
+
+export const listWechatAiRelationships = (params: { roomId: string; state?: string }) =>
+  unwrap<{ items: WechatAiKnowledgeRecord[] }>(http.get(`${aiRoot}/memory/relationships`, { params }));
+
+export const listWechatAiEvents = (params: { roomId: string; state?: string }) =>
+  unwrap<{ items: WechatAiKnowledgeRecord[] }>(http.get(`${aiRoot}/memory/events`, { params }));
+
+export const listWechatAiInterventions = (params?: { roomId?: string; state?: string }) =>
+  unwrap<{ items: WechatAiIntervention[] }>(http.get(`${aiRoot}/interventions`, { params }));
+
+export const listWechatAiMemoryFeedbacks = (params?: { roomId?: string; status?: string }) =>
+  unwrap<{ items: WechatAiMemoryFeedback[] }>(http.get(`${aiRoot}/memory/feedbacks`, { params }));
+
+export const getWechatAiProactiveConfig = () =>
+  unwrap<WechatAiProactiveConfig>(http.get(`${aiRoot}/config`));
+
+export const updateWechatAiProactiveConfig = (config: WechatAiProactiveConfig) =>
+  unwrap<WechatAiProactiveConfig>(http.put(`${aiRoot}/config`, {
+    proactive_enabled: config.proactiveEnabled,
+    proactive_observer_interval_seconds: config.proactiveObserverIntervalSeconds,
+    proactive_settle_seconds: config.proactiveSettleSeconds,
+    proactive_timeout_seconds: config.proactiveTimeoutSeconds,
+  }));
 
 export const getWechatAiRoleCard = () => unwrap<WechatAiRoleCard>(http.get(`${aiRoot}/role-card`));
 

@@ -29,6 +29,7 @@ import {
   Select,
   Space,
   Statistic,
+  Switch,
   Table,
   Tabs,
   Tag,
@@ -45,6 +46,7 @@ import {
   deleteWechatAiReplyConversationSample,
   deleteWechatAiReplyStyleSample,
   getWechatAiObservation,
+  getWechatAiProactiveConfig,
   listWechatAiPromptInstructions,
   getWechatAiRoleCard,
   getWechatAiRoomPersona,
@@ -53,7 +55,11 @@ import {
   listWechatGroups,
   listWechatAiHistoryLearningTasks,
   listWechatAiErrors,
+  listWechatAiEvents,
+  listWechatAiFacts,
+  listWechatAiInterventions,
   listWechatAiJobs,
+  listWechatAiMemoryFeedbacks,
   listWechatAiMemoryRuns,
   listWechatAiPersonaCandidates,
   listWechatAiPersonaVersions,
@@ -61,6 +67,7 @@ import {
   listWechatAiReplyConversationSamples,
   listWechatAiReplyLogs,
   listWechatAiReplyStyleSamples,
+  listWechatAiRelationships,
   promoteWechatAiPersonaCandidate,
   rejectWechatAiPersonaCandidate,
   rollbackWechatAiPersonaVersion,
@@ -68,11 +75,15 @@ import {
   retryWechatAiError,
   reviewWechatAiReplyLog,
   updateWechatAiPromptInstruction,
+  updateWechatAiProactiveConfig,
   updateWechatAiRoleCard,
   updateWechatAiHistoryLearningTask,
   type WechatAiError,
   type WechatAiHistoryLearningTask,
+  type WechatAiIntervention,
   type WechatAiJob,
+  type WechatAiKnowledgeRecord,
+  type WechatAiMemoryFeedback,
   type WechatAiMemoryRun,
   type WechatAiObservation,
   type WechatAiPersona,
@@ -81,6 +92,7 @@ import {
   type WechatAiPersonaVersion,
   type WechatAiPromptInstructionKey,
   type WechatAiProfile,
+  type WechatAiProactiveConfig,
   type WechatAiReplyConversationSample,
   type WechatAiReplyLog,
   type WechatAiReplyStyleSample,
@@ -239,6 +251,23 @@ const scenarioLabel: Record<string, string> = {
   meme: '玩梗',
 };
 
+const brainStateColor: Record<string, string> = {
+  active: 'success',
+  disputed: 'warning',
+  revised: 'processing',
+  retracted: 'error',
+  resolved: 'default',
+  expired: 'default',
+  new: 'gold',
+  addressed: 'success',
+  reopened: 'processing',
+  pending: 'warning',
+  applied: 'success',
+  rejected: 'default',
+};
+
+const knowledgeText = (record: WechatAiKnowledgeRecord) => record.content || record.summary || '-';
+
 const promptInstructionItems: Array<{ key: WechatAiPromptInstructionKey; label: string }> = [
   { key: 'segment_summary', label: '分段提取' },
   { key: 'profile_merge', label: '画像合并' },
@@ -271,6 +300,14 @@ export default function WechatAiMemory() {
   const [replySamples, setReplySamples] = useState<WechatAiReplyStyleSample[]>([]);
   const [conversationSamples, setConversationSamples] = useState<WechatAiReplyConversationSample[]>([]);
   const [replyLogs, setReplyLogs] = useState<WechatAiReplyLog[]>([]);
+  const [brainLoading, setBrainLoading] = useState(false);
+  const [savingProactiveConfig, setSavingProactiveConfig] = useState(false);
+  const [proactiveConfig, setProactiveConfig] = useState<WechatAiProactiveConfig>();
+  const [brainFacts, setBrainFacts] = useState<WechatAiKnowledgeRecord[]>([]);
+  const [brainRelationships, setBrainRelationships] = useState<WechatAiKnowledgeRecord[]>([]);
+  const [brainEvents, setBrainEvents] = useState<WechatAiKnowledgeRecord[]>([]);
+  const [brainInterventions, setBrainInterventions] = useState<WechatAiIntervention[]>([]);
+  const [brainFeedbacks, setBrainFeedbacks] = useState<WechatAiMemoryFeedback[]>([]);
   const [selectedRoomId, setSelectedRoomId] = useState('');
   const [jsonModal, setJsonModal] = useState<{ title: string; value: unknown }>();
   const [evidenceModal, setEvidenceModal] = useState<WechatAiPersonaEvidence>();
@@ -347,6 +384,38 @@ export default function WechatAiMemory() {
     }
   };
 
+  const loadGroupBrain = async (roomId: string) => {
+    if (!roomId) {
+      setBrainFacts([]);
+      setBrainRelationships([]);
+      setBrainEvents([]);
+      setBrainInterventions([]);
+      setBrainFeedbacks([]);
+      return;
+    }
+    setBrainLoading(true);
+    try {
+      const [nextConfig, nextFacts, nextRelationships, nextEvents, nextInterventions, nextFeedbacks] = await Promise.all([
+        getWechatAiProactiveConfig(),
+        listWechatAiFacts({ roomId }),
+        listWechatAiRelationships({ roomId }),
+        listWechatAiEvents({ roomId }),
+        listWechatAiInterventions({ roomId }),
+        listWechatAiMemoryFeedbacks({ roomId }),
+      ]);
+      setProactiveConfig(nextConfig);
+      setBrainFacts(nextFacts.items || []);
+      setBrainRelationships(nextRelationships.items || []);
+      setBrainEvents(nextEvents.items || []);
+      setBrainInterventions(nextInterventions.items || []);
+      setBrainFeedbacks(nextFeedbacks.items || []);
+    } catch (error) {
+      message.error(error instanceof Error ? error.message : '群脑数据加载失败');
+    } finally {
+      setBrainLoading(false);
+    }
+  };
+
   const loadStyle = async (quiet = false) => {
     if (!quiet) setStyleLoading(true);
     try {
@@ -375,7 +444,21 @@ export default function WechatAiMemory() {
   const refresh = async () => {
     await loadOverview();
     await loadMemory(selectedRoomId);
+    await loadGroupBrain(selectedRoomId);
     await loadStyle();
+  };
+
+  const saveProactiveConfig = async () => {
+    if (!proactiveConfig) return;
+    setSavingProactiveConfig(true);
+    try {
+      setProactiveConfig(await updateWechatAiProactiveConfig(proactiveConfig));
+      message.success('主动介入配置已立即生效');
+    } catch (error) {
+      message.error(error instanceof Error ? error.message : '主动介入配置保存失败');
+    } finally {
+      setSavingProactiveConfig(false);
+    }
   };
 
   const createJob = async () => {
@@ -678,6 +761,7 @@ export default function WechatAiMemory() {
 
   useEffect(() => {
     void loadMemory(selectedRoomId);
+    void loadGroupBrain(selectedRoomId);
     manualForm.setFieldValue('roomId', selectedRoomId);
     learningForm.setFieldValue('roomId', selectedRoomId);
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -896,6 +980,27 @@ export default function WechatAiMemory() {
       ),
     },
   ];
+  const brainKnowledgeColumns: ColumnsType<WechatAiKnowledgeRecord> = [
+    { title: '内容', key: 'content', render: (_, record) => <Typography.Text ellipsis={{ tooltip: knowledgeText(record) }}>{knowledgeText(record)}</Typography.Text> },
+    { title: '类型', dataIndex: 'kind', width: 96, render: (value) => value ? <Tag>{value}</Tag> : '-' },
+    { title: '置信度', dataIndex: 'confidence', width: 92, render: (value) => value === undefined ? '-' : `${Math.round(Number(value) * 100)}%` },
+    { title: '状态', dataIndex: 'state', width: 100, render: (value) => <Tag color={brainStateColor[value] || 'default'}>{value}</Tag> },
+    { title: '证据', dataIndex: 'evidenceMsgIds', width: 76, render: (value: string[] | undefined) => value?.length || 0 },
+    { title: '更新', dataIndex: 'updatedAt', width: 170, render: (value) => formatWechatTime(value) || '-' },
+  ];
+  const brainInterventionColumns: ColumnsType<WechatAiIntervention> = [
+    { title: '事件', dataIndex: 'eventType', width: 140 },
+    { title: '状态', dataIndex: 'state', width: 100, render: (value) => <Tag color={brainStateColor[value]}>{value}</Tag> },
+    { title: '处理者', dataIndex: 'addressedBy', width: 110, render: (value) => value || '-' },
+    { title: '回复', dataIndex: 'replyText', ellipsis: true, render: (value) => value || '-' },
+    { title: '更新时间', dataIndex: 'updatedAt', width: 170, render: (value) => formatWechatTime(value) || '-' },
+  ];
+  const brainFeedbackColumns: ColumnsType<WechatAiMemoryFeedback> = [
+    { title: '纠正内容', dataIndex: 'feedbackText', ellipsis: true },
+    { title: '立场', dataIndex: 'stance', width: 96, render: (value) => <Tag>{value}</Tag> },
+    { title: '状态', dataIndex: 'status', width: 100, render: (value) => <Tag color={brainStateColor[value]}>{value}</Tag> },
+    { title: '时间', dataIndex: 'createdAt', width: 170, render: (value) => formatWechatTime(value) || '-' },
+  ];
 
   return (
     <>
@@ -1111,6 +1216,116 @@ export default function WechatAiMemory() {
                 <Card title="最近 AI 回复" loading={styleLoading}>
                   <Table rowKey="id" size="small" columns={replyLogColumns} dataSource={replyLogs} pagination={{ pageSize: 10, showSizeChanger: false }} scroll={{ x: 1080 }} />
                 </Card>
+              </Space>
+            ),
+          },
+          {
+            key: 'group-brain',
+            label: '群脑',
+            children: (
+              <Space direction="vertical" size={16} style={{ display: 'flex' }}>
+                <Alert
+                  type="info"
+                  showIcon
+                  message="群脑只展示可追溯的事实、关系和事件；主动介入默认关闭，保存后立即生效。"
+                />
+                <Select
+                  value={selectedRoomId || undefined}
+                  showSearch
+                  optionFilterProp="label"
+                  options={roomOptions}
+                  placeholder="选择群聊"
+                  onChange={setSelectedRoomId}
+                  style={{ width: '100%', maxWidth: 680 }}
+                />
+                <Card
+                  title="主动介入"
+                  extra={<Button type="primary" loading={savingProactiveConfig} disabled={!proactiveConfig} onClick={() => void saveProactiveConfig()}>保存配置</Button>}
+                >
+                  <Row gutter={[16, 16]} align="middle">
+                    <Col xs={24} md={8}>
+                      <Space direction="vertical" size={2}>
+                        <Typography.Text strong>启用主动介入</Typography.Text>
+                        <Typography.Text type="secondary">只在 AI 白名单群中对未解决事件排队处理</Typography.Text>
+                      </Space>
+                    </Col>
+                    <Col xs={24} md={4}>
+                      <Switch
+                        checked={proactiveConfig?.proactiveEnabled || false}
+                        disabled={!proactiveConfig}
+                        onChange={(value) => setProactiveConfig((current) => current && { ...current, proactiveEnabled: value })}
+                      />
+                    </Col>
+                    <Col xs={12} md={4}>
+                      <Typography.Text type="secondary">观察间隔</Typography.Text>
+                      <InputNumber
+                        min={30}
+                        addonAfter="秒"
+                        value={proactiveConfig?.proactiveObserverIntervalSeconds}
+                        disabled={!proactiveConfig}
+                        onChange={(value) => setProactiveConfig((current) => current && { ...current, proactiveObserverIntervalSeconds: Number(value || 30) })}
+                        style={{ width: '100%', marginTop: 6 }}
+                      />
+                    </Col>
+                    <Col xs={12} md={4}>
+                      <Typography.Text type="secondary">等待群友</Typography.Text>
+                      <InputNumber
+                        min={30}
+                        addonAfter="秒"
+                        value={proactiveConfig?.proactiveSettleSeconds}
+                        disabled={!proactiveConfig}
+                        onChange={(value) => setProactiveConfig((current) => current && { ...current, proactiveSettleSeconds: Number(value || 30) })}
+                        style={{ width: '100%', marginTop: 6 }}
+                      />
+                    </Col>
+                    <Col xs={24} md={4}>
+                      <Typography.Text type="secondary">回复超时</Typography.Text>
+                      <InputNumber
+                        min={5}
+                        addonAfter="秒"
+                        value={proactiveConfig?.proactiveTimeoutSeconds}
+                        disabled={!proactiveConfig}
+                        onChange={(value) => setProactiveConfig((current) => current && { ...current, proactiveTimeoutSeconds: Number(value || 5) })}
+                        style={{ width: '100%', marginTop: 6 }}
+                      />
+                    </Col>
+                  </Row>
+                </Card>
+                {selectedRoomId ? (
+                  <>
+                    <Row gutter={[16, 16]}>
+                      <Col xs={12} md={6}><Card size="small"><Statistic title="群事实" value={brainFacts.length} /></Card></Col>
+                      <Col xs={12} md={6}><Card size="small"><Statistic title="群事件" value={brainEvents.length} /></Card></Col>
+                      <Col xs={12} md={6}><Card size="small"><Statistic title="待处理介入" value={brainInterventions.filter((item) => item.state === 'new').length} /></Card></Col>
+                      <Col xs={12} md={6}><Card size="small"><Statistic title="待核实纠正" value={brainFeedbacks.filter((item) => item.status === 'pending').length} /></Card></Col>
+                    </Row>
+                    <Tabs
+                      items={[
+                        {
+                          key: 'knowledge',
+                          label: '事实与事件',
+                          children: (
+                            <Row gutter={[16, 16]}>
+                              <Col xs={24} xl={12}><Card title="群事实" loading={brainLoading}><Table rowKey="id" size="small" columns={brainKnowledgeColumns} dataSource={brainFacts} pagination={{ pageSize: 8, showSizeChanger: false }} scroll={{ x: 780 }} /></Card></Col>
+                              <Col xs={24} xl={12}><Card title="群事件" loading={brainLoading}><Table rowKey="id" size="small" columns={brainKnowledgeColumns} dataSource={brainEvents} pagination={{ pageSize: 8, showSizeChanger: false }} scroll={{ x: 780 }} /></Card></Col>
+                              <Col span={24}><Card title="关系观察" loading={brainLoading}><Table rowKey="id" size="small" columns={brainKnowledgeColumns} dataSource={brainRelationships} pagination={{ pageSize: 8, showSizeChanger: false }} scroll={{ x: 780 }} /></Card></Col>
+                            </Row>
+                          ),
+                        },
+                        {
+                          key: 'interventions',
+                          label: '介入与纠正',
+                          children: (
+                            <Row gutter={[16, 16]}>
+                              <Col xs={24} xl={14}><Card title="主动介入" loading={brainLoading}><Table rowKey="id" size="small" columns={brainInterventionColumns} dataSource={brainInterventions} pagination={{ pageSize: 8, showSizeChanger: false }} scroll={{ x: 820 }} /></Card></Col>
+                              <Col xs={24} xl={10}><Card title="群友纠正" loading={brainLoading}><Table rowKey="id" size="small" columns={brainFeedbackColumns} dataSource={brainFeedbacks} pagination={{ pageSize: 8, showSizeChanger: false }} scroll={{ x: 620 }} /></Card></Col>
+                            </Row>
+                          ),
+                        },
+                      ]}
+                    />
+                  </>
+                ) : <Empty image={Empty.PRESENTED_IMAGE_SIMPLE} description="暂无可查看的群聊" />}
               </Space>
             ),
           },
