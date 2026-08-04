@@ -128,7 +128,7 @@ export type WechatSummaryTopic = {
   }>;
 };
 
-export type WechatAiJobType = 'reply' | 'segment_summary' | 'profile_merge' | 'culture_update' | 'persona_candidate';
+export type WechatAiJobType = 'reply' | 'vector_sync' | 'vector_backfill';
 
 export type WechatAiJob = {
   id: number;
@@ -170,7 +170,7 @@ export type WechatAiRoleCard = {
   updatedAt?: ApiUnixTime;
 };
 
-export type WechatAiPromptInstructionKey = 'segment_summary' | 'profile_merge' | 'takeover_recruitment';
+export type WechatAiPromptInstructionKey = 'reply';
 
 export type WechatAiPromptInstruction = {
   key: WechatAiPromptInstructionKey;
@@ -212,147 +212,43 @@ export type WechatAiReplyLog = {
   createdAt?: ApiUnixTime;
 };
 
-export type WechatAiMemoryRun = {
-  id: number;
-  jobId: number;
-  roomId: string;
-  windowStart: ApiUnixTime;
-  windowEnd: ApiUnixTime;
-  windowEndMsgId: string;
-  granularity: string;
-  inputMsgCount: number;
-  resultJson: Record<string, unknown>;
-  createdAt?: ApiUnixTime;
-};
-
-export type WechatAiProfile = {
-  roomId: string;
-  memberWxid: string;
-  displayName: string;
-  profileJson: Record<string, unknown>;
-  confidence: number;
-  evidenceMsgIds: string[];
-  updatedAt?: ApiUnixTime;
-};
-
-export type WechatAiPersona = {
-  roomId: string;
-  roomCultureJson: Record<string, unknown>;
-  botPersonaJson: Record<string, unknown>;
-  updatedAt?: ApiUnixTime;
-};
-
-export type WechatAiPersonaCandidate = {
-  id: number;
-  roomId: string;
-  candidateJson: Record<string, unknown>;
-  evidenceRunIds: number[];
-  status: 'pending' | 'promoted' | 'rejected';
-  createdAt?: ApiUnixTime;
-  reviewedAt?: ApiUnixTime;
-};
-
-export type WechatAiPersonaVersion = {
-  id: number;
-  roomId: string;
-  versionNo: number;
-  roomCultureJson: Record<string, unknown>;
-  botPersonaJson: Record<string, unknown>;
-  sourceType: string;
-  sourceId?: number;
-  note?: string;
-  createdAt?: ApiUnixTime;
-};
-
 export type WechatAiHistoryLearningTask = {
   id: number;
   roomId: string;
   status: 'queued' | 'running' | 'succeeded' | 'failed' | 'paused' | 'canceled';
-  stage: 'segment' | 'profile_merge' | 'culture_update' | 'persona_candidate' | 'done';
+  stage: 'vector_backfill' | 'done';
   windowStart: ApiUnixTime;
   windowEnd: ApiUnixTime;
   maxMessages: number;
   totalMsgCount: number;
   processedMsgCount: number;
-  segmentJobCount: number;
-  cursorTime?: ApiUnixTime;
-  cursorMsgId?: string;
   currentJobId?: number;
-  profileJobId?: number;
-  cultureJobId?: number;
-  personaJobId?: number;
   errorMessage?: string;
   createdAt?: ApiUnixTime;
   updatedAt?: ApiUnixTime;
   finishedAt?: ApiUnixTime;
 };
 
-export type WechatAiPersonaEvidence = {
-  candidate: WechatAiPersonaCandidate;
-  runs: WechatAiMemoryRun[];
-  messages: WechatMessage[];
-};
-
-export type WechatAiObservation = {
-  days: number;
-  roomId?: string;
-  jobStats: Array<{ jobType: WechatAiJobType; status: WechatAiJob['status']; count: number; avgInputMsgCount?: number }>;
-  memoryStats: { segmentCount?: number; avgQualityScore?: number; lowQualityCount?: number };
-  activeLearning: WechatAiHistoryLearningTask[];
-  recentErrors: WechatAiError[];
-  recentVersions: WechatAiPersonaVersion[];
-};
-
-export type WechatAiKnowledgeRecord = {
-  id: number;
-  roomId: string;
-  state: string;
-  kind?: 'fact' | 'hypothesis' | 'judgement';
-  confidence?: number;
-  content?: string;
-  summary?: string;
-  evidenceMsgIds?: string[];
-  leftMemberWxid?: string;
-  rightMemberWxid?: string;
-  updatedAt?: ApiUnixTime;
-};
-
-export type WechatAiIntervention = {
-  id: number;
-  roomId: string;
-  eventType: string;
-  state: 'new' | 'addressed' | 'reopened';
-  replyText?: string;
-  addressedBy?: string;
-  updatedAt?: ApiUnixTime;
-};
-
-export type WechatAiMemoryFeedback = {
-  id: number;
-  roomId: string;
-  targetType: 'fact' | 'relationship' | 'event';
-  targetId: number;
-  stance: 'correct' | 'deny' | 'question';
-  feedbackText: string;
-  status: 'pending' | 'applied' | 'rejected';
-  createdAt?: ApiUnixTime;
-};
-
-export type WechatAiProactiveConfig = {
-  proactiveEnabled: boolean;
-  proactiveObserverIntervalSeconds: number;
-  proactiveSettleSeconds: number;
-  proactiveTimeoutSeconds: number;
-};
-
 export type WechatAiStatus = {
   enabled: boolean;
   configured: boolean;
   running: boolean;
-  autoMemoryEnabled: boolean;
   queues: Record<string, number>;
   models: Record<string, string>;
-  rooms: Array<{ roomId: string; roomName?: string; lastSegment?: WechatAiMemoryRun; activeJobs: WechatAiJob[] }>;
+  vector?: {
+    enabled: boolean;
+    configured: boolean;
+    embeddingModel: string;
+    syncStates: Array<{
+      roomId: string;
+      cursorTime?: ApiUnixTime;
+      cursorMsgId?: string;
+      lastSuccessAt?: ApiUnixTime;
+      lastError?: string;
+      updatedAt?: ApiUnixTime;
+    }>;
+  };
+  rooms: Array<{ roomId: string; roomName?: string; activeJobs: WechatAiJob[] }>;
   recentJobs: WechatAiJob[];
 };
 
@@ -426,9 +322,7 @@ export type WxbotRemoteConfig = {
     enabled?: boolean;
     group_whitelist?: string[];
     mention_aliases?: string[];
-    auto_memory_enabled?: boolean;
     reply_enabled?: boolean;
-    takeover_recruitment_enabled?: boolean;
     provider?: 'gpt' | 'doubao';
     gpt_api_base_url?: string;
     gpt_api_key?: string;
@@ -436,20 +330,18 @@ export type WxbotRemoteConfig = {
     api_base_url?: string;
     api_key?: string;
     reply_model?: string;
-    summary_model?: string;
-    merge_model?: string;
-    manual_deep_model?: string;
-    scan_interval_seconds?: number;
-    segment_min_messages?: number;
-    segment_quiet_seconds?: number;
-    segment_stale_seconds?: number;
-    profile_min_segments?: number;
-    max_segment_messages?: number;
     reply_context_messages?: number;
+    reply_input_token_budget?: number;
     worker_queue_size?: number;
     reply_timeout_seconds?: number;
-    summary_timeout_seconds?: number;
-    merge_timeout_seconds?: number;
+    vector_enabled?: boolean;
+    vector_qdrant_url?: string;
+    vector_embedding_base_url?: string;
+    vector_embedding_model?: string;
+    vector_sync_interval_seconds?: number;
+    vector_sync_batch_size?: number;
+    vector_search_limit?: number;
+    vector_min_score?: number;
   };
   hook?: Record<string, unknown>;
   webhook?: Record<string, unknown>;
@@ -526,35 +418,6 @@ export const listWechatSummaryMessages = (id: number, params: { topicIndex?: num
 
 export const getWechatAiStatus = () => unwrap<WechatAiStatus>(http.get(`${aiRoot}/status`));
 
-export const getWechatAiObservation = (params?: { roomId?: string; days?: number }) =>
-  unwrap<WechatAiObservation>(http.get(`${aiRoot}/observation`, { params }));
-
-export const listWechatAiFacts = (params: { roomId: string; state?: string }) =>
-  unwrap<{ items: WechatAiKnowledgeRecord[] }>(http.get(`${aiRoot}/memory/facts`, { params }));
-
-export const listWechatAiRelationships = (params: { roomId: string; state?: string }) =>
-  unwrap<{ items: WechatAiKnowledgeRecord[] }>(http.get(`${aiRoot}/memory/relationships`, { params }));
-
-export const listWechatAiEvents = (params: { roomId: string; state?: string }) =>
-  unwrap<{ items: WechatAiKnowledgeRecord[] }>(http.get(`${aiRoot}/memory/events`, { params }));
-
-export const listWechatAiInterventions = (params?: { roomId?: string; state?: string }) =>
-  unwrap<{ items: WechatAiIntervention[] }>(http.get(`${aiRoot}/interventions`, { params }));
-
-export const listWechatAiMemoryFeedbacks = (params?: { roomId?: string; status?: string }) =>
-  unwrap<{ items: WechatAiMemoryFeedback[] }>(http.get(`${aiRoot}/memory/feedbacks`, { params }));
-
-export const getWechatAiProactiveConfig = () =>
-  unwrap<WechatAiProactiveConfig>(http.get(`${aiRoot}/config`));
-
-export const updateWechatAiProactiveConfig = (config: WechatAiProactiveConfig) =>
-  unwrap<WechatAiProactiveConfig>(http.put(`${aiRoot}/config`, {
-    proactive_enabled: config.proactiveEnabled,
-    proactive_observer_interval_seconds: config.proactiveObserverIntervalSeconds,
-    proactive_settle_seconds: config.proactiveSettleSeconds,
-    proactive_timeout_seconds: config.proactiveTimeoutSeconds,
-  }));
-
 export const getWechatAiRoleCard = () => unwrap<WechatAiRoleCard>(http.get(`${aiRoot}/role-card`));
 
 export const updateWechatAiRoleCard = (content: string) =>
@@ -593,7 +456,7 @@ export const reviewWechatAiReplyLog = (id: number, feedback: Exclude<WechatAiRep
 export const listWechatAiJobs = (params?: { roomId?: string; status?: string; limit?: number }) =>
   unwrap<{ items: WechatAiJob[] }>(http.get(`${aiRoot}/jobs`, { params }));
 
-export const createWechatAiJob = (body: { roomId: string; jobType: Exclude<WechatAiJobType, 'reply'>; start?: string; end?: string; reason?: string; model?: string }) =>
+export const createWechatAiJob = (body: { roomId: string; jobType: 'vector_backfill'; start?: string; end?: string; reason?: string; model?: string }) =>
   unwrap<WechatAiJob>(http.post(`${aiRoot}/jobs`, body));
 
 export const getWechatAiJob = (id: number) => unwrap<WechatAiJob>(http.get(`${aiRoot}/jobs/${id}`));
@@ -613,33 +476,6 @@ export const listWechatAiErrors = (params?: { roomId?: string; unresolvedOnly?: 
 export const retryWechatAiError = (id: number) => unwrap<WechatAiJob>(http.post(`${aiRoot}/errors/${id}/retry`));
 
 export const resolveWechatAiError = (id: number) => unwrap<{ resolved: boolean }>(http.post(`${aiRoot}/errors/${id}/resolve`));
-
-export const listWechatAiMemoryRuns = (params?: { roomId?: string; limit?: number }) =>
-  unwrap<{ items: WechatAiMemoryRun[] }>(http.get(`${aiRoot}/memory/runs`, { params }));
-
-export const getWechatAiRoomPersona = (roomId?: string) =>
-  unwrap<WechatAiPersona | { items: Array<{ roomId: string; persona: WechatAiPersona }> }>(http.get(`${aiRoot}/memory/room-persona`, { params: roomId ? { roomId } : undefined }));
-
-export const listWechatAiProfiles = (roomId: string) =>
-  unwrap<{ items: WechatAiProfile[] }>(http.get(`${aiRoot}/memory/member-profiles`, { params: { roomId } }));
-
-export const listWechatAiPersonaCandidates = (params?: { roomId?: string; limit?: number }) =>
-  unwrap<{ items: WechatAiPersonaCandidate[] }>(http.get(`${aiRoot}/memory/persona-candidates`, { params }));
-
-export const getWechatAiPersonaCandidateEvidence = (id: number) =>
-  unwrap<WechatAiPersonaEvidence>(http.get(`${aiRoot}/memory/persona-candidates/${id}/evidence`));
-
-export const listWechatAiPersonaVersions = (params?: { roomId?: string; limit?: number }) =>
-  unwrap<{ items: WechatAiPersonaVersion[] }>(http.get(`${aiRoot}/memory/persona-versions`, { params }));
-
-export const rollbackWechatAiPersonaVersion = (id: number) =>
-  unwrap<{ persona: WechatAiPersona; rolledBackFrom: WechatAiPersonaVersion }>(http.post(`${aiRoot}/memory/persona-versions/${id}/rollback`));
-
-export const promoteWechatAiPersonaCandidate = (id: number) =>
-  unwrap<WechatAiPersonaCandidate>(http.post(`${aiRoot}/memory/persona-candidates/${id}/promote`));
-
-export const rejectWechatAiPersonaCandidate = (id: number) =>
-  unwrap<WechatAiPersonaCandidate>(http.post(`${aiRoot}/memory/persona-candidates/${id}/reject`));
 
 export const getWechatDailyStats = (params: { start: string; end: string; roomId?: string }) =>
   unwrap<WechatDailyStats>(http.get(`${root}/stats/daily`, { params }));

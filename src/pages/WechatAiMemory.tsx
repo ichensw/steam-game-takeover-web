@@ -1,17 +1,9 @@
 import {
   CheckOutlined,
-  CloseOutlined,
-  DeleteOutlined,
-  DislikeOutlined,
-  EyeOutlined,
-  FileSearchOutlined,
-  LikeOutlined,
   PauseCircleOutlined,
   PlayCircleOutlined,
   ReloadOutlined,
-  RedoOutlined,
   StopOutlined,
-  WarningOutlined,
 } from '@ant-design/icons';
 import {
   Alert,
@@ -19,1363 +11,274 @@ import {
   Button,
   Card,
   Col,
-  Empty,
   Form,
   Input,
   InputNumber,
-  Modal,
   Progress,
   Row,
   Select,
   Space,
-  Statistic,
-  Switch,
   Table,
-  Tabs,
   Tag,
-  Tooltip,
   Typography,
 } from 'antd';
 import type { ColumnsType } from 'antd/es/table';
-import { useEffect, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import {
   createWechatAiHistoryLearningTask,
-  createWechatAiJob,
-  createWechatAiReplyConversationSample,
-  createWechatAiReplyStyleSample,
-  deleteWechatAiReplyConversationSample,
-  deleteWechatAiReplyStyleSample,
-  getWechatAiObservation,
-  getWechatAiProactiveConfig,
-  listWechatAiPromptInstructions,
   getWechatAiRoleCard,
-  getWechatAiRoomPersona,
-  getWechatAiPersonaCandidateEvidence,
   getWechatAiStatus,
-  listWechatGroups,
-  listWechatAiHistoryLearningTasks,
   listWechatAiErrors,
-  listWechatAiEvents,
-  listWechatAiFacts,
-  listWechatAiInterventions,
+  listWechatAiHistoryLearningTasks,
   listWechatAiJobs,
-  listWechatAiMemoryFeedbacks,
-  listWechatAiMemoryRuns,
-  listWechatAiPersonaCandidates,
-  listWechatAiPersonaVersions,
-  listWechatAiProfiles,
-  listWechatAiReplyConversationSamples,
+  listWechatAiPromptInstructions,
   listWechatAiReplyLogs,
-  listWechatAiReplyStyleSamples,
-  listWechatAiRelationships,
-  promoteWechatAiPersonaCandidate,
-  rejectWechatAiPersonaCandidate,
-  rollbackWechatAiPersonaVersion,
   resolveWechatAiError,
   retryWechatAiError,
   reviewWechatAiReplyLog,
-  updateWechatAiPromptInstruction,
-  updateWechatAiProactiveConfig,
-  updateWechatAiRoleCard,
   updateWechatAiHistoryLearningTask,
+  updateWechatAiPromptInstruction,
+  updateWechatAiRoleCard,
   type WechatAiError,
   type WechatAiHistoryLearningTask,
-  type WechatAiIntervention,
   type WechatAiJob,
-  type WechatAiKnowledgeRecord,
-  type WechatAiMemoryFeedback,
-  type WechatAiMemoryRun,
-  type WechatAiObservation,
-  type WechatAiPersona,
-  type WechatAiPersonaCandidate,
-  type WechatAiPersonaEvidence,
-  type WechatAiPersonaVersion,
-  type WechatAiPromptInstructionKey,
-  type WechatAiProfile,
-  type WechatAiProactiveConfig,
-  type WechatAiReplyConversationSample,
   type WechatAiReplyLog,
-  type WechatAiReplyStyleSample,
-  type WechatAiRoleCard,
   type WechatAiStatus,
-  type WechatGroup,
-  type WechatMessage,
 } from '../api/wechatBot';
 import PageHeader from '../components/PageHeader';
 import { formatWechatTime } from '../utils/wechatBot';
 
-type ManualJobType = 'segment_summary' | 'profile_merge' | 'culture_update' | 'persona_candidate';
-type ManualFormValues = {
-  roomId: string;
-  jobType: ManualJobType;
-  start?: string;
-  end?: string;
-  model?: string;
-  reason?: string;
-};
-type LearningFormValues = {
+type IndexFormValues = {
   roomId: string;
   start?: string;
   end?: string;
   maxMessages?: number;
 };
-type RoleCardFormValues = { content: string };
-type PromptInstructionFormValues = Partial<Record<WechatAiPromptInstructionKey, string>>;
-type ReplySampleFormValues = {
-  roomId?: string;
-  scenario?: string;
-  triggerText: string;
-  replyText: string;
-};
-type ReplyConversationSampleFormValues = {
-  roomId?: string;
-  scenario?: string;
-  contextText: string;
-  replyText: string;
-};
 
-const jobTypeLabel: Record<WechatAiJob['jobType'], string> = {
+const jobLabel: Record<string, string> = {
   reply: '实时回复',
-  segment_summary: '分段总结',
-  profile_merge: '画像合并',
-  culture_update: '群文化更新',
-  persona_candidate: '人格候选',
+  vector_sync: '增量索引',
+  vector_backfill: '历史索引',
 };
 
-const jobStatusColor: Record<WechatAiJob['status'], string> = {
+const statusColor: Record<string, string> = {
   queued: 'gold',
   running: 'processing',
   succeeded: 'success',
   failed: 'error',
-};
-
-const learningStatusColor: Record<WechatAiHistoryLearningTask['status'], string> = {
-  ...jobStatusColor,
   paused: 'default',
   canceled: 'default',
 };
 
-const jobStatusLabel: Record<WechatAiHistoryLearningTask['status'], string> = {
+const statusLabel: Record<string, string> = {
   queued: '排队中',
   running: '执行中',
-  succeeded: '成功',
+  succeeded: '完成',
   failed: '失败',
-  paused: '已暂停',
+  paused: '暂停',
   canceled: '已取消',
 };
 
-const learningStageLabel: Record<WechatAiHistoryLearningTask['stage'], string> = {
-  segment: '分段总结',
-  profile_merge: '画像合并',
-  culture_update: '群文化更新',
-  persona_candidate: '人格候选',
-  done: '完成',
-};
-
-const jsonText = (value: unknown) => JSON.stringify(value ?? {}, null, 2);
-
-const summaryText = (run?: WechatAiMemoryRun) => {
-  const value = run?.resultJson?.summary;
-  return typeof value === 'string' ? value : '-';
-};
-
-const qualityScore = (run?: WechatAiMemoryRun) => {
-  const value = Number(run?.resultJson?.qualityScore);
-  return Number.isFinite(value) ? Math.max(0, Math.min(100, Math.round(value))) : undefined;
-};
-
-const qualityReasonText = (run?: WechatAiMemoryRun) => {
-  const value = run?.resultJson?.qualityReasons;
-  return Array.isArray(value) ? value.join(' / ') : '';
-};
-
-const qualityColor = (score: number) => {
-  if (score >= 80) return 'success';
-  if (score >= 60) return 'processing';
-  if (score >= 40) return 'warning';
-  return 'error';
-};
-
-const qualityTag = (run?: WechatAiMemoryRun) => {
-  const score = qualityScore(run);
-  return score === undefined ? '-' : <Tag color={qualityColor(score)} title={qualityReasonText(run)}>{score}</Tag>;
-};
-
-const learningPercent = (task: WechatAiHistoryLearningTask) => (
-  task.totalMsgCount > 0 ? Math.round((task.processedMsgCount / task.totalMsgCount) * 100) : 0
+const indexProgress = (task: WechatAiHistoryLearningTask) => (
+  task.totalMsgCount > 0 ? Math.min(100, Math.round(task.processedMsgCount / task.totalMsgCount * 100)) : 0
 );
 
-const learningProgressStatus = (status: WechatAiHistoryLearningTask['status']) => {
-  if (status === 'failed') return 'exception';
-  if (status === 'succeeded') return 'success';
-  if (status === 'queued' || status === 'running') return 'active';
-  return 'normal';
-};
-
-export const observationErrorCount = (errors: WechatAiError[] | null | undefined) => errors?.length || 0;
-
-type LearningAction = 'pause' | 'resume' | 'cancel' | 'retry';
-const learningActionLabel: Record<LearningAction, string> = {
-  pause: '暂停',
-  resume: '继续',
-  cancel: '取消',
-  retry: '重跑',
-};
-
-const personaVersionSourceLabel = (source?: string) => ({
-  candidate_promote: '候选晋升',
-  rollback: '回滚生效',
-  rollback_backup: '回滚备份',
-}[source || ''] || source || '-');
-
-type ReplyFeedback = Exclude<NonNullable<WechatAiReplyLog['feedback']>, ''>;
-
-const feedbackLabel: Record<ReplyFeedback, string> = {
-  human: '像人',
-  too_ai: '太 AI',
-  too_much: '太过火',
-};
-
-const feedbackColor: Record<ReplyFeedback, string> = {
-  human: 'success',
-  too_ai: 'warning',
-  too_much: 'error',
-};
-
-const scenarioLabel: Record<string, string> = {
-  general: '日常接话',
-  greeting: '招呼',
-  quote: '引用回复',
-  game: '游戏接龙',
-  teasing: '调侃',
-  meme: '玩梗',
-};
-
-const brainStateColor: Record<string, string> = {
-  active: 'success',
-  disputed: 'warning',
-  revised: 'processing',
-  retracted: 'error',
-  resolved: 'default',
-  expired: 'default',
-  new: 'gold',
-  addressed: 'success',
-  reopened: 'processing',
-  pending: 'warning',
-  applied: 'success',
-  rejected: 'default',
-};
-
-const knowledgeText = (record: WechatAiKnowledgeRecord) => record.content || record.summary || '-';
-
-const promptInstructionItems: Array<{ key: WechatAiPromptInstructionKey; label: string }> = [
-  { key: 'segment_summary', label: '分段提取' },
-  { key: 'profile_merge', label: '画像合并' },
-  { key: 'takeover_recruitment', label: '接龙摇人' },
-];
+const errorText = (error: unknown, fallback: string) => error instanceof Error ? error.message : fallback;
 
 export default function WechatAiMemory() {
   const { message } = AntApp.useApp();
-  const [loading, setLoading] = useState(false);
-  const [memoryLoading, setMemoryLoading] = useState(false);
-  const [styleLoading, setStyleLoading] = useState(false);
-  const [actionLoading, setActionLoading] = useState<string>();
-  const [creatingLearning, setCreatingLearning] = useState(false);
-  const [savingRoleCard, setSavingRoleCard] = useState(false);
-  const [savingPromptInstructions, setSavingPromptInstructions] = useState(false);
-  const [creatingReplySample, setCreatingReplySample] = useState(false);
-  const [creatingConversationSample, setCreatingConversationSample] = useState(false);
+  const [loading, setLoading] = useState(true);
+  const [submitting, setSubmitting] = useState(false);
+  const [savingStyle, setSavingStyle] = useState(false);
   const [status, setStatus] = useState<WechatAiStatus>();
-  const [groups, setGroups] = useState<WechatGroup[]>([]);
-  const [observation, setObservation] = useState<WechatAiObservation>();
+  const [groups, setGroups] = useState<Array<{ roomId: string; roomName?: string }>>([]);
+  const [tasks, setTasks] = useState<WechatAiHistoryLearningTask[]>([]);
   const [jobs, setJobs] = useState<WechatAiJob[]>([]);
   const [errors, setErrors] = useState<WechatAiError[]>([]);
-  const [learningTasks, setLearningTasks] = useState<WechatAiHistoryLearningTask[]>([]);
-  const [runs, setRuns] = useState<WechatAiMemoryRun[]>([]);
-  const [profiles, setProfiles] = useState<WechatAiProfile[]>([]);
-  const [persona, setPersona] = useState<WechatAiPersona>();
-  const [candidates, setCandidates] = useState<WechatAiPersonaCandidate[]>([]);
-  const [personaVersions, setPersonaVersions] = useState<WechatAiPersonaVersion[]>([]);
-  const [roleCard, setRoleCard] = useState<WechatAiRoleCard>();
-  const [replySamples, setReplySamples] = useState<WechatAiReplyStyleSample[]>([]);
-  const [conversationSamples, setConversationSamples] = useState<WechatAiReplyConversationSample[]>([]);
   const [replyLogs, setReplyLogs] = useState<WechatAiReplyLog[]>([]);
-  const [brainLoading, setBrainLoading] = useState(false);
-  const [savingProactiveConfig, setSavingProactiveConfig] = useState(false);
-  const [proactiveConfig, setProactiveConfig] = useState<WechatAiProactiveConfig>();
-  const [brainFacts, setBrainFacts] = useState<WechatAiKnowledgeRecord[]>([]);
-  const [brainRelationships, setBrainRelationships] = useState<WechatAiKnowledgeRecord[]>([]);
-  const [brainEvents, setBrainEvents] = useState<WechatAiKnowledgeRecord[]>([]);
-  const [brainInterventions, setBrainInterventions] = useState<WechatAiIntervention[]>([]);
-  const [brainFeedbacks, setBrainFeedbacks] = useState<WechatAiMemoryFeedback[]>([]);
-  const [selectedRoomId, setSelectedRoomId] = useState('');
-  const [jsonModal, setJsonModal] = useState<{ title: string; value: unknown }>();
-  const [evidenceModal, setEvidenceModal] = useState<WechatAiPersonaEvidence>();
-  const [manualForm] = Form.useForm<ManualFormValues>();
-  const [learningForm] = Form.useForm<LearningFormValues>();
-  const [roleCardForm] = Form.useForm<RoleCardFormValues>();
-  const [promptInstructionForm] = Form.useForm<PromptInstructionFormValues>();
-  const [replySampleForm] = Form.useForm<ReplySampleFormValues>();
-  const [conversationSampleForm] = Form.useForm<ReplyConversationSampleFormValues>();
-  const manualJobType = Form.useWatch('jobType', manualForm);
+  const [indexForm] = Form.useForm<IndexFormValues>();
+  const [styleForm] = Form.useForm<{ roleCard: string; replyInstruction: string }>();
 
-  const groupNameByRoomId = new Map<string, string>();
-  groups.forEach((group) => groupNameByRoomId.set(group.roomId, group.roomName || group.roomId));
-  (status?.rooms || []).forEach((room) => {
-    if (room.roomName) groupNameByRoomId.set(room.roomId, room.roomName);
-  });
-  const roomLabel = (roomId: string) => groupNameByRoomId.get(roomId) || roomId;
-  const roomOptions = groups.map((group) => ({ label: roomLabel(group.roomId), value: group.roomId }));
-  const modelOptions = Array.from(new Set([
-    status?.models.summary,
-    status?.models.merge,
-    status?.models.manualDeep,
-  ].filter(Boolean))).map((model) => ({ label: model, value: model }));
+  const roomNameByID = useMemo(() => new Map(groups.map((item) => [item.roomId, item.roomName || item.roomId])), [groups]);
+  const roomLabel = (roomID: string) => roomNameByID.get(roomID) || roomID;
+  const roomOptions = groups.map((item) => ({ value: item.roomId, label: item.roomName || item.roomId }));
 
-  const loadOverview = async (quiet = false) => {
+  const refresh = async (quiet = false) => {
     if (!quiet) setLoading(true);
     try {
-      const [nextStatus, nextJobs, nextErrors, nextLearning, nextObservation] = await Promise.all([
+      const [nextStatus, nextTasks, nextJobs, nextErrors, nextLogs, nextRoleCard, nextInstructions] = await Promise.all([
         getWechatAiStatus(),
+        listWechatAiHistoryLearningTasks({ limit: 100 }),
         listWechatAiJobs({ limit: 100 }),
         listWechatAiErrors({ limit: 100 }),
-        listWechatAiHistoryLearningTasks({ limit: 100 }),
-        getWechatAiObservation({ days: 7 }),
+        listWechatAiReplyLogs({ limit: 100 }),
+        getWechatAiRoleCard(),
+        listWechatAiPromptInstructions(),
       ]);
       setStatus(nextStatus);
+      const nextGroups = (nextStatus.rooms || []).map((item) => ({ roomId: item.roomId, roomName: item.roomName }));
+      setGroups(nextGroups);
+      setTasks(nextTasks.items || []);
       setJobs(nextJobs.items || []);
       setErrors(nextErrors.items || []);
-      setLearningTasks(nextLearning.items || []);
-      setObservation(nextObservation);
+      setReplyLogs(nextLogs.items || []);
+      const replyInstruction = (nextInstructions.items || []).find((item) => item.key === 'reply')?.content || '';
+      styleForm.setFieldsValue({ roleCard: nextRoleCard.content, replyInstruction });
+      if (!indexForm.getFieldValue('roomId') && nextGroups[0]?.roomId) {
+        indexForm.setFieldValue('roomId', nextGroups[0].roomId);
+      }
     } catch (error) {
-      if (!quiet) message.error(error instanceof Error ? error.message : 'AI 状态加载失败');
+      if (!quiet) message.error(errorText(error, 'AI 页面加载失败'));
     } finally {
       if (!quiet) setLoading(false);
     }
   };
 
-  const loadMemory = async (roomId: string) => {
-    if (!roomId) {
-      setRuns([]);
-      setProfiles([]);
-      setPersona(undefined);
-      setCandidates([]);
-      setPersonaVersions([]);
-      return;
-    }
-    setMemoryLoading(true);
-    try {
-      const [nextRuns, nextProfiles, nextPersona, nextCandidates, nextVersions] = await Promise.all([
-        listWechatAiMemoryRuns({ roomId, limit: 100 }),
-        listWechatAiProfiles(roomId),
-        getWechatAiRoomPersona(roomId),
-        listWechatAiPersonaCandidates({ roomId, limit: 100 }),
-        listWechatAiPersonaVersions({ roomId, limit: 100 }),
-      ]);
-      setRuns(nextRuns.items || []);
-      setProfiles(nextProfiles.items || []);
-      setPersona('items' in nextPersona ? undefined : nextPersona);
-      setCandidates(nextCandidates.items || []);
-      setPersonaVersions(nextVersions.items || []);
-    } catch (error) {
-      message.error(error instanceof Error ? error.message : '记忆数据加载失败');
-    } finally {
-      setMemoryLoading(false);
-    }
-  };
-
-  const loadGroupBrain = async (roomId: string) => {
-    if (!roomId) {
-      setBrainFacts([]);
-      setBrainRelationships([]);
-      setBrainEvents([]);
-      setBrainInterventions([]);
-      setBrainFeedbacks([]);
-      return;
-    }
-    setBrainLoading(true);
-    try {
-      const [nextConfig, nextFacts, nextRelationships, nextEvents, nextInterventions, nextFeedbacks] = await Promise.all([
-        getWechatAiProactiveConfig(),
-        listWechatAiFacts({ roomId }),
-        listWechatAiRelationships({ roomId }),
-        listWechatAiEvents({ roomId }),
-        listWechatAiInterventions({ roomId }),
-        listWechatAiMemoryFeedbacks({ roomId }),
-      ]);
-      setProactiveConfig(nextConfig);
-      setBrainFacts(nextFacts.items || []);
-      setBrainRelationships(nextRelationships.items || []);
-      setBrainEvents(nextEvents.items || []);
-      setBrainInterventions(nextInterventions.items || []);
-      setBrainFeedbacks(nextFeedbacks.items || []);
-    } catch (error) {
-      message.error(error instanceof Error ? error.message : '群脑数据加载失败');
-    } finally {
-      setBrainLoading(false);
-    }
-  };
-
-  const loadStyle = async (quiet = false) => {
-    if (!quiet) setStyleLoading(true);
-    try {
-      const [nextRoleCard, nextInstructions, nextSamples, nextConversationSamples, nextLogs] = await Promise.all([
-        getWechatAiRoleCard(),
-        listWechatAiPromptInstructions(),
-        listWechatAiReplyStyleSamples({ limit: 200 }),
-        listWechatAiReplyConversationSamples({ limit: 200 }),
-        listWechatAiReplyLogs({ limit: 100 }),
-      ]);
-      setRoleCard(nextRoleCard);
-      setReplySamples(nextSamples.items || []);
-      setConversationSamples(nextConversationSamples.items || []);
-      setReplyLogs(nextLogs.items || []);
-      roleCardForm.setFieldsValue({ content: nextRoleCard.content });
-      promptInstructionForm.setFieldsValue(Object.fromEntries(
-        (nextInstructions.items || []).map((item) => [item.key, item.content]),
-      ) as PromptInstructionFormValues);
-    } catch (error) {
-      if (!quiet) message.error(error instanceof Error ? error.message : '角色与样本加载失败');
-    } finally {
-      if (!quiet) setStyleLoading(false);
-    }
-  };
-
-  const refresh = async () => {
-    await loadOverview();
-    await loadMemory(selectedRoomId);
-    await loadGroupBrain(selectedRoomId);
-    await loadStyle();
-  };
-
-  const saveProactiveConfig = async () => {
-    if (!proactiveConfig) return;
-    setSavingProactiveConfig(true);
-    try {
-      setProactiveConfig(await updateWechatAiProactiveConfig(proactiveConfig));
-      message.success('主动介入配置已立即生效');
-    } catch (error) {
-      message.error(error instanceof Error ? error.message : '主动介入配置保存失败');
-    } finally {
-      setSavingProactiveConfig(false);
-    }
-  };
-
-  const createJob = async () => {
-    const values = await manualForm.validateFields();
-    try {
-      await createWechatAiJob({
-        roomId: values.roomId,
-        jobType: values.jobType,
-        start: values.start || undefined,
-        end: values.end || undefined,
-        model: values.model || undefined,
-        reason: values.reason || undefined,
-      });
-      message.success('任务已提交');
-      await loadOverview();
-    } catch (error) {
-      message.error(error instanceof Error ? error.message : '任务提交失败');
-    }
-  };
-
-  const createHistoryLearning = async () => {
-    const values = await learningForm.validateFields();
-    setCreatingLearning(true);
-    try {
-      await createWechatAiHistoryLearningTask({
-        roomId: values.roomId,
-        start: values.start || undefined,
-        end: values.end || undefined,
-        maxMessages: values.maxMessages || undefined,
-      });
-      message.success('历史聊天学习已开始');
-      await loadOverview();
-    } catch (error) {
-      message.error(error instanceof Error ? error.message : '历史聊天学习启动失败');
-    } finally {
-      setCreatingLearning(false);
-    }
-  };
-
-  const saveRoleCard = async () => {
-    const values = await roleCardForm.validateFields();
-    setSavingRoleCard(true);
-    try {
-      const nextRoleCard = await updateWechatAiRoleCard(values.content || '');
-      setRoleCard(nextRoleCard);
-      roleCardForm.setFieldsValue({ content: nextRoleCard.content });
-      message.success(nextRoleCard.isDefault ? '已恢复内置角色卡' : '角色卡已保存');
-    } catch (error) {
-      message.error(error instanceof Error ? error.message : '角色卡保存失败');
-    } finally {
-      setSavingRoleCard(false);
-    }
-  };
-
-  const savePromptInstructions = async () => {
-    const values = await promptInstructionForm.validateFields();
-    setSavingPromptInstructions(true);
-    try {
-      const updated = await Promise.all(promptInstructionItems.map(({ key }) =>
-        updateWechatAiPromptInstruction(key, values[key] || ''),
-      ));
-      promptInstructionForm.setFieldsValue(Object.fromEntries(
-        updated.map((item) => [item.key, item.content]),
-      ) as PromptInstructionFormValues);
-      message.success('任务指令已保存');
-    } catch (error) {
-      message.error(error instanceof Error ? error.message : '任务指令保存失败');
-    } finally {
-      setSavingPromptInstructions(false);
-    }
-  };
-
-  const createReplySample = async () => {
-    const values = await replySampleForm.validateFields();
-    setCreatingReplySample(true);
-    try {
-      await createWechatAiReplyStyleSample({
-        roomId: values.roomId || undefined,
-        scenario: values.scenario || 'general',
-        triggerText: values.triggerText,
-        replyText: values.replyText,
-      });
-      replySampleForm.setFieldsValue({ triggerText: '', replyText: '' });
-      message.success('表达样本已加入回复召回');
-      await loadStyle(true);
-    } catch (error) {
-      message.error(error instanceof Error ? error.message : '表达样本保存失败');
-    } finally {
-      setCreatingReplySample(false);
-    }
-  };
-
-  const deleteReplySample = (sample: WechatAiReplyStyleSample) => {
-    Modal.confirm({
-      title: '删除这个表达样本？',
-      content: '删除后它不会再被实时回复召回。',
-      okText: '删除',
-      okButtonProps: { danger: true },
-      cancelText: '返回',
-      onOk: async () => {
-        const key = `sample:delete:${sample.id}`;
-        setActionLoading(key);
-        try {
-          await deleteWechatAiReplyStyleSample(sample.id);
-          message.success('表达样本已删除');
-          await loadStyle(true);
-        } catch (error) {
-          message.error(error instanceof Error ? error.message : '删除表达样本失败');
-        } finally {
-          setActionLoading(undefined);
-        }
-      },
-    });
-  };
-
-  const createReplyConversationSample = async () => {
-    const values = await conversationSampleForm.validateFields();
-    setCreatingConversationSample(true);
-    try {
-      await createWechatAiReplyConversationSample({
-        roomId: values.roomId || undefined,
-        scenario: values.scenario || 'general',
-        contextText: values.contextText,
-        replyText: values.replyText,
-      });
-      conversationSampleForm.setFieldsValue({ contextText: '', replyText: '' });
-      message.success('对话片段已加入回复召回');
-      await loadStyle(true);
-    } catch (error) {
-      message.error(error instanceof Error ? error.message : '对话片段保存失败');
-    } finally {
-      setCreatingConversationSample(false);
-    }
-  };
-
-  const deleteReplyConversationSample = (sample: WechatAiReplyConversationSample) => {
-    Modal.confirm({
-      title: '删除这个对话片段？',
-      content: '删除后它不会再被实时回复召回。',
-      okText: '删除',
-      okButtonProps: { danger: true },
-      cancelText: '返回',
-      onOk: async () => {
-        const key = `conversation-sample:delete:${sample.id}`;
-        setActionLoading(key);
-        try {
-          await deleteWechatAiReplyConversationSample(sample.id);
-          message.success('对话片段已删除');
-          await loadStyle(true);
-        } catch (error) {
-          message.error(error instanceof Error ? error.message : '删除对话片段失败');
-        } finally {
-          setActionLoading(undefined);
-        }
-      },
-    });
-  };
-
-  const reviewReplyLog = async (log: WechatAiReplyLog, feedback: ReplyFeedback) => {
-    const key = `reply-log:${feedback}:${log.id}`;
-    setActionLoading(key);
-    try {
-      const result = await reviewWechatAiReplyLog(log.id, feedback);
-      if (feedback === 'human') {
-        message.success(result.sampleActive ? '已加入可召回的表达样本' : '已记录反馈，原消息不可用，未加入样本');
-      } else {
-        message.success(`已标记为${feedbackLabel[feedback]}`);
-      }
-      await loadStyle(true);
-    } catch (error) {
-      message.error(error instanceof Error ? error.message : '回复反馈保存失败');
-    } finally {
-      setActionLoading(undefined);
-    }
-  };
-
-  const retryError = async (errorId: number) => {
-    const key = `error:retry:${errorId}`;
-    setActionLoading(key);
-    try {
-      await retryWechatAiError(errorId);
-      message.success('重试任务已提交');
-      await loadOverview();
-    } catch (error) {
-      message.error(error instanceof Error ? error.message : '重试失败');
-    } finally {
-      setActionLoading(undefined);
-    }
-  };
-
-  const resolveError = async (errorId: number) => {
-    const key = `error:resolve:${errorId}`;
-    setActionLoading(key);
-    try {
-      await resolveWechatAiError(errorId);
-      message.success('失败记录已解决');
-      await loadOverview();
-    } catch (error) {
-      message.error(error instanceof Error ? error.message : '操作失败');
-    } finally {
-      setActionLoading(undefined);
-    }
-  };
-
-  const reviewCandidate = async (candidateId: number, action: 'promote' | 'reject') => {
-    const key = `candidate:${action}:${candidateId}`;
-    setActionLoading(key);
-    try {
-      if (action === 'promote') {
-        await promoteWechatAiPersonaCandidate(candidateId);
-        message.success('人格候选已晋升');
-      } else {
-        await rejectWechatAiPersonaCandidate(candidateId);
-        message.success('人格候选已拒绝');
-      }
-      await loadMemory(selectedRoomId);
-      await loadOverview(true);
-    } catch (error) {
-      message.error(error instanceof Error ? error.message : '审核失败');
-    } finally {
-      setActionLoading(undefined);
-    }
-  };
-
-  const rollbackPersonaVersion = (version: WechatAiPersonaVersion) => {
-    Modal.confirm({
-      title: `回滚到人格版本 v${version.versionNo}？`,
-      content: '回滚会立刻替换当前稳定人格，并保留回滚前快照。',
-      okText: '回滚',
-      okButtonProps: { danger: true },
-      cancelText: '返回',
-      onOk: async () => {
-        const key = `persona:rollback:${version.id}`;
-        setActionLoading(key);
-        try {
-          await rollbackWechatAiPersonaVersion(version.id);
-          message.success('稳定人格已回滚');
-          await loadMemory(selectedRoomId);
-          await loadOverview(true);
-        } catch (error) {
-          message.error(error instanceof Error ? error.message : '回滚失败');
-        } finally {
-          setActionLoading(undefined);
-        }
-      },
-    });
-  };
-
-  const applyHistoryLearningAction = async (taskId: number, action: LearningAction) => {
-    const key = `learning:${action}:${taskId}`;
-    setActionLoading(key);
-    try {
-      await updateWechatAiHistoryLearningTask(taskId, action);
-      message.success(`历史聊天学习已${learningActionLabel[action]}`);
-      await loadOverview();
-    } catch (error) {
-      message.error(error instanceof Error ? error.message : '历史聊天学习操作失败');
-    } finally {
-      setActionLoading(undefined);
-    }
-  };
-
-  const controlHistoryLearning = (task: WechatAiHistoryLearningTask, action: LearningAction) => {
-    if (action !== 'cancel') {
-      void applyHistoryLearningAction(task.id, action);
-      return;
-    }
-    Modal.confirm({
-      title: `取消历史聊天学习 #${task.id}？`,
-      content: '取消后不会继续推进当前学习任务，已沉淀的分段记忆会保留。',
-      okText: '取消任务',
-      okButtonProps: { danger: true },
-      cancelText: '返回',
-      onOk: () => applyHistoryLearningAction(task.id, action),
-    });
-  };
-
-  const openCandidateEvidence = async (candidateId: number) => {
-    const key = `candidate:evidence:${candidateId}`;
-    setActionLoading(key);
-    try {
-      setEvidenceModal(await getWechatAiPersonaCandidateEvidence(candidateId));
-    } catch (error) {
-      message.error(error instanceof Error ? error.message : '证据加载失败');
-    } finally {
-      setActionLoading(undefined);
-    }
-  };
-
   useEffect(() => {
-    void loadOverview();
-    void loadStyle();
-    void listWechatGroups()
-      .then(setGroups)
-      .catch((error) => message.error(error instanceof Error ? error.message : '群聊列表加载失败'));
-    const timer = window.setInterval(() => void loadOverview(true), 12000);
+    void refresh();
+    const timer = window.setInterval(() => void refresh(true), 15000);
     return () => window.clearInterval(timer);
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
-  useEffect(() => {
-    void loadMemory(selectedRoomId);
-    void loadGroupBrain(selectedRoomId);
-    manualForm.setFieldValue('roomId', selectedRoomId);
-    learningForm.setFieldValue('roomId', selectedRoomId);
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [selectedRoomId]);
+  const createIndexTask = async (values: IndexFormValues) => {
+    setSubmitting(true);
+    try {
+      await createWechatAiHistoryLearningTask(values);
+      message.success('历史聊天索引任务已创建');
+      await refresh(true);
+    } catch (error) {
+      message.error(errorText(error, '创建索引任务失败'));
+    } finally {
+      setSubmitting(false);
+    }
+  };
 
-  useEffect(() => {
-    setSelectedRoomId((current) => (
-      current && groups.some((group) => group.roomId === current)
-        ? current
-        : groups[0]?.roomId || ''
-    ));
-  }, [groups]);
+  const updateTask = async (task: WechatAiHistoryLearningTask, action: 'pause' | 'resume' | 'cancel' | 'retry') => {
+    try {
+      await updateWechatAiHistoryLearningTask(task.id, action);
+      await refresh(true);
+    } catch (error) {
+      message.error(errorText(error, '更新任务失败'));
+    }
+  };
 
-  const jobsColumns: ColumnsType<WechatAiJob> = [
-    { title: '任务', dataIndex: 'id', width: 82, render: (value) => `#${value}` },
-    { title: '群聊', dataIndex: 'roomId', ellipsis: true, render: (value: string) => roomLabel(value) },
-    { title: '类型', dataIndex: 'jobType', width: 112, render: (value: WechatAiJob['jobType']) => jobTypeLabel[value] },
-    { title: '状态', dataIndex: 'status', width: 100, render: (value: WechatAiJob['status']) => <Tag color={jobStatusColor[value]}>{jobStatusLabel[value]}</Tag> },
-    { title: '模型', dataIndex: 'model', width: 112, ellipsis: true },
-    { title: '输入', dataIndex: 'inputMsgCount', width: 78, render: (value) => value || '-' },
-    { title: '完成时间', dataIndex: 'finishedAt', width: 170, render: (value) => formatWechatTime(value) || '-' },
-    {
-      title: '结果',
-      width: 76,
-      render: (_, row) => row.resultJson ? (
-        <Button type="text" icon={<EyeOutlined />} aria-label="查看任务结果" onClick={() => setJsonModal({ title: `任务 #${row.id}`, value: row.resultJson })} />
-      ) : '-',
-    },
-  ];
+  const saveStyle = async (values: { roleCard: string; replyInstruction: string }) => {
+    setSavingStyle(true);
+    try {
+      await Promise.all([
+        updateWechatAiRoleCard(values.roleCard || ''),
+        updateWechatAiPromptInstruction('reply', values.replyInstruction || ''),
+      ]);
+      message.success('回复风格已保存');
+    } catch (error) {
+      message.error(errorText(error, '保存回复风格失败'));
+    } finally {
+      setSavingStyle(false);
+    }
+  };
 
-  const errorsColumns: ColumnsType<WechatAiError> = [
-    { title: '失败', dataIndex: 'id', width: 76, render: (value) => `#${value}` },
-    { title: '群聊', dataIndex: 'roomId', ellipsis: true, render: (value: string) => roomLabel(value) },
-    { title: '类型', dataIndex: 'jobType', width: 112, render: (value: WechatAiJob['jobType']) => jobTypeLabel[value] },
-    { title: '错误', dataIndex: 'errorMessage', ellipsis: true },
-    { title: '耗时', dataIndex: 'elapsedMs', width: 94, render: (value) => `${value || 0} ms` },
-    { title: '时间', dataIndex: 'createdAt', width: 170, render: (value) => formatWechatTime(value) || '-' },
-    {
-      title: '操作',
-      width: 150,
-      render: (_, row) => row.resolved ? <Tag>已解决</Tag> : (
-        <Space size={0}>
-          <Button type="text" icon={<RedoOutlined />} loading={actionLoading === `error:retry:${row.id}`} aria-label="重试失败任务" onClick={() => void retryError(row.id)} />
-          <Button type="text" icon={<CheckOutlined />} loading={actionLoading === `error:resolve:${row.id}`} aria-label="标记失败已解决" onClick={() => void resolveError(row.id)} />
-          {row.requestMetaJson ? <Button type="text" icon={<EyeOutlined />} aria-label="查看失败元数据" onClick={() => setJsonModal({ title: `失败 #${row.id}`, value: row.requestMetaJson })} /> : null}
-        </Space>
-      ),
-    },
-  ];
-
-  const learningColumns: ColumnsType<WechatAiHistoryLearningTask> = [
-    { title: '任务', dataIndex: 'id', width: 82, render: (value) => `#${value}` },
-    { title: '群聊', dataIndex: 'roomId', ellipsis: true, render: (value: string) => roomLabel(value) },
-    { title: '状态', dataIndex: 'status', width: 100, render: (value: WechatAiHistoryLearningTask['status']) => <Tag color={learningStatusColor[value]}>{jobStatusLabel[value]}</Tag> },
-    { title: '阶段', dataIndex: 'stage', width: 118, render: (value: WechatAiHistoryLearningTask['stage']) => learningStageLabel[value] || value },
+  const taskColumns: ColumnsType<WechatAiHistoryLearningTask> = [
+    { title: '群聊', dataIndex: 'roomId', width: 210, render: roomLabel },
+    { title: '状态', dataIndex: 'status', width: 95, render: (value: string) => <Tag color={statusColor[value]}>{statusLabel[value] || value}</Tag> },
     {
       title: '进度',
-      width: 190,
-      render: (_, row) => <Progress percent={learningPercent(row)} size="small" status={learningProgressStatus(row.status)} />,
+      width: 180,
+      render: (_, item) => <Progress percent={indexProgress(item)} size="small" status={item.status === 'failed' ? 'exception' : item.status === 'succeeded' ? 'success' : 'active'} />,
     },
-    { title: '消息', width: 120, render: (_, row) => `${row.processedMsgCount || 0}/${row.totalMsgCount || 0}` },
-    { title: '分段', dataIndex: 'segmentJobCount', width: 82 },
-    { title: '当前子任务', dataIndex: 'currentJobId', width: 108, render: (value) => value ? `#${value}` : '-' },
-    { title: '更新时间', dataIndex: 'updatedAt', width: 170, render: (value) => formatWechatTime(value) || '-' },
-    { title: '错误', dataIndex: 'errorMessage', ellipsis: true, render: (value) => value || '-' },
+    { title: '文本', width: 100, render: (_, item) => `${item.processedMsgCount}/${item.totalMsgCount}` },
+    { title: '错误', dataIndex: 'errorMessage', ellipsis: true, render: (value?: string) => value || '-' },
     {
       title: '操作',
-      width: 142,
-      render: (_, row) => (
-        <Space size={0}>
-          {row.status === 'queued' || row.status === 'running' ? <Button type="text" icon={<PauseCircleOutlined />} loading={actionLoading === `learning:pause:${row.id}`} aria-label="暂停历史聊天学习" onClick={() => controlHistoryLearning(row, 'pause')} /> : null}
-          {row.status === 'paused' ? <Button type="text" icon={<PlayCircleOutlined />} loading={actionLoading === `learning:resume:${row.id}`} aria-label="继续历史聊天学习" onClick={() => controlHistoryLearning(row, 'resume')} /> : null}
-          {row.status === 'failed' ? <Button type="text" icon={<RedoOutlined />} loading={actionLoading === `learning:retry:${row.id}`} aria-label="重跑历史聊天学习当前阶段" onClick={() => controlHistoryLearning(row, 'retry')} /> : null}
-          {row.status !== 'succeeded' && row.status !== 'canceled' ? <Button type="text" danger icon={<StopOutlined />} loading={actionLoading === `learning:cancel:${row.id}`} aria-label="取消历史聊天学习" onClick={() => controlHistoryLearning(row, 'cancel')} /> : null}
-        </Space>
-      ),
+      width: 130,
+      render: (_, item) => <Space size={2}>
+        {(item.status === 'queued' || item.status === 'running') && <Button type="text" size="small" icon={<PauseCircleOutlined />} onClick={() => void updateTask(item, 'pause')} />}
+        {item.status === 'paused' && <Button type="text" size="small" icon={<PlayCircleOutlined />} onClick={() => void updateTask(item, 'resume')} />}
+        {item.status === 'failed' && <Button type="text" size="small" icon={<ReloadOutlined />} onClick={() => void updateTask(item, 'retry')} />}
+        {!['succeeded', 'canceled'].includes(item.status) && <Button type="text" danger size="small" icon={<StopOutlined />} onClick={() => void updateTask(item, 'cancel')} />}
+      </Space>,
     },
   ];
 
-  const runsColumns: ColumnsType<WechatAiMemoryRun> = [
-    { title: '记忆', dataIndex: 'id', width: 82, render: (value) => `#${value}` },
-    { title: '片段结束', dataIndex: 'windowEnd', width: 170, render: (value) => formatWechatTime(value) || '-' },
-    { title: '消息数', dataIndex: 'inputMsgCount', width: 86 },
-    { title: '质量', width: 82, render: (_, row) => qualityTag(row) },
-    { title: '摘要', render: (_, row) => <Typography.Text ellipsis={{ tooltip: summaryText(row) }}>{summaryText(row)}</Typography.Text> },
-    { title: '详情', width: 72, render: (_, row) => <Button type="text" icon={<EyeOutlined />} aria-label="查看分段记忆" onClick={() => setJsonModal({ title: `记忆 #${row.id}`, value: row.resultJson })} /> },
+  const jobColumns: ColumnsType<WechatAiJob> = [
+    { title: '类型', dataIndex: 'jobType', width: 180, render: (value: string) => jobLabel[value] || value },
+    { title: '群聊', dataIndex: 'roomId', width: 200, render: roomLabel },
+    { title: '状态', dataIndex: 'status', width: 95, render: (value: string) => <Tag color={statusColor[value]}>{statusLabel[value] || value}</Tag> },
+    { title: '处理文本', dataIndex: 'inputMsgCount', width: 95, render: (value: number) => value || '-' },
+    { title: '完成时间', dataIndex: 'finishedAt', width: 170, render: (value) => formatWechatTime(value) || '-' },
   ];
 
-  const profilesColumns: ColumnsType<WechatAiProfile> = [
-    { title: '成员', dataIndex: 'displayName', render: (value, row) => value || row.memberWxid, ellipsis: true },
-    { title: 'wxid', dataIndex: 'memberWxid', ellipsis: true },
-    { title: '置信度', dataIndex: 'confidence', width: 90, render: (value) => Number(value || 0).toFixed(2) },
-    { title: '证据', dataIndex: 'evidenceMsgIds', width: 76, render: (value) => Array.isArray(value) ? value.length : 0 },
-    { title: '更新', dataIndex: 'updatedAt', width: 170, render: (value) => formatWechatTime(value) || '-' },
-    { title: '详情', width: 72, render: (_, row) => <Button type="text" icon={<EyeOutlined />} aria-label="查看成员画像" onClick={() => setJsonModal({ title: row.displayName || row.memberWxid, value: row.profileJson })} /> },
-  ];
-
-  const candidatesColumns: ColumnsType<WechatAiPersonaCandidate> = [
-    { title: '候选', dataIndex: 'id', width: 82, render: (value) => `#${value}` },
-    { title: '状态', dataIndex: 'status', width: 100, render: (value) => <Tag color={value === 'pending' ? 'gold' : value === 'promoted' ? 'success' : 'default'}>{value === 'pending' ? '待审核' : value === 'promoted' ? '已晋升' : '已拒绝'}</Tag> },
-    { title: '生成时间', dataIndex: 'createdAt', width: 170, render: (value) => formatWechatTime(value) || '-' },
-    { title: '内容', render: (_, row) => <Button type="text" icon={<EyeOutlined />} aria-label="查看人格候选" onClick={() => setJsonModal({ title: `人格候选 #${row.id}`, value: row.candidateJson })} /> },
-    { title: '证据', width: 72, render: (_, row) => <Button type="text" icon={<FileSearchOutlined />} loading={actionLoading === `candidate:evidence:${row.id}`} aria-label="查看人格候选证据" onClick={() => void openCandidateEvidence(row.id)} /> },
-    {
-      title: '审核',
-      width: 112,
-      render: (_, row) => row.status !== 'pending' ? '-' : (
-        <Space size={0}>
-          <Button type="text" icon={<CheckOutlined />} loading={actionLoading === `candidate:promote:${row.id}`} aria-label="晋升人格候选" onClick={() => void reviewCandidate(row.id, 'promote')} />
-          <Button type="text" danger icon={<CloseOutlined />} loading={actionLoading === `candidate:reject:${row.id}`} aria-label="拒绝人格候选" onClick={() => void reviewCandidate(row.id, 'reject')} />
-        </Space>
-      ),
-    },
-  ];
-
-  const personaVersionColumns: ColumnsType<WechatAiPersonaVersion> = [
-    { title: '版本', dataIndex: 'versionNo', width: 82, render: (value) => `v${value}` },
-    { title: '来源', dataIndex: 'sourceType', width: 112, render: (value) => personaVersionSourceLabel(value) },
-    { title: '来源ID', dataIndex: 'sourceId', width: 86, render: (value) => value ? `#${value}` : '-' },
-    { title: '时间', dataIndex: 'createdAt', width: 170, render: (value) => formatWechatTime(value) || '-' },
-    { title: '备注', dataIndex: 'note', ellipsis: true, render: (value) => value || '-' },
-    { title: '内容', width: 72, render: (_, row) => <Button type="text" icon={<EyeOutlined />} aria-label="查看人格版本" onClick={() => setJsonModal({ title: `人格版本 v${row.versionNo}`, value: row.botPersonaJson })} /> },
-    {
-      title: '操作',
-      width: 86,
-      render: (_, row) => <Button type="text" danger icon={<RedoOutlined />} loading={actionLoading === `persona:rollback:${row.id}`} aria-label="回滚人格版本" onClick={() => rollbackPersonaVersion(row)} />,
-    },
-  ];
-
-  const observationJobColumns: ColumnsType<WechatAiObservation['jobStats'][number]> = [
-    { title: '类型', dataIndex: 'jobType', render: (value: WechatAiJob['jobType']) => jobTypeLabel[value] || value },
-    { title: '状态', dataIndex: 'status', width: 100, render: (value: WechatAiJob['status']) => <Tag color={jobStatusColor[value]}>{jobStatusLabel[value]}</Tag> },
-    { title: '数量', dataIndex: 'count', width: 90 },
-    { title: '平均输入', dataIndex: 'avgInputMsgCount', width: 110, render: (value) => Number(value || 0).toFixed(1) },
-  ];
-
-  const queuedJobs = jobs.filter((job) => job.status === 'queued').length;
-  const runningJobs = jobs.filter((job) => job.status === 'running').length;
-  const failedJobs = jobs.filter((job) => job.status === 'failed').length;
-  const observedSegments = Number(observation?.memoryStats?.segmentCount || 0);
-  const observedAvgQuality = Number(observation?.memoryStats?.avgQualityScore || 0);
-  const observedLowQuality = Number(observation?.memoryStats?.lowQualityCount || 0);
-  const evidenceRunColumns: ColumnsType<WechatAiMemoryRun> = [
-    { title: '分段', dataIndex: 'id', width: 82, render: (value) => `#${value}` },
-    { title: '时间', dataIndex: 'windowEnd', width: 170, render: (value) => formatWechatTime(value) || '-' },
-    { title: '消息数', dataIndex: 'inputMsgCount', width: 86 },
-    { title: '质量', width: 82, render: (_, row) => qualityTag(row) },
-    { title: '摘要', render: (_, row) => <Typography.Text ellipsis={{ tooltip: summaryText(row) }}>{summaryText(row)}</Typography.Text> },
-  ];
-  const evidenceMessageColumns: ColumnsType<WechatMessage> = [
-    { title: '时间', dataIndex: 'createdAt', width: 170, render: (value) => formatWechatTime(value) || '-' },
-    { title: '成员', dataIndex: 'senderName', width: 150, ellipsis: true, render: (value, row) => value || row.senderWxid },
-    { title: '内容', dataIndex: 'content', ellipsis: true },
-  ];
-  const replySampleColumns: ColumnsType<WechatAiReplyStyleSample> = [
-    { title: '范围', dataIndex: 'roomId', width: 150, ellipsis: true, render: (value) => value ? roomLabel(value) : <Tag>全局</Tag> },
-    { title: '场景', dataIndex: 'scenario', width: 108, render: (value) => scenarioLabel[value] || value || '日常接话' },
-    { title: '用户的话', dataIndex: 'triggerText', ellipsis: true },
-    { title: '理想接话', dataIndex: 'replyText', ellipsis: true },
-    { title: '更新时间', dataIndex: 'updatedAt', width: 170, render: (value) => formatWechatTime(value) || '-' },
-    {
-      title: '操作',
-      width: 72,
-      render: (_, row) => (
-        <Tooltip title="删除表达样本">
-          <Button type="text" danger icon={<DeleteOutlined />} loading={actionLoading === `sample:delete:${row.id}`} aria-label="删除表达样本" onClick={() => deleteReplySample(row)} />
-        </Tooltip>
-      ),
-    },
-  ];
-  const conversationSampleColumns: ColumnsType<WechatAiReplyConversationSample> = [
-    { title: '范围', dataIndex: 'roomId', width: 150, ellipsis: true, render: (value) => value ? roomLabel(value) : <Tag>全局</Tag> },
-    { title: '场景', dataIndex: 'scenario', width: 108, render: (value) => scenarioLabel[value] || value || '日常接话' },
-    { title: '前文对话', dataIndex: 'contextText', ellipsis: true },
-    { title: '理想接话', dataIndex: 'replyText', ellipsis: true },
-    { title: '更新时间', dataIndex: 'updatedAt', width: 170, render: (value) => formatWechatTime(value) || '-' },
-    {
-      title: '操作',
-      width: 72,
-      render: (_, row) => (
-        <Tooltip title="删除对话片段">
-          <Button type="text" danger icon={<DeleteOutlined />} loading={actionLoading === `conversation-sample:delete:${row.id}`} aria-label="删除对话片段" onClick={() => deleteReplyConversationSample(row)} />
-        </Tooltip>
-      ),
-    },
-  ];
-  const replyLogColumns: ColumnsType<WechatAiReplyLog> = [
-    { title: '群聊', dataIndex: 'roomId', width: 150, ellipsis: true, render: (value) => roomLabel(value) },
-    { title: '触发消息', dataIndex: 'triggerContent', ellipsis: true, render: (value) => value || '-' },
-    { title: '机器人回复', dataIndex: 'replyText', ellipsis: true },
-    {
-      title: '反馈',
-      dataIndex: 'feedback',
-      width: 92,
-      render: (value: WechatAiReplyLog['feedback']) => {
-        const feedback = value as ReplyFeedback;
-        return feedback && feedbackLabel[feedback] ? <Tag color={feedbackColor[feedback]}>{feedbackLabel[feedback]}</Tag> : '-';
-      },
-    },
+  const errorColumns: ColumnsType<WechatAiError> = [
+    { title: '类型', dataIndex: 'jobType', width: 180, render: (value: string) => jobLabel[value] || value },
+    { title: '错误', dataIndex: 'errorMessage', ellipsis: true },
     { title: '时间', dataIndex: 'createdAt', width: 170, render: (value) => formatWechatTime(value) || '-' },
     {
-      title: '操作',
-      width: 126,
-      render: (_, row) => (
-        <Space size={0}>
-          <Tooltip title="像人，加入样本库">
-            <Button type="text" icon={<LikeOutlined />} loading={actionLoading === `reply-log:human:${row.id}`} aria-label="像人，加入样本库" onClick={() => void reviewReplyLog(row, 'human')} />
-          </Tooltip>
-          <Tooltip title="太 AI">
-            <Button type="text" icon={<DislikeOutlined />} loading={actionLoading === `reply-log:too_ai:${row.id}`} aria-label="太 AI" onClick={() => void reviewReplyLog(row, 'too_ai')} />
-          </Tooltip>
-          <Tooltip title="太过火">
-            <Button type="text" danger icon={<WarningOutlined />} loading={actionLoading === `reply-log:too_much:${row.id}`} aria-label="太过火" onClick={() => void reviewReplyLog(row, 'too_much')} />
-          </Tooltip>
-        </Space>
-      ),
+      title: '操作', width: 130, render: (_, item) => <Space size={2}>
+        {!item.resolved && <Button type="text" size="small" icon={<ReloadOutlined />} onClick={async () => { await retryWechatAiError(item.id); await refresh(true); }} />}
+        {!item.resolved && <Button type="text" size="small" icon={<CheckOutlined />} onClick={async () => { await resolveWechatAiError(item.id); await refresh(true); }} />}
+      </Space>,
     },
   ];
-  const brainKnowledgeColumns: ColumnsType<WechatAiKnowledgeRecord> = [
-    { title: '内容', key: 'content', render: (_, record) => <Typography.Text ellipsis={{ tooltip: knowledgeText(record) }}>{knowledgeText(record)}</Typography.Text> },
-    { title: '类型', dataIndex: 'kind', width: 96, render: (value) => value ? <Tag>{value}</Tag> : '-' },
-    { title: '置信度', dataIndex: 'confidence', width: 92, render: (value) => value === undefined ? '-' : `${Math.round(Number(value) * 100)}%` },
-    { title: '状态', dataIndex: 'state', width: 100, render: (value) => <Tag color={brainStateColor[value] || 'default'}>{value}</Tag> },
-    { title: '证据', dataIndex: 'evidenceMsgIds', width: 76, render: (value: string[] | undefined) => value?.length || 0 },
-    { title: '更新', dataIndex: 'updatedAt', width: 170, render: (value) => formatWechatTime(value) || '-' },
-  ];
-  const brainInterventionColumns: ColumnsType<WechatAiIntervention> = [
-    { title: '事件', dataIndex: 'eventType', width: 140 },
-    { title: '状态', dataIndex: 'state', width: 100, render: (value) => <Tag color={brainStateColor[value]}>{value}</Tag> },
-    { title: '处理者', dataIndex: 'addressedBy', width: 110, render: (value) => value || '-' },
-    { title: '回复', dataIndex: 'replyText', ellipsis: true, render: (value) => value || '-' },
-    { title: '更新时间', dataIndex: 'updatedAt', width: 170, render: (value) => formatWechatTime(value) || '-' },
-  ];
-  const brainFeedbackColumns: ColumnsType<WechatAiMemoryFeedback> = [
-    { title: '纠正内容', dataIndex: 'feedbackText', ellipsis: true },
-    { title: '立场', dataIndex: 'stance', width: 96, render: (value) => <Tag>{value}</Tag> },
-    { title: '状态', dataIndex: 'status', width: 100, render: (value) => <Tag color={brainStateColor[value]}>{value}</Tag> },
+
+  const replyColumns: ColumnsType<WechatAiReplyLog> = [
+    { title: '群聊', dataIndex: 'roomId', width: 180, render: roomLabel },
+    { title: '提问', dataIndex: 'triggerContent', ellipsis: true },
+    { title: '回复', dataIndex: 'replyText', ellipsis: true },
     { title: '时间', dataIndex: 'createdAt', width: 170, render: (value) => formatWechatTime(value) || '-' },
+    {
+      title: '反馈', width: 175, render: (_, item) => <Space size={2}>
+        <Button size="small" type={item.feedback === 'human' ? 'primary' : 'default'} onClick={async () => { await reviewWechatAiReplyLog(item.id, 'human'); await refresh(true); }}>像人</Button>
+        <Button size="small" danger={item.feedback === 'too_ai'} onClick={async () => { await reviewWechatAiReplyLog(item.id, 'too_ai'); await refresh(true); }}>太 AI</Button>
+        <Button size="small" danger={item.feedback === 'too_much'} onClick={async () => { await reviewWechatAiReplyLog(item.id, 'too_much'); await refresh(true); }}>过火</Button>
+      </Space>,
+    },
   ];
 
-  return (
-    <>
-      <PageHeader title="AI 记忆" description="微信 Bot" extra={<Button icon={<ReloadOutlined />} loading={loading} onClick={() => void refresh()}>刷新</Button>} />
-      <Tabs
-        items={[
-          {
-            key: 'overview',
-            label: '任务概览',
-            children: (
-              <Space direction="vertical" size={16} style={{ display: 'flex' }}>
-                {!status?.configured ? <Alert type="warning" showIcon message="AI 尚未完成配置" /> : null}
-                <Row gutter={[16, 16]}>
-                  <Col xs={12} md={6}><Card size="small"><Statistic title="排队" value={queuedJobs} /></Card></Col>
-                  <Col xs={12} md={6}><Card size="small"><Statistic title="执行中" value={runningJobs} /></Card></Col>
-                  <Col xs={12} md={6}><Card size="small"><Statistic title="失败" value={failedJobs} /></Card></Col>
-                  <Col xs={12} md={6}><Card size="small"><Statistic title="群聊" value={groups.length} /></Card></Col>
-                </Row>
-                <Card title="最近任务" loading={loading}>
-                  <Table rowKey="id" size="small" columns={jobsColumns} dataSource={jobs} pagination={{ pageSize: 10, showSizeChanger: false }} scroll={{ x: 960 }} />
-                </Card>
-              </Space>
-            ),
-          },
-          {
-            key: 'observation',
-            label: '观察面板',
-            children: (
-              <Space direction="vertical" size={16} style={{ display: 'flex' }}>
-                <Row gutter={[16, 16]}>
-                  <Col xs={12} md={6}><Card size="small"><Statistic title="7天分段" value={observedSegments} /></Card></Col>
-                  <Col xs={12} md={6}><Card size="small"><Statistic title="平均质量" value={observedAvgQuality} precision={1} /></Card></Col>
-                  <Col xs={12} md={6}><Card size="small"><Statistic title="低质量" value={observedLowQuality} /></Card></Col>
-                  <Col xs={12} md={6}><Card size="small"><Statistic title="未解决失败" value={observationErrorCount(observation?.recentErrors)} /></Card></Col>
-                </Row>
-                <Card title="任务分布" loading={loading}>
-                  <Table rowKey={(row) => `${row.jobType}:${row.status}`} size="small" columns={observationJobColumns} dataSource={observation?.jobStats || []} pagination={false} />
-                </Card>
-                <Card title="进行中的历史学习" loading={loading}>
-                  <Table rowKey="id" size="small" columns={learningColumns} dataSource={observation?.activeLearning || []} pagination={false} scroll={{ x: 1320 }} />
-                </Card>
-                <Card title="最近未解决失败" loading={loading}>
-                  <Table rowKey="id" size="small" columns={errorsColumns} dataSource={observation?.recentErrors || []} pagination={false} scroll={{ x: 980 }} />
-                </Card>
-                <Card title="最近人格版本" loading={loading}>
-                  <Table rowKey="id" size="small" columns={personaVersionColumns} dataSource={observation?.recentVersions || []} pagination={false} scroll={{ x: 720 }} />
-                </Card>
-              </Space>
-            ),
-          },
-          {
-            key: 'history-learning',
-            label: '历史聊天学习',
-            children: (
-              <Space direction="vertical" size={16} style={{ display: 'flex' }}>
-                <Card>
-                  <Form form={learningForm} layout="vertical" onFinish={() => void createHistoryLearning()}>
-                    <Row gutter={[16, 0]}>
-                      <Col xs={24} md={12}>
-                        <Form.Item name="roomId" label="群聊" rules={[{ required: true, message: '请选择群聊' }]}>
-                          <Select showSearch optionFilterProp="label" options={roomOptions} placeholder="选择群聊" />
-                        </Form.Item>
-                      </Col>
-                      <Col xs={24} md={12}>
-                        <Form.Item name="maxMessages" label="最大消息数">
-                          <InputNumber min={1} precision={0} style={{ width: '100%' }} placeholder="不限制" />
-                        </Form.Item>
-                      </Col>
-                      <Col xs={24} md={12}><Form.Item name="start" label="开始时间"><Input type="datetime-local" /></Form.Item></Col>
-                      <Col xs={24} md={12}><Form.Item name="end" label="结束时间"><Input type="datetime-local" /></Form.Item></Col>
-                    </Row>
-                    <Button type="primary" icon={<PlayCircleOutlined />} loading={creatingLearning} htmlType="submit">开始学习</Button>
-                  </Form>
-                </Card>
-                <Card title="学习进度" loading={loading}>
-                  <Table rowKey="id" size="small" columns={learningColumns} dataSource={learningTasks} pagination={{ pageSize: 10, showSizeChanger: false }} scroll={{ x: 1320 }} />
-                </Card>
-              </Space>
-            ),
-          },
-          {
-            key: 'manual',
-            label: '手动补偿',
-            children: (
-              <Card>
-                <Form form={manualForm} layout="vertical" onFinish={() => void createJob()}>
-                  <Row gutter={[16, 0]}>
-                    <Col xs={24} md={12}>
-                      <Form.Item name="roomId" label="群聊" rules={[{ required: true, message: '请选择群聊' }]}>
-                        <Select showSearch optionFilterProp="label" options={roomOptions} placeholder="选择群聊" />
-                      </Form.Item>
-                    </Col>
-                    <Col xs={24} md={12}>
-                      <Form.Item name="jobType" label="任务类型" initialValue="segment_summary" rules={[{ required: true }]}>
-                        <Select options={Object.entries(jobTypeLabel).filter(([value]) => value !== 'reply').map(([value, label]) => ({ value, label }))} />
-                      </Form.Item>
-                    </Col>
-                    {manualJobType === 'segment_summary' ? (
-                      <>
-                        <Col xs={24} md={12}><Form.Item name="start" label="开始时间" rules={[{ required: true, message: '请选择开始时间' }]}><Input type="datetime-local" /></Form.Item></Col>
-                        <Col xs={24} md={12}><Form.Item name="end" label="结束时间" rules={[{ required: true, message: '请选择结束时间' }]}><Input type="datetime-local" /></Form.Item></Col>
-                      </>
-                    ) : null}
-                    <Col xs={24} md={12}><Form.Item name="model" label="模型"><Select allowClear options={modelOptions} placeholder="使用任务默认模型" /></Form.Item></Col>
-                    <Col xs={24} md={12}><Form.Item name="reason" label="原因"><Input maxLength={64} /></Form.Item></Col>
-                  </Row>
-                  <Button type="primary" htmlType="submit">提交任务</Button>
-                </Form>
-              </Card>
-            ),
-          },
-          {
-            key: 'errors',
-            label: '失败记录',
-            children: (
-              <Card loading={loading}>
-                <Table rowKey="id" size="small" columns={errorsColumns} dataSource={errors} pagination={{ pageSize: 10, showSizeChanger: false }} scroll={{ x: 980 }} />
-              </Card>
-            ),
-          },
-          {
-            key: 'style',
-            label: '角色与样本',
-            children: (
-              <Space direction="vertical" size={16} style={{ display: 'flex' }}>
-                <Card title="角色卡" loading={styleLoading}>
-                  <Form form={roleCardForm} layout="vertical" onFinish={() => void saveRoleCard()}>
-                    <Form.Item name="content" label="稳定角色" rules={[{ max: 8000, message: '角色卡不能超过 8000 个字符' }]}>
-                      <Input.TextArea autoSize={{ minRows: 5, maxRows: 10 }} />
-                    </Form.Item>
-                    <Button type="primary" htmlType="submit" loading={savingRoleCard}>保存角色卡</Button>
-                    {roleCard?.isDefault ? <Tag style={{ marginLeft: 8 }}>内置默认</Tag> : null}
-                  </Form>
-                </Card>
-                <Card title="记忆与招募指令" loading={styleLoading}>
-                  <Form form={promptInstructionForm} layout="vertical" onFinish={() => void savePromptInstructions()}>
-                    <Row gutter={[16, 0]}>
-                      {promptInstructionItems.map(({ key, label }) => (
-                        <Col xs={24} md={key === 'takeover_recruitment' ? 24 : 12} key={key}>
-                          <Form.Item name={key} label={label} rules={[{ max: 4000, message: '不能超过 4000 个字符' }]}>
-                            <Input.TextArea autoSize={{ minRows: 3, maxRows: 8 }} />
-                          </Form.Item>
-                        </Col>
-                      ))}
-                    </Row>
-                    <Button type="primary" htmlType="submit" loading={savingPromptInstructions}>保存任务指令</Button>
-                  </Form>
-                </Card>
-                <Card title="添加表达样本" loading={styleLoading}>
-                  <Form form={replySampleForm} layout="vertical" initialValues={{ scenario: 'general' }} onFinish={() => void createReplySample()}>
-                    <Row gutter={[16, 0]}>
-                      <Col xs={24} md={8}>
-                        <Form.Item name="roomId" label="适用群聊">
-                          <Select allowClear showSearch optionFilterProp="label" options={roomOptions} placeholder="留空则全局生效" />
-                        </Form.Item>
-                      </Col>
-                      <Col xs={24} md={8}>
-                        <Form.Item name="scenario" label="场景">
-                          <Select options={Object.entries(scenarioLabel).map(([value, label]) => ({ value, label }))} />
-                        </Form.Item>
-                      </Col>
-                    </Row>
-                    <Row gutter={[16, 0]}>
-                      <Col xs={24} md={12}>
-                        <Form.Item name="triggerText" label="用户的话" rules={[{ required: true, message: '请输入用户的话' }, { max: 2000, message: '不能超过 2000 个字符' }]}>
-                          <Input.TextArea autoSize={{ minRows: 2, maxRows: 5 }} />
-                        </Form.Item>
-                      </Col>
-                      <Col xs={24} md={12}>
-                        <Form.Item name="replyText" label="理想接话" rules={[{ required: true, message: '请输入理想接话' }, { max: 1000, message: '不能超过 1000 个字符' }]}>
-                          <Input.TextArea autoSize={{ minRows: 2, maxRows: 5 }} />
-                        </Form.Item>
-                      </Col>
-                    </Row>
-                    <Button type="primary" htmlType="submit" loading={creatingReplySample}>加入样本库</Button>
-                  </Form>
-                </Card>
-                <Card title="添加对话片段样本" loading={styleLoading}>
-                  <Form form={conversationSampleForm} layout="vertical" initialValues={{ scenario: 'general' }} onFinish={() => void createReplyConversationSample()}>
-                    <Row gutter={[16, 0]}>
-                      <Col xs={24} md={8}>
-                        <Form.Item name="roomId" label="适用群聊">
-                          <Select allowClear showSearch optionFilterProp="label" options={roomOptions} placeholder="留空则全局生效" />
-                        </Form.Item>
-                      </Col>
-                      <Col xs={24} md={8}>
-                        <Form.Item name="scenario" label="场景">
-                          <Select options={Object.entries(scenarioLabel).map(([value, label]) => ({ value, label }))} />
-                        </Form.Item>
-                      </Col>
-                    </Row>
-                    <Row gutter={[16, 0]}>
-                      <Col xs={24} md={14}>
-                        <Form.Item name="contextText" label="前文对话" rules={[{ required: true, message: '请输入前文对话' }, { max: 8000, message: '不能超过 8000 个字符' }]}>
-                          <Input.TextArea autoSize={{ minRows: 4, maxRows: 10 }} />
-                        </Form.Item>
-                      </Col>
-                      <Col xs={24} md={10}>
-                        <Form.Item name="replyText" label="理想接话" rules={[{ required: true, message: '请输入理想接话' }, { max: 1000, message: '不能超过 1000 个字符' }]}>
-                          <Input.TextArea autoSize={{ minRows: 4, maxRows: 10 }} />
-                        </Form.Item>
-                      </Col>
-                    </Row>
-                    <Button type="primary" htmlType="submit" loading={creatingConversationSample}>加入对话样本库</Button>
-                  </Form>
-                </Card>
-                <Card title="生效样本" loading={styleLoading}>
-                  <Table rowKey="id" size="small" columns={replySampleColumns} dataSource={replySamples} pagination={{ pageSize: 10, showSizeChanger: false }} scroll={{ x: 980 }} />
-                </Card>
-                <Card title="对话片段样本" loading={styleLoading}>
-                  <Table rowKey="id" size="small" columns={conversationSampleColumns} dataSource={conversationSamples} pagination={{ pageSize: 10, showSizeChanger: false }} scroll={{ x: 980 }} />
-                </Card>
-                <Card title="最近 AI 回复" loading={styleLoading}>
-                  <Table rowKey="id" size="small" columns={replyLogColumns} dataSource={replyLogs} pagination={{ pageSize: 10, showSizeChanger: false }} scroll={{ x: 1080 }} />
-                </Card>
-              </Space>
-            ),
-          },
-          {
-            key: 'group-brain',
-            label: '群脑',
-            children: (
-              <Space direction="vertical" size={16} style={{ display: 'flex' }}>
-                <Alert
-                  type="info"
-                  showIcon
-                  message="群脑只展示可追溯的事实、关系和事件；主动介入默认关闭，保存后立即生效。"
-                />
-                <Select
-                  value={selectedRoomId || undefined}
-                  showSearch
-                  optionFilterProp="label"
-                  options={roomOptions}
-                  placeholder="选择群聊"
-                  onChange={setSelectedRoomId}
-                  style={{ width: '100%', maxWidth: 680 }}
-                />
-                <Card
-                  title="主动介入"
-                  extra={<Button type="primary" loading={savingProactiveConfig} disabled={!proactiveConfig} onClick={() => void saveProactiveConfig()}>保存配置</Button>}
-                >
-                  <Row gutter={[16, 16]} align="middle">
-                    <Col xs={24} md={8}>
-                      <Space direction="vertical" size={2}>
-                        <Typography.Text strong>启用主动介入</Typography.Text>
-                        <Typography.Text type="secondary">只在 AI 白名单群中对未解决事件排队处理</Typography.Text>
-                      </Space>
-                    </Col>
-                    <Col xs={24} md={4}>
-                      <Switch
-                        checked={proactiveConfig?.proactiveEnabled || false}
-                        disabled={!proactiveConfig}
-                        onChange={(value) => setProactiveConfig((current) => current && { ...current, proactiveEnabled: value })}
-                      />
-                    </Col>
-                    <Col xs={12} md={4}>
-                      <Typography.Text type="secondary">观察间隔</Typography.Text>
-                      <InputNumber
-                        min={30}
-                        addonAfter="秒"
-                        value={proactiveConfig?.proactiveObserverIntervalSeconds}
-                        disabled={!proactiveConfig}
-                        onChange={(value) => setProactiveConfig((current) => current && { ...current, proactiveObserverIntervalSeconds: Number(value || 30) })}
-                        style={{ width: '100%', marginTop: 6 }}
-                      />
-                    </Col>
-                    <Col xs={12} md={4}>
-                      <Typography.Text type="secondary">等待群友</Typography.Text>
-                      <InputNumber
-                        min={30}
-                        addonAfter="秒"
-                        value={proactiveConfig?.proactiveSettleSeconds}
-                        disabled={!proactiveConfig}
-                        onChange={(value) => setProactiveConfig((current) => current && { ...current, proactiveSettleSeconds: Number(value || 30) })}
-                        style={{ width: '100%', marginTop: 6 }}
-                      />
-                    </Col>
-                    <Col xs={24} md={4}>
-                      <Typography.Text type="secondary">回复超时</Typography.Text>
-                      <InputNumber
-                        min={5}
-                        addonAfter="秒"
-                        value={proactiveConfig?.proactiveTimeoutSeconds}
-                        disabled={!proactiveConfig}
-                        onChange={(value) => setProactiveConfig((current) => current && { ...current, proactiveTimeoutSeconds: Number(value || 5) })}
-                        style={{ width: '100%', marginTop: 6 }}
-                      />
-                    </Col>
-                  </Row>
-                </Card>
-                {selectedRoomId ? (
-                  <>
-                    <Row gutter={[16, 16]}>
-                      <Col xs={12} md={6}><Card size="small"><Statistic title="群事实" value={brainFacts.length} /></Card></Col>
-                      <Col xs={12} md={6}><Card size="small"><Statistic title="群事件" value={brainEvents.length} /></Card></Col>
-                      <Col xs={12} md={6}><Card size="small"><Statistic title="待处理介入" value={brainInterventions.filter((item) => item.state === 'new').length} /></Card></Col>
-                      <Col xs={12} md={6}><Card size="small"><Statistic title="待核实纠正" value={brainFeedbacks.filter((item) => item.status === 'pending').length} /></Card></Col>
-                    </Row>
-                    <Tabs
-                      items={[
-                        {
-                          key: 'knowledge',
-                          label: '事实与事件',
-                          children: (
-                            <Row gutter={[16, 16]}>
-                              <Col xs={24} xl={12}><Card title="群事实" loading={brainLoading}><Table rowKey="id" size="small" columns={brainKnowledgeColumns} dataSource={brainFacts} pagination={{ pageSize: 8, showSizeChanger: false }} scroll={{ x: 780 }} /></Card></Col>
-                              <Col xs={24} xl={12}><Card title="群事件" loading={brainLoading}><Table rowKey="id" size="small" columns={brainKnowledgeColumns} dataSource={brainEvents} pagination={{ pageSize: 8, showSizeChanger: false }} scroll={{ x: 780 }} /></Card></Col>
-                              <Col span={24}><Card title="关系观察" loading={brainLoading}><Table rowKey="id" size="small" columns={brainKnowledgeColumns} dataSource={brainRelationships} pagination={{ pageSize: 8, showSizeChanger: false }} scroll={{ x: 780 }} /></Card></Col>
-                            </Row>
-                          ),
-                        },
-                        {
-                          key: 'interventions',
-                          label: '介入与纠正',
-                          children: (
-                            <Row gutter={[16, 16]}>
-                              <Col xs={24} xl={14}><Card title="主动介入" loading={brainLoading}><Table rowKey="id" size="small" columns={brainInterventionColumns} dataSource={brainInterventions} pagination={{ pageSize: 8, showSizeChanger: false }} scroll={{ x: 820 }} /></Card></Col>
-                              <Col xs={24} xl={10}><Card title="群友纠正" loading={brainLoading}><Table rowKey="id" size="small" columns={brainFeedbackColumns} dataSource={brainFeedbacks} pagination={{ pageSize: 8, showSizeChanger: false }} scroll={{ x: 620 }} /></Card></Col>
-                            </Row>
-                          ),
-                        },
-                      ]}
-                    />
-                  </>
-                ) : <Empty image={Empty.PRESENTED_IMAGE_SIMPLE} description="暂无可查看的群聊" />}
-              </Space>
-            ),
-          },
-          {
-            key: 'memory',
-            label: '记忆查看',
-            children: (
-              <Space direction="vertical" size={16} style={{ display: 'flex' }}>
-                <Select value={selectedRoomId || undefined} showSearch optionFilterProp="label" options={roomOptions} placeholder="选择群聊" onChange={setSelectedRoomId} style={{ width: '100%', maxWidth: 680 }} />
-                {selectedRoomId ? (
-                  <Tabs
-                    items={[
-                      { key: 'runs', label: '分段记忆', children: <Table loading={memoryLoading} rowKey="id" size="small" columns={runsColumns} dataSource={runs} pagination={{ pageSize: 10, showSizeChanger: false }} scroll={{ x: 820 }} /> },
-                      { key: 'profiles', label: '成员画像', children: <Table loading={memoryLoading} rowKey="memberWxid" size="small" columns={profilesColumns} dataSource={profiles} pagination={{ pageSize: 10, showSizeChanger: false }} scroll={{ x: 820 }} /> },
-                      {
-                        key: 'persona',
-                        label: '群文化与人格',
-                        children: (
-                          <Row gutter={[16, 16]}>
-                            <Col xs={24} lg={12}><Card size="small" title="群文化" extra={<Button type="text" icon={<EyeOutlined />} aria-label="查看群文化" onClick={() => setJsonModal({ title: '群文化', value: persona?.roomCultureJson })} />}><Typography.Paragraph ellipsis={{ rows: 8, expandable: true }}>{jsonText(persona?.roomCultureJson)}</Typography.Paragraph></Card></Col>
-                            <Col xs={24} lg={12}><Card size="small" title="稳定人格" extra={<Button type="text" icon={<EyeOutlined />} aria-label="查看稳定人格" onClick={() => setJsonModal({ title: '稳定人格', value: persona?.botPersonaJson })} />}><Typography.Paragraph ellipsis={{ rows: 8, expandable: true }}>{jsonText(persona?.botPersonaJson)}</Typography.Paragraph></Card></Col>
-                            <Col span={24}><Card size="small" title="人格版本"><Table loading={memoryLoading} rowKey="id" size="small" columns={personaVersionColumns} dataSource={personaVersions} pagination={{ pageSize: 8, showSizeChanger: false }} scroll={{ x: 720 }} /></Card></Col>
-                            <Col span={24}><Card size="small" title="人格候选"><Table loading={memoryLoading} rowKey="id" size="small" columns={candidatesColumns} dataSource={candidates} pagination={{ pageSize: 8, showSizeChanger: false }} scroll={{ x: 700 }} /></Card></Col>
-                          </Row>
-                        ),
-                      },
-                    ]}
-                  />
-                ) : <Empty image={Empty.PRESENTED_IMAGE_SIMPLE} />}
-              </Space>
-            ),
-          },
-        ]}
-      />
-      <Modal open={Boolean(jsonModal)} title={jsonModal?.title} footer={null} onCancel={() => setJsonModal(undefined)} width={760}>
-        <Typography.Paragraph style={{ marginBottom: 0, whiteSpace: 'pre-wrap', wordBreak: 'break-word' }}>{jsonText(jsonModal?.value)}</Typography.Paragraph>
-      </Modal>
-      <Modal open={Boolean(evidenceModal)} title={evidenceModal ? `人格候选 #${evidenceModal.candidate.id} 证据` : '人格候选证据'} footer={null} onCancel={() => setEvidenceModal(undefined)} width={920}>
-        <Space direction="vertical" size={16} style={{ display: 'flex' }}>
-          <Card size="small" title="候选内容">
-            <Typography.Paragraph style={{ marginBottom: 0, whiteSpace: 'pre-wrap', wordBreak: 'break-word' }}>{jsonText(evidenceModal?.candidate.candidateJson)}</Typography.Paragraph>
-          </Card>
-          <Card size="small" title="分段证据">
-            <Table rowKey="id" size="small" columns={evidenceRunColumns} dataSource={evidenceModal?.runs || []} pagination={false} scroll={{ x: 620 }} />
-          </Card>
-          <Card size="small" title="原始消息">
-            <Table rowKey="msgId" size="small" columns={evidenceMessageColumns} dataSource={evidenceModal?.messages || []} pagination={{ pageSize: 8, showSizeChanger: false }} scroll={{ x: 720 }} />
-          </Card>
-        </Space>
-      </Modal>
-    </>
-  );
+  const vector = status?.vector;
+  return <div>
+    <PageHeader title="AI 聊天检索" description="只索引原始文本消息；不生成成员画像、关系判断或群结论。" />
+    <Alert type="info" showIcon message="历史聊天只作为可追溯原文" description="机器人会用检索到的消息回答“谁之前说过什么”。接龙活动仍以接龙数据库实时状态为准。" style={{ marginBottom: 16 }} />
+    <Row gutter={[16, 16]}>
+      <Col xs={24} lg={14}>
+        <Card title="向量索引" loading={loading} extra={<Button icon={<ReloadOutlined />} onClick={() => void refresh()}>刷新</Button>}>
+          <Row gutter={[16, 16]}>
+            <Col xs={12} md={6}><Typography.Text type="secondary">状态</Typography.Text><div><Tag color={vector?.configured ? 'success' : 'warning'}>{vector?.configured ? '已配置' : '待配置'}</Tag></div></Col>
+            <Col xs={12} md={6}><Typography.Text type="secondary">Embedding</Typography.Text><div>{vector?.embeddingModel || '-'}</div></Col>
+            <Col xs={12} md={6}><Typography.Text type="secondary">已同步群聊</Typography.Text><div>{vector?.syncStates.length || 0}</div></Col>
+            <Col xs={12} md={6}><Typography.Text type="secondary">同步错误</Typography.Text><div>{vector?.syncStates.filter((item) => item.lastError).length || 0}</div></Col>
+          </Row>
+          <Table rowKey="roomId" size="small" style={{ marginTop: 16 }} pagination={false} dataSource={vector?.syncStates || []} columns={[
+            { title: '群聊', dataIndex: 'roomId', render: roomLabel },
+            { title: '最后同步', dataIndex: 'lastSuccessAt', render: (value) => formatWechatTime(value) || '-' },
+            { title: '错误', dataIndex: 'lastError', render: (value) => value || '-' },
+          ]} />
+        </Card>
+      </Col>
+      <Col xs={24} lg={10}>
+        <Card title="历史聊天索引">
+          <Form form={indexForm} layout="vertical" onFinish={(values) => void createIndexTask(values)}>
+            <Form.Item name="roomId" label="群聊" rules={[{ required: true, message: '请选择群聊' }]}><Select showSearch optionFilterProp="label" options={roomOptions} /></Form.Item>
+            <Row gutter={12}>
+              <Col span={12}><Form.Item name="start" label="开始时间"><Input type="datetime-local" /></Form.Item></Col>
+              <Col span={12}><Form.Item name="end" label="结束时间"><Input type="datetime-local" /></Form.Item></Col>
+            </Row>
+            <Form.Item name="maxMessages" label="最多文本消息"><InputNumber min={1} style={{ width: '100%' }} placeholder="不限制" /></Form.Item>
+            <Button type="primary" htmlType="submit" loading={submitting} disabled={!vector?.configured}>开始索引</Button>
+          </Form>
+        </Card>
+      </Col>
+      <Col span={24}><Card title="索引任务" loading={loading}><Table rowKey="id" size="small" columns={taskColumns} dataSource={tasks} pagination={{ pageSize: 10, showSizeChanger: false }} scroll={{ x: 900 }} /></Card></Col>
+      <Col xs={24} xl={12}><Card title="最近任务"><Table rowKey="id" size="small" columns={jobColumns} dataSource={jobs} pagination={{ pageSize: 8, showSizeChanger: false }} scroll={{ x: 780 }} /></Card></Col>
+      <Col xs={24} xl={12}><Card title="失败记录"><Table rowKey="id" size="small" columns={errorColumns} dataSource={errors} pagination={{ pageSize: 8, showSizeChanger: false }} scroll={{ x: 700 }} /></Card></Col>
+      <Col span={24}>
+        <Card title="回复风格">
+          <Form form={styleForm} layout="vertical" onFinish={(values) => void saveStyle(values)}>
+            <Form.Item name="roleCard" label="角色卡"><Input.TextArea rows={4} maxLength={8000} /></Form.Item>
+            <Form.Item name="replyInstruction" label="回答规则"><Input.TextArea rows={3} maxLength={4000} /></Form.Item>
+            <Button type="primary" htmlType="submit" loading={savingStyle}>保存</Button>
+          </Form>
+        </Card>
+      </Col>
+      <Col span={24}><Card title="回复反馈"><Table rowKey="id" size="small" columns={replyColumns} dataSource={replyLogs} pagination={{ pageSize: 10, showSizeChanger: false }} scroll={{ x: 1000 }} /></Card></Col>
+    </Row>
+  </div>;
 }

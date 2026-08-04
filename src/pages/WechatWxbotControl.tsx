@@ -26,7 +26,7 @@ import {
 } from '../utils/settings';
 import { formatWechatTime } from '../utils/wechatBot';
 
-type FieldType = 'string' | 'password' | 'number' | 'boolean' | 'list' | 'roomList' | 'textarea' | 'select';
+type FieldType = 'string' | 'password' | 'number' | 'decimal' | 'boolean' | 'list' | 'roomList' | 'textarea' | 'select';
 type AiProvider = AIProvider;
 type ConfigSectionKey = keyof typeof defaultWxbotConfig;
 type FieldDef = {
@@ -36,6 +36,9 @@ type FieldDef = {
   extra?: string;
   options?: Array<{ label: string; value: string }>;
   wide?: boolean;
+  min?: number;
+  max?: number;
+  readOnly?: boolean;
   visible?: (provider: AiProvider) => boolean;
 };
 
@@ -50,17 +53,14 @@ type FormValues = Record<string, Record<string, unknown>>;
 const aiTaskModelDefaults: Record<AiProvider, Record<string, string>> = {
   gpt: {
     reply_model: 'gpt-5.4-mini',
-    summary_model: 'gpt-5.5',
-    merge_model: 'gpt-5.5',
-    manual_deep_model: 'gpt-5.2',
   },
   doubao: {
     reply_model: 'doubao-seed-2-0-mini-260428',
-    summary_model: 'doubao-seed-2-1-turbo-260628',
-    merge_model: 'doubao-seed-2-1-pro-260628',
-    manual_deep_model: 'doubao-seed-2-1-pro-260628',
   },
 };
+
+const VECTOR_EMBEDDING_MODEL = 'qwen3.7-text-embedding';
+const vectorEmbeddingModelOptions = [{ label: VECTOR_EMBEDDING_MODEL, value: VECTOR_EMBEDDING_MODEL }];
 
 const modelAliases: Record<string, string> = {
   '5.2': 'gpt-5.2',
@@ -186,9 +186,7 @@ const defaultWxbotConfig = {
       '43308858460@chatroom',
     ],
     mention_aliases: ['智能小助手'],
-    auto_memory_enabled: true,
     reply_enabled: true,
-    takeover_recruitment_enabled: false,
     provider: 'gpt',
     gpt_api_base_url: '',
     gpt_api_key: '',
@@ -196,20 +194,18 @@ const defaultWxbotConfig = {
     api_base_url: '',
     api_key: '',
     reply_model: 'gpt-5.4-mini',
-    summary_model: 'gpt-5.5',
-    merge_model: 'gpt-5.5',
-    manual_deep_model: 'gpt-5.2',
-    scan_interval_seconds: 300,
-    segment_min_messages: 30,
-    segment_quiet_seconds: 600,
-    segment_stale_seconds: 21600,
-    profile_min_segments: 3,
-    max_segment_messages: 800,
     reply_context_messages: 100,
+    reply_input_token_budget: 6000,
     worker_queue_size: 200,
     reply_timeout_seconds: 20,
-    summary_timeout_seconds: 180,
-    merge_timeout_seconds: 300,
+    vector_enabled: false,
+    vector_qdrant_url: '',
+    vector_embedding_base_url: 'https://dashscope.aliyuncs.com/compatible-mode/v1',
+    vector_embedding_model: VECTOR_EMBEDDING_MODEL,
+    vector_sync_interval_seconds: 60,
+    vector_sync_batch_size: 32,
+    vector_search_limit: 8,
+    vector_min_score: 0.4,
   },
   wxbot_control: {
     enabled: true,
@@ -343,30 +339,26 @@ const configSections: SectionDef[] = [
     label: 'AI 记忆',
     fields: [
       { key: 'enabled', label: '启用 AI Agent', type: 'boolean' },
-      { key: 'group_whitelist', label: 'AI 群聊白名单', type: 'roomList', wide: true, extra: '只对选中的群聊进行 AI 回复、记忆沉淀和历史学习。' },
+      { key: 'group_whitelist', label: 'AI 群聊白名单', type: 'roomList', wide: true, extra: '只对选中的群聊进行 AI 回复和原始文本检索。' },
       { key: 'mention_aliases', label: '机器人别名', type: 'list', wide: true, extra: '每行一个 @ 别名。' },
-      { key: 'auto_memory_enabled', label: '启用自动记忆沉淀', type: 'boolean' },
       { key: 'reply_enabled', label: '启用 @ 回复', type: 'boolean' },
-      { key: 'takeover_recruitment_enabled', label: '启用定时自动摇人', type: 'boolean' },
       { key: 'provider', label: 'AI 服务商', type: 'select', options: aiProviderOptions },
       { key: 'gpt_api_base_url', label: 'GPT API Base URL', type: 'string', wide: true, visible: (provider) => provider === 'gpt' },
       { key: 'gpt_api_key', label: 'GPT API Key', type: 'password', wide: true, visible: (provider) => provider === 'gpt' },
       { key: 'doubao_api_key', label: '豆包 Ark API Key', type: 'password', wide: true, visible: (provider) => provider === 'doubao' },
       { key: 'reply_model', label: '回复模型', type: 'select' },
-      { key: 'summary_model', label: '总结模型', type: 'select' },
-      { key: 'merge_model', label: '画像与文化模型', type: 'select' },
-      { key: 'manual_deep_model', label: '手动深度模型', type: 'select' },
-      { key: 'scan_interval_seconds', label: '扫描间隔秒', type: 'number' },
-      { key: 'segment_min_messages', label: '分段最少消息数', type: 'number' },
-      { key: 'segment_quiet_seconds', label: '安静阈值秒', type: 'number' },
-      { key: 'segment_stale_seconds', label: '最长未总结秒', type: 'number' },
-      { key: 'profile_min_segments', label: '画像最少片段数', type: 'number' },
-      { key: 'max_segment_messages', label: '分段消息上限', type: 'number' },
       { key: 'reply_context_messages', label: '回复上下文消息数', type: 'number' },
+      { key: 'reply_input_token_budget', label: '回复输入 token 预算', type: 'number' },
       { key: 'worker_queue_size', label: '任务队列容量', type: 'number' },
       { key: 'reply_timeout_seconds', label: '回复超时秒', type: 'number' },
-      { key: 'summary_timeout_seconds', label: '总结超时秒', type: 'number' },
-      { key: 'merge_timeout_seconds', label: '画像与人格超时秒', type: 'number' },
+      { key: 'vector_enabled', label: '启用向量知识库', type: 'boolean' },
+      { key: 'vector_qdrant_url', label: 'Qdrant 地址', type: 'string', wide: true },
+      { key: 'vector_embedding_base_url', label: 'Embedding API Base URL', type: 'string', wide: true },
+      { key: 'vector_embedding_model', label: 'Embedding 模型', type: 'select', options: vectorEmbeddingModelOptions },
+      { key: 'vector_sync_interval_seconds', label: '向量同步间隔秒', type: 'number' },
+      { key: 'vector_sync_batch_size', label: '向量同步批量', type: 'number' },
+      { key: 'vector_search_limit', label: '向量检索条数', type: 'number', max: 8 },
+      { key: 'vector_min_score', label: '向量最低分数', type: 'decimal', min: 0, max: 1 },
     ],
   },
   {
@@ -606,13 +598,13 @@ export default function WechatWxbotControl() {
 
 function renderField(field: FieldDef, groupOptions: Array<{ label: string; value: string }> = [], aiProvider: AiProvider = 'gpt') {
   if (field.type === 'boolean') return <Switch checkedChildren="开" unCheckedChildren="关" />;
-  if (field.type === 'number') return <InputNumber min={0} precision={0} style={{ width: '100%' }} />;
+  if (field.type === 'number' || field.type === 'decimal') return <InputNumber min={field.min ?? 0} max={field.max} precision={field.type === 'decimal' ? 2 : 0} style={{ width: '100%' }} />;
   if (field.type === 'password') return <Input.Password autoComplete="off" className="mono" />;
   if (field.type === 'textarea') return <Input.TextArea rows={4} />;
   if (field.type === 'list') return <Input.TextArea rows={5} className="mono" />;
   if (field.type === 'roomList') return <Select mode="multiple" allowClear showSearch optionFilterProp="label" options={groupOptions} placeholder="选择群聊" />;
-  if (field.type === 'select') return <Select options={field.key.endsWith('_model') ? aiModelOptionsByProvider[aiProvider] : field.options || []} />;
-  return <Input className="mono" />;
+  if (field.type === 'select') return <Select options={field.options || (field.key.endsWith('_model') ? aiModelOptionsByProvider[aiProvider] : [])} />;
+  return <Input className="mono" readOnly={field.readOnly} />;
 }
 
 function hasConfig(config: WxbotRemoteConfig) {
@@ -702,6 +694,7 @@ export function configToForm(config: WxbotRemoteConfig): FormValues {
   ai.gpt_api_base_url = text(aiSource, 'gpt_api_base_url') || (provider === 'gpt' ? text(aiSource, 'api_base_url') : '');
   ai.gpt_api_key = text(aiSource, 'gpt_api_key') || (provider === 'gpt' ? text(aiSource, 'api_key') : '');
   ai.doubao_api_key = text(aiSource, 'doubao_api_key') || (provider === 'doubao' ? text(aiSource, 'api_key') : '');
+  ai.vector_embedding_model = text(ai, 'vector_embedding_model') || VECTOR_EMBEDDING_MODEL;
   Object.entries(aiTaskModelDefaults[provider]).forEach(([field, defaultValue]) => {
     ai[field] = normalizeAiTaskModel(provider, ai[field], defaultValue);
   });
@@ -722,7 +715,7 @@ export function formToConfig(values: FormValues): WxbotRemoteConfig {
         result[section.key][field.key] = Array.isArray(value) ? value : [];
       } else if (field.type === 'boolean') {
         result[section.key][field.key] = asBool(value);
-      } else if (field.type === 'number') {
+      } else if (field.type === 'number' || field.type === 'decimal') {
         result[section.key][field.key] = Number(value || 0);
       } else {
         result[section.key][field.key] = value ?? '';
@@ -735,6 +728,7 @@ export function formToConfig(values: FormValues): WxbotRemoteConfig {
   Object.entries(aiTaskModelDefaults[provider]).forEach(([field, defaultValue]) => {
     ai[field] = normalizeAiTaskModel(provider, ai[field], defaultValue);
   });
+  ai.vector_embedding_model = text(ai, 'vector_embedding_model') || VECTOR_EMBEDDING_MODEL;
   if (provider === 'doubao') {
     ai.api_base_url = DOUBAO_API_BASE_URL;
     ai.api_key = text(ai, 'doubao_api_key');
@@ -798,24 +792,31 @@ export function validateWxbotConfig(config: WxbotRemoteConfig) {
   if (config.ai?.enabled) {
     checks.push(
       () => requireText(config.ai, 'reply_model', '回复模型'),
-      () => requireText(config.ai, 'summary_model', '总结模型'),
-      () => requireText(config.ai, 'merge_model', '画像与文化模型'),
-      () => requireText(config.ai, 'manual_deep_model', '手动深度模型'),
-      () => requireInt(config.ai, 'scan_interval_seconds', 'AI 扫描间隔'),
-      () => requireInt(config.ai, 'segment_min_messages', 'AI 分段最少消息数'),
-      () => requireInt(config.ai, 'segment_quiet_seconds', 'AI 安静阈值'),
-      () => requireInt(config.ai, 'segment_stale_seconds', 'AI 最长未总结时间'),
-      () => requireInt(config.ai, 'profile_min_segments', 'AI 画像最少片段数'),
-      () => requireInt(config.ai, 'max_segment_messages', 'AI 分段消息上限'),
       () => requireInt(config.ai, 'reply_context_messages', 'AI 回复上下文消息数'),
+      () => requireInt(config.ai, 'reply_input_token_budget', '回复输入 token 预算'),
       () => requireInt(config.ai, 'worker_queue_size', 'AI 任务队列容量'),
       () => requireInt(config.ai, 'reply_timeout_seconds', 'AI 回复超时'),
-      () => requireInt(config.ai, 'summary_timeout_seconds', 'AI 总结超时'),
-      () => requireInt(config.ai, 'merge_timeout_seconds', 'AI 画像与人格超时'),
     );
     if (normalizeAiProvider(config.ai.provider) === 'gpt') {
       checks.push(() => requireText(config.ai, 'gpt_api_base_url', 'GPT API Base URL'));
     }
+  }
+  if (config.ai?.vector_enabled) {
+    checks.push(
+      () => requireText(config.ai, 'vector_qdrant_url', 'Qdrant 地址'),
+      () => requireText(config.ai, 'vector_embedding_base_url', 'Embedding API Base URL'),
+      () => requireText(config.ai, 'vector_embedding_model', 'Embedding 模型'),
+      () => requireInt(config.ai, 'vector_sync_interval_seconds', '向量同步间隔'),
+      () => requireInt(config.ai, 'vector_sync_batch_size', '向量同步批量'),
+      () => {
+        const limit = Number(config.ai?.vector_search_limit);
+        return Number.isInteger(limit) && limit >= 1 && limit <= 8 ? '' : '向量检索条数必须在 1 到 8 之间';
+      },
+      () => {
+        const score = Number(config.ai?.vector_min_score);
+        return Number.isFinite(score) && score >= 0 && score <= 1 ? '' : '向量最低分数必须在 0 到 1 之间';
+      },
+    );
   }
   if (config.wxbot_control?.enabled) {
     checks.push(

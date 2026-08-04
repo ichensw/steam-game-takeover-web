@@ -22,11 +22,22 @@ describe('WechatWxbotControl config form mapping', () => {
     expect(formToConfig(form).ai?.group_whitelist).toEqual(['room-a@chatroom', 'room-b@chatroom']);
   });
 
-  it('keeps automatic takeover recruitment as an opt-in switch', () => {
-    const form = configToForm({ ai: { takeover_recruitment_enabled: true } });
+  it('fills the fixed vector embedding model for old configs', () => {
+    const form = configToForm({
+      ai: {
+        vector_enabled: true,
+        vector_qdrant_url: 'https://qdrant.rabbits.ink',
+        vector_embedding_base_url: 'https://dashscope.aliyuncs.com/compatible-mode/v1',
+        vector_sync_interval_seconds: 60,
+        vector_sync_batch_size: 32,
+        vector_search_limit: 8,
+        vector_min_score: 0.4,
+      },
+    });
+    const config = formToConfig(form);
 
-    expect(form.ai.takeover_recruitment_enabled).toBe(true);
-    expect(formToConfig(form).ai?.takeover_recruitment_enabled).toBe(true);
+    expect(config.ai?.vector_embedding_model).toBe('qwen3.7-text-embedding');
+    expect(validateWxbotConfig(config)).not.toBe('Embedding 模型不能为空');
   });
 
   it('migrates a legacy Ark connection into the Doubao provider', () => {
@@ -72,12 +83,10 @@ describe('WechatWxbotControl config form mapping', () => {
         gpt_api_key: 'gpt-key',
         doubao_api_key: 'ark-key',
         reply_model: 'gpt-5.5',
-        summary_model: 'doubao-seed-2-1-turbo-260628',
       },
     });
 
     expect(form.ai.reply_model).toBe('doubao-seed-2-0-mini-260428');
-    expect(form.ai.summary_model).toBe('doubao-seed-2-1-turbo-260628');
     expect(formToConfig(form).ai).toMatchObject({
       provider: 'doubao',
       api_base_url: 'https://ark.cn-beijing.volces.com/api/v3',
