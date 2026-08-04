@@ -234,6 +234,7 @@ export default function WechatAiMemory() {
   ];
 
   const vector = status?.vector;
+  const vectorSyncStates = vector?.syncStates ?? [];
   return <div>
     <PageHeader title="AI 聊天检索" description="只索引原始文本消息；不生成成员画像、关系判断或群结论。" />
     <Alert type="info" showIcon message="历史聊天只作为可追溯原文" description="机器人会用检索到的消息回答“谁之前说过什么”。接龙活动仍以接龙数据库实时状态为准。" style={{ marginBottom: 16 }} />
@@ -243,10 +244,10 @@ export default function WechatAiMemory() {
           <Row gutter={[16, 16]}>
             <Col xs={12} md={6}><Typography.Text type="secondary">状态</Typography.Text><div><Tag color={vector?.configured ? 'success' : 'warning'}>{vector?.configured ? '已配置' : '待配置'}</Tag></div></Col>
             <Col xs={12} md={6}><Typography.Text type="secondary">Embedding</Typography.Text><div>{vector?.embeddingModel || '-'}</div></Col>
-            <Col xs={12} md={6}><Typography.Text type="secondary">已同步群聊</Typography.Text><div>{vector?.syncStates.length || 0}</div></Col>
-            <Col xs={12} md={6}><Typography.Text type="secondary">同步错误</Typography.Text><div>{vector?.syncStates.filter((item) => item.lastError).length || 0}</div></Col>
+            <Col xs={12} md={6}><Typography.Text type="secondary">已同步群聊</Typography.Text><div>{vectorSyncStates.length}</div></Col>
+            <Col xs={12} md={6}><Typography.Text type="secondary">同步错误</Typography.Text><div>{vectorSyncStates.filter((item) => item.lastError).length}</div></Col>
           </Row>
-          <Table rowKey="roomId" size="small" style={{ marginTop: 16 }} pagination={false} dataSource={vector?.syncStates || []} columns={[
+          <Table rowKey="roomId" size="small" style={{ marginTop: 16 }} pagination={false} dataSource={vectorSyncStates} columns={[
             { title: '群聊', dataIndex: 'roomId', render: roomLabel },
             { title: '最后同步', dataIndex: 'lastSuccessAt', render: (value) => formatWechatTime(value) || '-' },
             { title: '错误', dataIndex: 'lastError', render: (value) => value || '-' },
