@@ -9,7 +9,9 @@ import {
   FileTextOutlined,
   FormOutlined,
   LogoutOutlined,
+  MenuFoldOutlined,
   MenuOutlined,
+  MenuUnfoldOutlined,
   RobotOutlined,
   SettingOutlined,
   TeamOutlined,
@@ -19,7 +21,7 @@ import {
   WechatOutlined,
   MessageOutlined,
 } from '@ant-design/icons';
-import { Avatar, Badge, Button, Drawer, Flex, Form, Input, Layout, Menu, Modal, Space, Typography, Upload, App as AntApp } from 'antd';
+import { Avatar, Badge, Button, Drawer, Flex, Form, Input, Layout, Menu, Modal, Space, Tooltip, Typography, Upload, App as AntApp } from 'antd';
 import type { MenuProps } from 'antd';
 import type { RcFile, UploadProps } from 'antd/es/upload/interface';
 import { useEffect, useState } from 'react';
@@ -134,6 +136,8 @@ export default function AdminLayout() {
   const { message } = AntApp.useApp();
   const [admin, setAdmin] = useState<AdminUser | null>(() => getAdmin());
   const [mobileNavOpen, setMobileNavOpen] = useState(false);
+  const [siderCollapsed, setSiderCollapsed] = useState(false);
+  const [commandQuery, setCommandQuery] = useState('');
   const [profileOpen, setProfileOpen] = useState(false);
   const [profileSaving, setProfileSaving] = useState(false);
   const [passwordSaving, setPasswordSaving] = useState(false);
@@ -146,6 +150,10 @@ export default function AdminLayout() {
   const selectedKey = `/${location.pathname.split('/')[1] || 'dashboard'}`;
   const currentLabel = menuItemLabel(availableItems.find((item) => item?.key === selectedKey));
   const adminName = admin?.nickname || admin?.username || 'admin';
+  const commandItems = [
+    { key: '/dashboard', label: '控制台' },
+    ...availableItems.map((item) => ({ key: String(item?.key || ''), label: String(menuItemLabel(item) || '') })),
+  ];
 
   useEffect(() => {
     void getAdminMe().then(saveAdminSession).catch(() => undefined);
@@ -248,9 +256,28 @@ export default function AdminLayout() {
     />
   );
 
+  const runCommandSearch = (value: string) => {
+    const keyword = value.trim().toLocaleLowerCase();
+    if (!keyword) return;
+    const target = commandItems.find((item) => item.label.toLocaleLowerCase().includes(keyword));
+    if (!target) {
+      message.info('未找到匹配的工作区');
+      return;
+    }
+    navigate(target.key);
+    setCommandQuery('');
+  };
+
   return (
     <Layout className="admin-shell">
-      <Layout.Sider width={264} className="admin-sider">
+      <Layout.Sider
+        width={272}
+        collapsedWidth={72}
+        collapsed={siderCollapsed}
+        collapsible
+        trigger={null}
+        className="admin-sider"
+      >
         <div className="brand">
           <div className="brand-mark">
             <ThunderboltOutlined />
@@ -267,6 +294,15 @@ export default function AdminLayout() {
             <Typography.Text type="secondary">当前管理员</Typography.Text>
             <Typography.Text className="mono">{adminName}</Typography.Text>
           </div>
+          <Tooltip title={siderCollapsed ? '展开导航' : '收起导航'}>
+            <Button
+              aria-label={siderCollapsed ? '展开导航' : '收起导航'}
+              className="sider-collapse"
+              icon={siderCollapsed ? <MenuUnfoldOutlined /> : <MenuFoldOutlined />}
+              onClick={() => setSiderCollapsed((value) => !value)}
+              type="text"
+            />
+          </Tooltip>
         </div>
       </Layout.Sider>
       <Layout className="admin-main">
@@ -288,8 +324,18 @@ export default function AdminLayout() {
               </div>
             </Flex>
             <Space size={12} className="topbar-actions">
+              <Input.Search
+                allowClear
+                className="topbar-command-search"
+                placeholder="跳转模块"
+                value={commandQuery}
+                onChange={(event) => setCommandQuery(event.target.value)}
+                onSearch={runCommandSearch}
+              />
               <Badge count={0} size="small">
-                <Button shape="circle" icon={<BellOutlined />} />
+                <Tooltip title="暂无新通知">
+                  <Button shape="circle" icon={<BellOutlined />} />
+                </Tooltip>
               </Badge>
               <Button className="admin-avatar-button" onClick={openProfile}>
                 <Avatar className="admin-avatar" src={admin?.avatarUrl}>

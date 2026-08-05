@@ -10,21 +10,22 @@ ReactDOM.createRoot(document.getElementById('root')!).render(
     <ConfigProvider
       locale={zhCN}
       theme={{
-        algorithm: theme.darkAlgorithm,
+        algorithm: theme.defaultAlgorithm,
         token: {
-          colorPrimary: '#ff6a1a',
-          colorInfo: '#6d7dff',
-          colorSuccess: '#38d996',
-          colorWarning: '#ffb020',
-          colorError: '#ff5570',
-          colorBgBase: '#07080b',
-          colorBgContainer: '#11141a',
-          colorBgElevated: '#151922',
-          colorBorder: '#262b36',
-          colorText: '#f1f4f8',
-          colorTextSecondary: '#9da7b8',
-          colorTextTertiary: '#697386',
-          borderRadius: 14,
+          colorPrimary: '#087f6b',
+          colorInfo: '#2876a8',
+          colorSuccess: '#2f8d5c',
+          colorWarning: '#ae701b',
+          colorError: '#bc4a42',
+          colorBgBase: '#f3f5f2',
+          colorBgContainer: '#ffffff',
+          colorBgElevated: '#ffffff',
+          colorBorder: '#d8e0db',
+          colorText: '#17231e',
+          colorTextSecondary: '#66756d',
+          colorTextTertiary: '#849189',
+          borderRadius: 8,
+          borderRadiusLG: 8,
           fontFamily:
             'ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif',
           fontFamilyCode:
@@ -37,21 +38,33 @@ ReactDOM.createRoot(document.getElementById('root')!).render(
             siderBg: 'transparent',
           },
           Table: {
-            headerBg: '#10131a',
-            rowHoverBg: '#1b202b',
-            borderColor: '#252b36',
+            headerBg: '#f4f7f4',
+            rowHoverBg: '#f0f6f2',
+            borderColor: '#dce4df',
+            cellPaddingBlock: 11,
+            cellPaddingInline: 14,
           },
           Card: {
-            colorBgContainer: '#11141a',
-            paddingLG: 22,
-            borderRadiusLG: 18,
+            colorBgContainer: '#ffffff',
+            paddingLG: 18,
+            borderRadiusLG: 8,
           },
           Drawer: {
-            colorBgElevated: '#10131a',
+            colorBgElevated: '#ffffff',
           },
           Modal: {
-            contentBg: '#10131a',
-            headerBg: '#10131a',
+            contentBg: '#ffffff',
+            headerBg: '#ffffff',
+          },
+          Button: {
+            borderRadius: 8,
+            controlHeight: 36,
+          },
+          Input: {
+            borderRadius: 8,
+          },
+          Select: {
+            borderRadius: 8,
           },
         },
       }}

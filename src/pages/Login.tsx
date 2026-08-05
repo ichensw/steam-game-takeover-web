@@ -1,4 +1,4 @@
-import { LockOutlined, UserOutlined } from '@ant-design/icons';
+import { LockOutlined, SafetyCertificateOutlined, TeamOutlined, ThunderboltOutlined, UserOutlined } from '@ant-design/icons';
 import { Button, Card, Form, Input, Typography, App as AntApp } from 'antd';
 import { useNavigate } from 'react-router-dom';
 import { adminLogin } from '../api/admin';
@@ -23,13 +23,25 @@ export default function Login() {
     <main className="login-page">
       <section className="login-panel">
         <div className="login-copy">
-          <Typography.Text className="login-kicker">Steam Game Takeover</Typography.Text>
-          <Typography.Title>后台管理</Typography.Title>
-          <Typography.Paragraph>
-            管理接龙、用户、反馈和系统开关。深色工作台优先保证高密度信息和重复操作效率。
-          </Typography.Paragraph>
+          <div className="login-identity">
+            <span className="login-mark"><ThunderboltOutlined /></span>
+            <Typography.Text className="login-kicker">Steam Game Takeover</Typography.Text>
+          </div>
+          <div className="login-copy-body">
+            <Typography.Title>运营工作台</Typography.Title>
+            <Typography.Paragraph>为接龙、社群与审核而设计的管理员入口。</Typography.Paragraph>
+          </div>
+          <div className="login-signals" aria-label="管理范围">
+            <span><TeamOutlined /> 接龙</span>
+            <span><SafetyCertificateOutlined /> 审核</span>
+            <span><ThunderboltOutlined /> KOOK</span>
+          </div>
         </div>
         <Card className="login-card">
+          <div className="login-form-heading">
+            <Typography.Text>管理员认证</Typography.Text>
+            <Typography.Title level={2}>进入工作台</Typography.Title>
+          </div>
           <Form layout="vertical" onFinish={onFinish} requiredMark={false}>
             <Form.Item
               label="管理员账号"
