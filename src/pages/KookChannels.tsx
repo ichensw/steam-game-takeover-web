@@ -30,7 +30,6 @@ import {
   createKookChannelRole,
   deleteKookChannel,
   deleteKookChannelRole,
-  getKookChannel,
   getKookChannelRoles,
   kickoutKookChannelUser,
   listKookChannelUsageSummary,
@@ -316,7 +315,6 @@ export default function KookChannels() {
   const [moving, setMoving] = useState(false);
   const [drawerOpen, setDrawerOpen] = useState(false);
   const [editing, setEditing] = useState<Row | null>(null);
-  const [editorLoading, setEditorLoading] = useState(false);
   const [usersTarget, setUsersTarget] = useState<Row | null>(null);
   const [users, setUsers] = useState<UserRow[]>([]);
   const [usersLoading, setUsersLoading] = useState(false);
@@ -422,30 +420,20 @@ export default function KookChannels() {
     setDrawerOpen(true);
   };
 
-  const openEdit = async (row: Row) => {
-    setEditing(null);
+  const openEdit = (row: Row) => {
+    setEditing(row);
     form.resetFields();
+    form.setFieldsValue({
+      name: row.name,
+      parentId: row.parent_id || row.parentId,
+      topic: row.topic,
+      level: row.level,
+      slowMode: row.slow_mode || row.slowMode,
+      limitAmount: row.limit_amount || row.limitAmount,
+      voiceQuality: row.voice_quality || row.voiceQuality,
+      password: '',
+    });
     setDrawerOpen(true);
-    setEditorLoading(true);
-    try {
-      const data = await getKookChannel(row.id, { needChildren: true });
-      setEditing({ ...row, ...data, id: row.id });
-      form.setFieldsValue({
-        name: data.name,
-        parentId: data.parent_id || data.parentId,
-        topic: data.topic,
-        level: data.level,
-        slowMode: data.slow_mode,
-        limitAmount: data.limit_amount,
-        voiceQuality: data.voice_quality,
-        password: '',
-      });
-    } catch (error) {
-      setDrawerOpen(false);
-      message.error(getErrorMessage(error));
-    } finally {
-      setEditorLoading(false);
-    }
   };
 
   const save = async (values: Record<string, unknown>) => {
@@ -935,7 +923,7 @@ export default function KookChannels() {
         </Space>
       </Modal>
 
-      <ModalPanel title={editing ? '编辑 KOOK 频道' : '创建 KOOK 频道'} width={620} open={drawerOpen} onClose={() => setDrawerOpen(false)} loading={editorLoading}>
+      <ModalPanel title={editing ? '编辑 KOOK 频道' : '创建 KOOK 频道'} width={620} open={drawerOpen} onClose={() => setDrawerOpen(false)}>
         <Form form={form} layout="vertical" disabled={saving} onFinish={save}>
           {!editing && (
             <Form.Item label="频道类型" name="type" rules={[{ required: true, message: '请选择频道类型' }]}>

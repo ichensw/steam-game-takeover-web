@@ -32,7 +32,7 @@ export default function ModalPanel({
   return (
     <Modal
       className={className}
-      footer={footer}
+      footer={footer ?? null}
       keyboard={keyboard}
       maskClosable={maskClosable}
       onCancel={onClose}

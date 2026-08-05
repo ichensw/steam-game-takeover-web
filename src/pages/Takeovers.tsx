@@ -24,7 +24,6 @@ import { useNavigate } from 'react-router-dom';
 import {
   createTakeover,
   deleteTakeover,
-  getTakeover,
   listKookChannels,
   listTakeoverMemberActivities,
   listTakeovers,
@@ -106,7 +105,6 @@ export default function Takeovers() {
   const [activityLoading, setActivityLoading] = useState(false);
   const [editorOpen, setEditorOpen] = useState(false);
   const [editing, setEditing] = useState<TakeoverRow | null>(null);
-  const [editorLoading, setEditorLoading] = useState(false);
   const [editorSubmitting, setEditorSubmitting] = useState(false);
   const [summaryModalOpen, setSummaryModalOpen] = useState(false);
   const [summarySubmitting, setSummarySubmitting] = useState(false);
@@ -227,31 +225,21 @@ export default function Takeovers() {
     setEditorOpen(true);
   };
 
-  const openEdit = async (id: React.Key) => {
-    setEditing(null);
+  const openEdit = (row: TakeoverRow) => {
+    setEditing(row);
     editorForm.resetFields();
+    editorForm.setFieldsValue({
+      title: row.title,
+      participantLimit: row.participantLimit,
+      scheduleType: row.scheduleType || 1,
+      startDate: row.startDate ? dayjs(row.startDate) : undefined,
+      endDate: row.endDate ? dayjs(row.endDate) : undefined,
+      playTime: row.playTime ? dayjs(row.playTime.slice(0, 5), 'HH:mm') : undefined,
+      description: row.description || '',
+      kookChannelId: row.kookChannelId || '',
+      summaryName: row.summaryName || '',
+    });
     setEditorOpen(true);
-    setEditorLoading(true);
-    try {
-      const row = (await getTakeover(id)) as TakeoverRow;
-      setEditing(row);
-      editorForm.setFieldsValue({
-        title: row.title,
-        participantLimit: row.participantLimit,
-        scheduleType: row.scheduleType || 1,
-        startDate: row.startDate ? dayjs(row.startDate) : undefined,
-        endDate: row.endDate ? dayjs(row.endDate) : undefined,
-        playTime: row.playTime ? dayjs(row.playTime.slice(0, 5), 'HH:mm') : undefined,
-        description: row.description || '',
-        kookChannelId: row.kookChannelId || '',
-        summaryName: row.summaryName || '',
-      });
-    } catch (error) {
-      setEditorOpen(false);
-      message.error(error instanceof Error ? error.message : '接龙详情加载失败');
-    } finally {
-      setEditorLoading(false);
-    }
   };
 
   const takeoverPayload = (values: Record<string, unknown>) => {
@@ -418,7 +406,7 @@ export default function Takeovers() {
             详情
           </Button>
           {Number(row.takeoverState) !== 2 && (
-            <Button size="small" onClick={() => openEdit(row.id)}>
+            <Button size="small" onClick={() => openEdit(row)}>
               编辑
             </Button>
           )}
@@ -682,7 +670,6 @@ export default function Takeovers() {
         width={640}
         open={editorOpen}
         onClose={() => setEditorOpen(false)}
-        loading={editorLoading}
       >
         <Form form={editorForm} layout="vertical" disabled={editorSubmitting} onFinish={saveTakeover}>
           {!editing && (
