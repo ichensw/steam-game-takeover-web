@@ -238,6 +238,7 @@ export type WechatAiStatus = {
   vector?: {
     enabled: boolean;
     configured: boolean;
+    reason?: string;
     embeddingModel: string;
     syncStates: Array<{
       roomId: string;

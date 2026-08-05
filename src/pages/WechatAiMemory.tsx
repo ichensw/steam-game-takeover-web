@@ -79,6 +79,15 @@ const statusLabel: Record<string, string> = {
   canceled: '已取消',
 };
 
+const vectorStatusLabel: Record<string, string> = {
+  bot_offline: '机器人离线',
+  waiting_for_bot_heartbeat: '等待机器人状态',
+  qdrant_url_missing: 'Qdrant 地址未设置',
+  qdrant_api_key_missing: 'Qdrant Key 未设置',
+  embedding_api_key_missing: 'Embedding Key 未设置',
+  vector_unavailable: '向量服务不可用',
+};
+
 const indexProgress = (task: WechatAiHistoryLearningTask) => (
   task.totalMsgCount > 0 ? Math.min(100, Math.round(task.processedMsgCount / task.totalMsgCount * 100)) : 0
 );
@@ -235,6 +244,7 @@ export default function WechatAiMemory() {
 
   const vector = status?.vector;
   const vectorSyncStates = vector?.syncStates ?? [];
+  const vectorStatus = vector?.configured ? '可用' : vectorStatusLabel[vector?.reason || ''] || '待配置';
   return <div>
     <PageHeader title="AI 聊天检索" description="只索引原始文本消息；不生成成员画像、关系判断或群结论。" />
     <Alert type="info" showIcon message="历史聊天只作为可追溯原文" description="机器人会用检索到的消息回答“谁之前说过什么”。接龙活动仍以接龙数据库实时状态为准。" style={{ marginBottom: 16 }} />
@@ -242,7 +252,7 @@ export default function WechatAiMemory() {
       <Col xs={24} lg={14}>
         <Card title="向量索引" loading={loading} extra={<Button icon={<ReloadOutlined />} onClick={() => void refresh()}>刷新</Button>}>
           <Row gutter={[16, 16]}>
-            <Col xs={12} md={6}><Typography.Text type="secondary">状态</Typography.Text><div><Tag color={vector?.configured ? 'success' : 'warning'}>{vector?.configured ? '已配置' : '待配置'}</Tag></div></Col>
+            <Col xs={12} md={6}><Typography.Text type="secondary">状态</Typography.Text><div><Tag color={vector?.configured ? 'success' : 'warning'}>{vectorStatus}</Tag></div></Col>
             <Col xs={12} md={6}><Typography.Text type="secondary">Embedding</Typography.Text><div>{vector?.embeddingModel || '-'}</div></Col>
             <Col xs={12} md={6}><Typography.Text type="secondary">已同步群聊</Typography.Text><div>{vectorSyncStates.length}</div></Col>
             <Col xs={12} md={6}><Typography.Text type="secondary">同步错误</Typography.Text><div>{vectorSyncStates.filter((item) => item.lastError).length}</div></Col>
