@@ -39,6 +39,7 @@ type FieldDef = {
   min?: number;
   max?: number;
   readOnly?: boolean;
+  disabled?: boolean;
   visible?: (provider: AiProvider) => boolean;
 };
 
@@ -187,6 +188,7 @@ const defaultWxbotConfig = {
     ],
     mention_aliases: ['智能小助手'],
     reply_enabled: true,
+    private_reply_enabled: false,
     provider: 'gpt',
     gpt_api_base_url: '',
     gpt_api_key: '',
@@ -241,7 +243,7 @@ const configSections: SectionDef[] = [
       { key: 'command_prefix', label: '命令前缀', type: 'string', extra: '为空表示不需要前缀。' },
       { key: 'at_me_required', label: '群聊需要 @ 机器人', type: 'boolean' },
       { key: 'admin_wxids', label: '管理员 wxid', type: 'list', wide: true, extra: '每行一个 wxid。' },
-      { key: 'group_whitelist', label: '群白名单', type: 'list', wide: true, extra: '每行一个群 ID，留空表示不限制群聊。' },
+      { key: 'group_whitelist', label: '群白名单', type: 'list', wide: true, disabled: true, extra: '已迁移到「微信群管理」维护。' },
     ],
   },
   {
@@ -342,9 +344,10 @@ const configSections: SectionDef[] = [
     label: 'AI 记忆',
     fields: [
       { key: 'enabled', label: '启用 AI Agent', type: 'boolean' },
-      { key: 'group_whitelist', label: 'AI 群聊白名单', type: 'roomList', wide: true, extra: '只对选中的群聊进行 AI 回复和原始文本检索。' },
+      { key: 'group_whitelist', label: 'AI 群聊白名单', type: 'roomList', wide: true, disabled: true, extra: '已迁移到「微信群管理」维护。' },
       { key: 'mention_aliases', label: '机器人别名', type: 'list', wide: true, extra: '每行一个 @ 别名。' },
       { key: 'reply_enabled', label: '启用 @ 回复', type: 'boolean' },
+      { key: 'private_reply_enabled', label: '启用管理员私聊 AI 回复', type: 'boolean', wide: true, extra: '仅 bot.admin_wxids 中的管理员私聊会触发回复。' },
       { key: 'provider', label: 'AI 服务商', type: 'select', options: aiProviderOptions },
       { key: 'gpt_api_base_url', label: 'GPT API Base URL', type: 'string', wide: true, visible: (provider) => provider === 'gpt' },
       { key: 'gpt_api_key', label: 'GPT API Key', type: 'password', wide: true, visible: (provider) => provider === 'gpt' },
@@ -526,7 +529,7 @@ export default function WechatWxbotControl() {
     <>
       <PageHeader
         title="微信机器人控制"
-        description="查看 Windows wxbot 在线状态，远程下发白名单、管理员和提醒配置。"
+        description="查看 Windows wxbot 在线状态，远程下发管理员、模型、监听和提醒配置；群白名单在微信群管理维护。"
         extra={<Button icon={<ReloadOutlined />} loading={loading} onClick={loadBots}>刷新</Button>}
       />
       <Row gutter={[16, 16]}>
@@ -603,14 +606,14 @@ export default function WechatWxbotControl() {
 }
 
 function renderField(field: FieldDef, groupOptions: Array<{ label: string; value: string }> = [], aiProvider: AiProvider = 'gpt') {
-  if (field.type === 'boolean') return <Switch checkedChildren="开" unCheckedChildren="关" />;
-  if (field.type === 'number' || field.type === 'decimal') return <InputNumber min={field.min ?? 0} max={field.max} precision={field.type === 'decimal' ? 2 : 0} style={{ width: '100%' }} />;
-  if (field.type === 'password') return <Input.Password autoComplete="off" className="mono" />;
-  if (field.type === 'textarea') return <Input.TextArea rows={4} />;
-  if (field.type === 'list') return <Input.TextArea rows={5} className="mono" />;
-  if (field.type === 'roomList') return <Select mode="multiple" allowClear showSearch optionFilterProp="label" options={groupOptions} placeholder="选择群聊" />;
-  if (field.type === 'select') return <Select options={field.options || (field.key.endsWith('_model') ? aiModelOptionsByProvider[aiProvider] : [])} />;
-  return <Input className="mono" readOnly={field.readOnly} />;
+  if (field.type === 'boolean') return <Switch disabled={field.disabled} checkedChildren="开" unCheckedChildren="关" />;
+  if (field.type === 'number' || field.type === 'decimal') return <InputNumber disabled={field.disabled} min={field.min ?? 0} max={field.max} precision={field.type === 'decimal' ? 2 : 0} style={{ width: '100%' }} />;
+  if (field.type === 'password') return <Input.Password disabled={field.disabled} autoComplete="off" className="mono" />;
+  if (field.type === 'textarea') return <Input.TextArea disabled={field.disabled} rows={4} />;
+  if (field.type === 'list') return <Input.TextArea disabled={field.disabled} rows={5} className="mono" />;
+  if (field.type === 'roomList') return <Select disabled={field.disabled} mode="multiple" allowClear showSearch optionFilterProp="label" options={groupOptions} placeholder="选择群聊" />;
+  if (field.type === 'select') return <Select disabled={field.disabled} options={field.options || (field.key.endsWith('_model') ? aiModelOptionsByProvider[aiProvider] : [])} />;
+  return <Input disabled={field.disabled} className="mono" readOnly={field.readOnly} />;
 }
 
 function hasConfig(config: WxbotRemoteConfig) {

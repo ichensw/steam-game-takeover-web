@@ -20,6 +20,7 @@ const UserBlocks = lazy(() => import('./pages/UserBlocks'));
 const Users = lazy(() => import('./pages/Users'));
 const WechatDatabase = lazy(() => import('./pages/WechatDatabase'));
 const WechatAiMemory = lazy(() => import('./pages/WechatAiMemory'));
+const WechatGroups = lazy(() => import('./pages/WechatGroups'));
 const WechatMessages = lazy(() => import('./pages/WechatMessages'));
 const WechatSummary = lazy(() => import('./pages/WechatSummary'));
 const WechatStats = lazy(() => import('./pages/WechatStats'));
@@ -71,6 +72,7 @@ export default function App() {
             <Route path="wechat-stats" element={<WechatStats />} />
             <Route path="wechat-database" element={<WechatDatabase />} />
             <Route path="wechat-ai-memory" element={<WechatAiMemory />} />
+            <Route path="wechat-groups" element={<WechatGroups />} />
             <Route path="wechat-wxbots" element={<WechatWxbotControl />} />
           </Route>
           <Route path="*" element={<Navigate to="/" replace />} />

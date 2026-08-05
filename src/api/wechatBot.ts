@@ -9,6 +9,34 @@ export type WechatGroup = {
   updatedAt: ApiUnixTime;
 };
 
+export type WechatManagedGroup = WechatGroup & {
+  messageCount: number;
+  activeMembers: number;
+  lastMessageAt?: ApiUnixTime;
+  botWhitelisted: boolean;
+  aiWhitelisted: boolean;
+};
+
+export type WechatGroupMember = {
+  memberWxid: string;
+  displayName: string;
+  messageCount: number;
+  firstMessageAt: ApiUnixTime;
+  lastMessageAt: ApiUnixTime;
+};
+
+export type WechatGroupMemberEvent = {
+  id: number;
+  roomId: string;
+  roomName: string;
+  action: 'join' | 'leave';
+  memberWxid: string;
+  memberName: string;
+  memberCount?: number;
+  rawPayload?: string;
+  createdAt: ApiUnixTime;
+};
+
 export type WechatMessage = {
   msgId: string;
   roomId: string;
@@ -326,6 +354,7 @@ export type WxbotRemoteConfig = {
     group_whitelist?: string[];
     mention_aliases?: string[];
     reply_enabled?: boolean;
+    private_reply_enabled?: boolean;
     provider?: 'gpt' | 'doubao';
     gpt_api_base_url?: string;
     gpt_api_key?: string;
@@ -400,6 +429,20 @@ const root = '/admin/wechat-bot';
 const aiRoot = `${root}/ai`;
 
 export const listWechatGroups = () => unwrap<WechatGroup[]>(http.get(`${root}/groups`));
+
+export const listWechatManagedGroups = (params?: { botId?: string }) =>
+  unwrap<{ botId: string; items: WechatManagedGroup[] }>(http.get(`${root}/groups/manage`, { params }));
+
+export const listWechatGroupMembers = (roomId: string, params: { page: number; pageSize: number }) =>
+  unwrap<WechatPage<WechatGroupMember>>(http.get(`${root}/groups/manage/${encodeURIComponent(roomId)}/members`, { params }));
+
+export const listWechatGroupMemberEvents = (roomId: string, params: { page: number; pageSize: number }) =>
+  unwrap<WechatPage<WechatGroupMemberEvent>>(http.get(`${root}/groups/manage/${encodeURIComponent(roomId)}/events`, { params }));
+
+export const updateWechatGroupWhitelist = (roomId: string, body: { botId: string; type: 'bot' | 'ai'; enabled: boolean }) =>
+  unwrap<{ botId: string; roomId: string; type: 'bot' | 'ai'; enabled: boolean }>(
+    http.put(`${root}/groups/manage/${encodeURIComponent(roomId)}/whitelist`, body),
+  );
 
 export const listWechatMessages = (params: WechatMessageQuery) =>
   unwrap<WechatPage<WechatMessage>>(http.get(`${root}/messages`, { params }));
