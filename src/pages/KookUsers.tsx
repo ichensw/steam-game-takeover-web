@@ -149,7 +149,8 @@ function renderValue(key: string, value: unknown, roleMap: Record<string, KookRo
   if (['joined_at', 'active_time'].includes(key)) return formatTime(value) || String(value);
   if (Array.isArray(value)) return value.length ? value.map((item) => String(item)).join('、') : '-';
   if (typeof value === 'object') {
-    return <Typography.Text code>{JSON.stringify(value)}</Typography.Text>;
+    const item = value as KookUser;
+    return text(item, 'nickname', 'username', 'name', 'id') || '-';
   }
   return String(value);
 }

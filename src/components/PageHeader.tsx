@@ -27,6 +27,13 @@ const workspaceNames: Record<string, string> = {
   '微信数据库浏览': 'WECHAT DATABASE',
   'AI 聊天检索': 'AI MEMORY',
   'AI 总结': 'AI SUMMARY',
+  '用户详情': 'USER DETAIL',
+  '接龙详情': 'TAKEOVER DETAIL',
+  '举报详情': 'REPORT DETAIL',
+  'KOOK 频道详情': 'KOOK CHANNEL DETAIL',
+  'KOOK 成员详情': 'KOOK MEMBER DETAIL',
+  '反馈详情': 'FEEDBACK DETAIL',
+  '公告详情': 'ANNOUNCEMENT DETAIL',
 };
 
 export default function PageHeader({ title, description, extra }: Props) {

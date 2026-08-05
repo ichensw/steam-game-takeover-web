@@ -4,7 +4,6 @@ import {
   Card,
   Checkbox,
   DatePicker,
-  Descriptions,
   Form,
   Input,
   InputNumber,
@@ -306,7 +305,6 @@ export default function KookChannels() {
   const [moving, setMoving] = useState(false);
   const [drawerOpen, setDrawerOpen] = useState(false);
   const [editing, setEditing] = useState<Row | null>(null);
-  const [detail, setDetail] = useState<Record<string, unknown> | null>(null);
   const [usersTarget, setUsersTarget] = useState<Row | null>(null);
   const [users, setUsers] = useState<UserRow[]>([]);
   const [usersLoading, setUsersLoading] = useState(false);
@@ -897,18 +895,6 @@ export default function KookChannels() {
             <Button onClick={() => setDrawerOpen(false)}>取消</Button>
           </Space>
         </Form>
-      </ModalPanel>
-
-      <ModalPanel title="频道详情" width={680} open={!!detail} onClose={() => setDetail(null)}>
-        {detail && (
-          <Descriptions column={1} bordered size="small">
-            {Object.entries(detail).map(([key, value]) => (
-              <Descriptions.Item key={key} label={key}>
-                {typeof value === 'object' ? <pre>{JSON.stringify(value, null, 2)}</pre> : String(value ?? '-')}
-              </Descriptions.Item>
-            ))}
-          </Descriptions>
-        )}
       </ModalPanel>
 
       <ModalPanel title={`语音成员 - ${usersTarget ? rowName(usersTarget) : ''}`} width={760} open={!!usersTarget} onClose={() => setUsersTarget(null)}>
