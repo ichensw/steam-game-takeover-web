@@ -337,7 +337,9 @@ export type WxbotRemoteConfig = {
     reply_timeout_seconds?: number;
     vector_enabled?: boolean;
     vector_qdrant_url?: string;
+    vector_qdrant_api_key?: string;
     vector_embedding_base_url?: string;
+    vector_embedding_api_key?: string;
     vector_embedding_model?: string;
     vector_sync_interval_seconds?: number;
     vector_sync_batch_size?: number;

@@ -27,7 +27,9 @@ describe('WechatWxbotControl config form mapping', () => {
       ai: {
         vector_enabled: true,
         vector_qdrant_url: 'https://qdrant.rabbits.ink',
+        vector_qdrant_api_key: 'qdrant-key',
         vector_embedding_base_url: 'https://dashscope.aliyuncs.com/compatible-mode/v1',
+        vector_embedding_api_key: 'embedding-key',
         vector_sync_interval_seconds: 60,
         vector_sync_batch_size: 32,
         vector_search_limit: 8,
@@ -37,6 +39,8 @@ describe('WechatWxbotControl config form mapping', () => {
     const config = formToConfig(form);
 
     expect(config.ai?.vector_embedding_model).toBe('qwen3.7-text-embedding');
+    expect(config.ai?.vector_qdrant_api_key).toBe('qdrant-key');
+    expect(config.ai?.vector_embedding_api_key).toBe('embedding-key');
     expect(validateWxbotConfig(config)).not.toBe('Embedding 模型不能为空');
   });
 
