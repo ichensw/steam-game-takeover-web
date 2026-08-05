@@ -2,7 +2,6 @@ import {
   App as AntApp,
   Button,
   Card,
-  Drawer,
   Form,
   Input,
   InputNumber,
@@ -26,6 +25,7 @@ import {
 } from '../api/admin';
 import KookMemberSelect from '../components/KookMemberSelect';
 import PageHeader from '../components/PageHeader';
+import ModalPanel from '../components/ModalPanel';
 import { useTableColumnSettings } from '../components/tableColumnSettings';
 import { kookPermissionOptions, permissionBits, permissionText, permissionValue } from '../constants/kookPermissions';
 import { pageSizeOptions, responsePageSize } from '../utils/pagination';
@@ -249,7 +249,7 @@ export default function KookRoles() {
           showTotal: (n) => `共 ${n} 条`,
         }}
       />
-      <Drawer title={editing ? '编辑 KOOK 角色' : '创建 KOOK 角色'} width={680} open={drawerOpen} onClose={() => setDrawerOpen(false)}>
+      <ModalPanel title={editing ? '编辑 KOOK 角色' : '创建 KOOK 角色'} width={680} open={drawerOpen} onClose={() => setDrawerOpen(false)}>
         <Form form={form} layout="vertical" onFinish={save} disabled={submitting}>
           <Form.Item label="角色名称" name="name">
             <Input maxLength={64} showCount placeholder={editing ? '角色名称' : '留空则由 KOOK 创建为新角色'} />
@@ -275,7 +275,7 @@ export default function KookRoles() {
             <Button onClick={() => setDrawerOpen(false)}>取消</Button>
           </Space>
         </Form>
-      </Drawer>
+      </ModalPanel>
       <Modal
         title={grantMode === 'grant' ? '授予用户角色' : '移除用户角色'}
         open={!!grantTarget}

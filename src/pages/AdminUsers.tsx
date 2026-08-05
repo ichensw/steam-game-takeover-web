@@ -1,9 +1,10 @@
-import { Button, Card, Checkbox, Drawer, Form, Input, Modal, Select, Space, Switch, Table, Tag, App as AntApp } from 'antd';
+import { Button, Card, Checkbox, Form, Input, Modal, Select, Space, Switch, Table, Tag, App as AntApp } from 'antd';
 import type { ColumnsType } from 'antd/es/table';
 import { useEffect, useState } from 'react';
 import { createAdminUser, listAdminUsers, listRoleMenus, updateAdminUser, updateRoleMenus } from '../api/admin';
 import { ADMIN_ROLE_ADMIN, ADMIN_ROLE_KOOK_ADMIN, ADMIN_ROLE_SUPER_ADMIN } from '../auth';
 import PageHeader from '../components/PageHeader';
+import ModalPanel from '../components/ModalPanel';
 import { useTableColumnSettings } from '../components/tableColumnSettings';
 import { pageSizeOptions, responsePageSize } from '../utils/pagination';
 
@@ -235,7 +236,7 @@ export default function AdminUsers() {
           showTotal: (n) => `共 ${n} 条`,
         }}
       />
-      <Drawer title={editingId ? '编辑管理员' : '新增管理员'} width={520} open={drawerOpen} onClose={() => setDrawerOpen(false)}>
+      <ModalPanel title={editingId ? '编辑管理员' : '新增管理员'} width={520} open={drawerOpen} onClose={() => setDrawerOpen(false)}>
         <Form form={form} layout="vertical" onFinish={save} disabled={submitting}>
           <Form.Item name="id" hidden>
             <Input />
@@ -277,7 +278,7 @@ export default function AdminUsers() {
             </Button>
           </Space>
         </Form>
-      </Drawer>
+      </ModalPanel>
       <Modal
         title="角色菜单"
         open={roleMenuOpen}

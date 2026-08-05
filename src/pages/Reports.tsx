@@ -4,7 +4,6 @@ import {
   Card,
   DatePicker,
   Descriptions,
-  Drawer,
   Form,
   Image,
   Input,
@@ -21,6 +20,7 @@ import { DeleteOutlined, UploadOutlined } from '@ant-design/icons';
 import type { ColumnsType } from 'antd/es/table';
 import type { RcFile, UploadProps } from 'antd/es/upload/interface';
 import { useEffect, useMemo, useRef, useState } from 'react';
+import { useNavigate } from 'react-router-dom';
 import {
   approveReport,
   createReport,
@@ -32,6 +32,7 @@ import {
   uploadAdminImage,
 } from '../api/admin';
 import PageHeader from '../components/PageHeader';
+import ModalPanel from '../components/ModalPanel';
 import { useTableColumnSettings } from '../components/tableColumnSettings';
 import { pageSizeOptions, responsePageSize } from '../utils/pagination';
 
@@ -143,6 +144,7 @@ function imageStrip(urls?: string[], size = 44) {
 }
 
 export default function Reports() {
+  const navigate = useNavigate();
   const [rows, setRows] = useState<ReportRow[]>([]);
   const [total, setTotal] = useState(0);
   const [page, setPage] = useState(1);
@@ -206,15 +208,7 @@ export default function Reports() {
 
   useEffect(() => () => window.clearTimeout(userSearchTimer.current), []);
 
-  const openDetail = async (id: React.Key) => {
-    setDetailLoading(true);
-    setDetail({ id });
-    try {
-      setDetail((await getReport(id)) as ReportRow);
-    } finally {
-      setDetailLoading(false);
-    }
-  };
+  const openDetail = (id: React.Key) => navigate(`/reports/${id}`);
 
   const openHandle = (row: ReportRow, mode: 'approve' | 'reject') => {
     setHandleTarget(row);
@@ -479,7 +473,7 @@ export default function Reports() {
           showTotal: (n) => `共 ${n} 条`,
         }}
       />
-      <Drawer
+      <ModalPanel
         title="举报详情"
         width={760}
         open={!!detail}
@@ -520,7 +514,7 @@ export default function Reports() {
             </section>
           </Space>
         )}
-      </Drawer>
+      </ModalPanel>
       <Modal
         title={handleMode === 'approve' ? '扣分通过举报' : '驳回举报'}
         open={!!handleTarget}

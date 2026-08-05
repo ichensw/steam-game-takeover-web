@@ -5,7 +5,6 @@ import {
   Checkbox,
   DatePicker,
   Descriptions,
-  Drawer,
   Form,
   Input,
   InputNumber,
@@ -24,6 +23,7 @@ import { ApartmentOutlined, ArrowDownOutlined, ArrowUpOutlined, ScheduleOutlined
 import type { DataNode, TreeProps } from 'antd/es/tree';
 import type { ColumnsType } from 'antd/es/table';
 import { useEffect, useMemo, useState } from 'react';
+import { useNavigate } from 'react-router-dom';
 import {
   createKookChannel,
   createKookChannelRole,
@@ -47,6 +47,7 @@ import KookRoleSelect from '../components/KookRoleSelect';
 import KookChannelSortDrawer from '../components/KookChannelSortDrawer';
 import KookChannelMoveModal from '../components/KookChannelMoveModal';
 import PageHeader from '../components/PageHeader';
+import ModalPanel from '../components/ModalPanel';
 import { useTableColumnSettings } from '../components/tableColumnSettings';
 import { kookPermissionOptions, permissionText, permissionValue } from '../constants/kookPermissions';
 import { buildKookMoveCandidate, type KookChannelDropMode } from '../utils/kookChannelMove';
@@ -290,6 +291,7 @@ function getErrorMessage(error: unknown) {
 }
 
 export default function KookChannels() {
+  const navigate = useNavigate();
   const [rows, setRows] = useState<Row[]>([]);
   const [usageByChannel, setUsageByChannel] = useState<Record<string, KookChannelUsage>>({});
   const [usageRange, setUsageRange] = useState<{ startTime: string; endTime: string } | null>(null);
@@ -451,10 +453,7 @@ export default function KookChannels() {
     await load();
   };
 
-  const openDetail = async (row: Row) => {
-    setDetail({ id: row.id });
-    setDetail(await getKookChannel(row.id, { needChildren: true }));
-  };
+  const openDetail = (row: Row) => navigate(`/kook-channels/${row.id}`);
 
   const openUsers = async (row: Row) => {
     setUsersTarget(row);
@@ -759,7 +758,7 @@ export default function KookChannels() {
         onCompleted={refreshChannelData}
       />
 
-      <Drawer
+      <ModalPanel
         title="调整频道结构"
         width={520}
         open={structureDrawerOpen}
@@ -776,7 +775,7 @@ export default function KookChannels() {
           treeData={structureTreeData}
           onDrop={handleTreeDrop}
         />
-      </Drawer>
+      </ModalPanel>
 
       <KookChannelMoveModal
         open={!!moveTarget}
@@ -860,7 +859,7 @@ export default function KookChannels() {
         </Space>
       </Modal>
 
-      <Drawer title={editing ? '编辑 KOOK 频道' : '创建 KOOK 频道'} width={620} open={drawerOpen} onClose={() => setDrawerOpen(false)}>
+      <ModalPanel title={editing ? '编辑 KOOK 频道' : '创建 KOOK 频道'} width={620} open={drawerOpen} onClose={() => setDrawerOpen(false)}>
         <Form form={form} layout="vertical" disabled={saving} onFinish={save}>
           {!editing && (
             <Form.Item label="频道类型" name="type" rules={[{ required: true, message: '请选择频道类型' }]}>
@@ -898,9 +897,9 @@ export default function KookChannels() {
             <Button onClick={() => setDrawerOpen(false)}>取消</Button>
           </Space>
         </Form>
-      </Drawer>
+      </ModalPanel>
 
-      <Drawer title="频道详情" width={680} open={!!detail} onClose={() => setDetail(null)}>
+      <ModalPanel title="频道详情" width={680} open={!!detail} onClose={() => setDetail(null)}>
         {detail && (
           <Descriptions column={1} bordered size="small">
             {Object.entries(detail).map(([key, value]) => (
@@ -910,9 +909,9 @@ export default function KookChannels() {
             ))}
           </Descriptions>
         )}
-      </Drawer>
+      </ModalPanel>
 
-      <Drawer title={`语音成员 - ${usersTarget ? rowName(usersTarget) : ''}`} width={760} open={!!usersTarget} onClose={() => setUsersTarget(null)}>
+      <ModalPanel title={`语音成员 - ${usersTarget ? rowName(usersTarget) : ''}`} width={760} open={!!usersTarget} onClose={() => setUsersTarget(null)}>
         <Space align="start" wrap>
           {userTableColumns.button}
           <Form form={moveForm} layout="inline" onFinish={moveUsers}>
@@ -931,7 +930,7 @@ export default function KookChannels() {
           pagination={false}
           scroll={{ x: userTableColumns.scrollX }}
         />
-      </Drawer>
+      </ModalPanel>
 
       <Modal
         title={`频道权限 - ${rolesTarget ? rowName(rolesTarget) : ''}`}

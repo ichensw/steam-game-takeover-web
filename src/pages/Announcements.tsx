@@ -2,7 +2,6 @@ import {
   Button,
   Card,
   DatePicker,
-  Drawer,
   Form,
   Input,
   Popconfirm,
@@ -29,6 +28,7 @@ import {
   updateAnnouncement,
 } from '../api/admin';
 import PageHeader from '../components/PageHeader';
+import ModalPanel from '../components/ModalPanel';
 import StatusTag from '../components/StatusTag';
 import { useTableColumnSettings } from '../components/tableColumnSettings';
 import { pageSizeOptions, responsePageSize } from '../utils/pagination';
@@ -276,7 +276,7 @@ export default function Announcements() {
           showTotal: (n) => `共 ${n} 条`,
         }}
       />
-      <Drawer
+      <ModalPanel
         title={editing ? '编辑公告' : '新增公告'}
         width={620}
         open={drawerOpen}
@@ -338,7 +338,7 @@ export default function Announcements() {
             同时存在多个有效公告时，小程序只弹出最新发布的一条。
           </Typography.Paragraph>
         </Form>
-      </Drawer>
+      </ModalPanel>
     </>
   );
 }

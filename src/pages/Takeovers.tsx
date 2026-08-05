@@ -2,7 +2,6 @@ import {
   Button,
   Card,
   DatePicker,
-  Drawer,
   Form,
   Input,
   InputNumber,
@@ -21,6 +20,7 @@ import dayjs from 'dayjs';
 import type { ColumnsType, TablePaginationConfig } from 'antd/es/table';
 import type { SorterResult } from 'antd/es/table/interface';
 import { useEffect, useState } from 'react';
+import { useNavigate } from 'react-router-dom';
 import {
   createTakeover,
   deleteTakeover,
@@ -32,6 +32,7 @@ import {
   updateTakeover,
 } from '../api/admin';
 import PageHeader from '../components/PageHeader';
+import ModalPanel from '../components/ModalPanel';
 import StatusTag from '../components/StatusTag';
 import { tableCellTooltip, useTableColumnSettings } from '../components/tableColumnSettings';
 import { pageSizeOptions, responsePageSize } from '../utils/pagination';
@@ -86,6 +87,7 @@ type MemberActivityRow = Record<string, unknown> & {
 type ChannelOption = { value: string; label: string };
 
 export default function Takeovers() {
+  const navigate = useNavigate();
   const [rows, setRows] = useState<TakeoverRow[]>([]);
   const [total, setTotal] = useState(0);
   const [loading, setLoading] = useState(false);
@@ -171,20 +173,7 @@ export default function Takeovers() {
     }
   };
 
-  const openDetail = async (id: React.Key) => {
-    setDetailLoading(true);
-    setActivityRows([]);
-    setActivityTotal(0);
-    setActivityPage(1);
-    setDetail({ id });
-    try {
-      const row = (await getTakeover(id)) as TakeoverRow;
-      setDetail(row);
-      await loadActivities(id, 1, activityPageSize, row.memberActivities || []);
-    } finally {
-      setDetailLoading(false);
-    }
-  };
+  const openDetail = (id: React.Key) => navigate(`/takeovers/${id}`);
 
   const loadActivities = async (
     id: React.Key,
@@ -545,7 +534,7 @@ export default function Takeovers() {
           showTotal: (n) => `共 ${n} 条`,
         }}
       />
-      <Drawer
+      <ModalPanel
         title="接龙详情"
         width={820}
         open={!!detail}
@@ -672,8 +661,8 @@ export default function Takeovers() {
             />
           </Space>
         )}
-      </Drawer>
-      <Drawer
+      </ModalPanel>
+      <ModalPanel
         title={editing ? '编辑接龙' : '新增接龙'}
         width={640}
         open={editorOpen}
@@ -727,7 +716,7 @@ export default function Takeovers() {
             <Button onClick={() => setEditorOpen(false)}>取消</Button>
           </Space>
         </Form>
-      </Drawer>
+      </ModalPanel>
       <Modal
         title="修改汇总展示词"
         open={summaryModalOpen}

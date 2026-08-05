@@ -3,7 +3,6 @@ import {
   Card,
   DatePicker,
   Descriptions,
-  Drawer,
   Form,
   Image,
   Input,
@@ -17,8 +16,10 @@ import {
 } from 'antd';
 import type { ColumnsType } from 'antd/es/table';
 import { useEffect, useState } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { getFeedback, listFeedbacks, updateFeedbackStatus } from '../api/admin';
 import PageHeader from '../components/PageHeader';
+import ModalPanel from '../components/ModalPanel';
 import StatusTag from '../components/StatusTag';
 import { useTableColumnSettings } from '../components/tableColumnSettings';
 import { pageSizeOptions, responsePageSize } from '../utils/pagination';
@@ -61,6 +62,7 @@ const statusByLabel: Record<string, number> = {
 };
 
 export default function Feedbacks() {
+  const navigate = useNavigate();
   const [rows, setRows] = useState<FeedbackRow[]>([]);
   const [total, setTotal] = useState(0);
   const [loading, setLoading] = useState(false);
@@ -101,15 +103,7 @@ export default function Feedbacks() {
     }
   };
 
-  const openDetail = async (id: React.Key) => {
-    setDetailLoading(true);
-    setDetail({ id });
-    try {
-      setDetail((await getFeedback(id)) as FeedbackRow);
-    } finally {
-      setDetailLoading(false);
-    }
-  };
+  const openDetail = (id: React.Key) => navigate(`/feedbacks/${id}`);
 
   const changeStatus = async (id: React.Key, status: number, closeDetail = false) => {
     await updateFeedbackStatus(id, status);
@@ -269,7 +263,7 @@ export default function Feedbacks() {
           showTotal: (n) => `共 ${n} 条`,
         }}
       />
-      <Drawer
+      <ModalPanel
         title="反馈详情"
         width={700}
         open={!!detail}
@@ -353,7 +347,7 @@ export default function Feedbacks() {
             </section>
           </Space>
         )}
-      </Drawer>
+      </ModalPanel>
     </>
   );
 }

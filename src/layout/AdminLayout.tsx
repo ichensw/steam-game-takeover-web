@@ -271,8 +271,8 @@ export default function AdminLayout() {
   return (
     <Layout className="admin-shell">
       <Layout.Sider
-        width={272}
-        collapsedWidth={72}
+        width={260}
+        collapsedWidth={68}
         collapsed={siderCollapsed}
         collapsible
         trigger={null}
@@ -283,8 +283,8 @@ export default function AdminLayout() {
             <ThunderboltOutlined />
           </div>
           <div>
-            <Typography.Text className="brand-title">兔兔窝接龙</Typography.Text>
-            <Typography.Text className="brand-subtitle">后台管理系统</Typography.Text>
+            <Typography.Text className="brand-title">兔兔窝管理后台</Typography.Text>
+            <Typography.Text className="brand-subtitle">GAME TAKEOVER ADMIN</Typography.Text>
           </div>
         </div>
         {renderNavMenu()}
@@ -294,6 +294,15 @@ export default function AdminLayout() {
             <Typography.Text type="secondary">当前管理员</Typography.Text>
             <Typography.Text className="mono">{adminName}</Typography.Text>
           </div>
+          <Tooltip title="退出登录">
+            <Button
+              aria-label="退出登录"
+              className="sider-logout"
+              icon={<LogoutOutlined />}
+              onClick={onLogout}
+              type="text"
+            />
+          </Tooltip>
           <Tooltip title={siderCollapsed ? '展开导航' : '收起导航'}>
             <Button
               aria-label={siderCollapsed ? '展开导航' : '收起导航'}
@@ -317,7 +326,7 @@ export default function AdminLayout() {
                 shape="circle"
               />
               <div>
-                <Typography.Text className="topbar-copy">深色社区运营台</Typography.Text>
+                <Typography.Text className="topbar-copy">GAME TAKEOVER ADMIN</Typography.Text>
                 <Typography.Title level={3} className="topbar-title">
                   {currentLabel || '控制台'}
                 </Typography.Title>

@@ -6,6 +6,7 @@ const AdminLayout = lazy(() => import('./layout/AdminLayout'));
 const AdminUsers = lazy(() => import('./pages/AdminUsers'));
 const Announcements = lazy(() => import('./pages/Announcements'));
 const Dashboard = lazy(() => import('./pages/Dashboard'));
+const EntityDetail = lazy(() => import('./pages/EntityDetail'));
 const Feedbacks = lazy(() => import('./pages/Feedbacks'));
 const KookChannels = lazy(() => import('./pages/KookChannels'));
 const KookMembers = lazy(() => import('./pages/KookMembers'));
@@ -54,6 +55,13 @@ export default function App() {
           >
             <Route index element={<Navigate to="/dashboard" replace />} />
             <Route path="dashboard" element={<Dashboard />} />
+            <Route path="users/:id" element={<EntityDetail kind="users" />} />
+            <Route path="takeovers/:id" element={<EntityDetail kind="takeovers" />} />
+            <Route path="reports/:id" element={<EntityDetail kind="reports" />} />
+            <Route path="kook-channels/:id" element={<EntityDetail kind="kook-channels" />} />
+            <Route path="kook-members/:id" element={<EntityDetail kind="kook-members" />} />
+            <Route path="feedbacks/:id" element={<EntityDetail kind="feedbacks" />} />
+            <Route path="announcements/:id" element={<EntityDetail kind="announcements" />} />
             <Route path="takeovers" element={<Takeovers />} />
             <Route path="users" element={<Users />} />
             <Route path="user-blocks" element={<UserBlocks />} />

@@ -2,7 +2,6 @@ import {
   Button,
   Card,
   Descriptions,
-  Drawer,
   Form,
   Input,
   InputNumber,
@@ -17,6 +16,7 @@ import {
 } from 'antd';
 import type { ColumnsType } from 'antd/es/table';
 import { useEffect, useState } from 'react';
+import { useNavigate } from 'react-router-dom';
 import {
   blacklistKookMember,
   createKookMember,
@@ -32,6 +32,7 @@ import {
 } from '../api/admin';
 import KookRoleSelect from '../components/KookRoleSelect';
 import PageHeader from '../components/PageHeader';
+import ModalPanel from '../components/ModalPanel';
 import { useTableColumnSettings } from '../components/tableColumnSettings';
 import { permissionText } from '../constants/kookPermissions';
 import { formatDateTime } from '../utils/wechatBot';
@@ -112,6 +113,7 @@ function uniqueRoleIds(value: unknown) {
 }
 
 export default function KookMembers() {
+  const navigate = useNavigate();
   const [rows, setRows] = useState<KookMemberRow[]>([]);
   const [total, setTotal] = useState(0);
   const [page, setPage] = useState(1);
@@ -185,15 +187,7 @@ export default function KookMembers() {
     setDrawerOpen(true);
   };
 
-  const openDetail = async (id: React.Key) => {
-    setDetailLoading(true);
-    setDetail({ id });
-    try {
-      setDetail((await getKookMember(id)) as KookMemberRow);
-    } finally {
-      setDetailLoading(false);
-    }
-  };
+  const openDetail = (id: React.Key) => navigate(`/kook-members/${id}`);
 
   const roleNames = (roleIds?: string[]) => {
     if (!roleIds?.length) return '-';
@@ -391,7 +385,7 @@ export default function KookMembers() {
           showTotal: (n) => `共 ${n} 条`,
         }}
       />
-      <Drawer
+      <ModalPanel
         title={editing ? '编辑 KOOK 成员' : '新增 KOOK 成员'}
         width={620}
         open={drawerOpen}
@@ -445,8 +439,8 @@ export default function KookMembers() {
             </Button>
           </Space>
         </Form>
-      </Drawer>
-      <Drawer
+      </ModalPanel>
+      <ModalPanel
         title="KOOK 成员详情"
         width={620}
         open={!!detail}
@@ -473,7 +467,7 @@ export default function KookMembers() {
             <Descriptions.Item label="备注">{detail.remark || '-'}</Descriptions.Item>
           </Descriptions>
         )}
-      </Drawer>
+      </ModalPanel>
       <Modal
         title="拉黑 KOOK 成员"
         open={!!blacklistTarget}

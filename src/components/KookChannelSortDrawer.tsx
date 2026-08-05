@@ -2,7 +2,6 @@ import {
   Alert,
   App as AntApp,
   Button,
-  Drawer,
   Form,
   Segmented,
   Select,
@@ -22,6 +21,7 @@ import {
   SaveOutlined,
 } from '@ant-design/icons';
 import type { ColumnsType } from 'antd/es/table';
+import ModalPanel from './ModalPanel';
 import { useCallback, useEffect, useMemo, useState, type Key } from 'react';
 import {
   getKookChannelSortConfig,
@@ -395,7 +395,7 @@ export default function KookChannelSortDrawer({ open, categories, onClose, onCom
       : undefined;
 
   return (
-    <Drawer
+    <ModalPanel
       className="kook-sort-drawer"
       title="自动排序设置"
       width={960}
@@ -560,6 +560,6 @@ export default function KookChannelSortDrawer({ open, categories, onClose, onCom
           <RunHistory runs={runs} />
         </div>
       ) : null}
-    </Drawer>
+    </ModalPanel>
   );
 }

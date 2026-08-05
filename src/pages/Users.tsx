@@ -2,7 +2,6 @@ import {
   Button,
   Card,
   Descriptions,
-  Drawer,
   Form,
   Input,
   InputNumber,
@@ -17,6 +16,7 @@ import {
 import type { ColumnsType, TablePaginationConfig } from 'antd/es/table';
 import type { SorterResult } from 'antd/es/table/interface';
 import { useEffect, useState } from 'react';
+import { useNavigate } from 'react-router-dom';
 import {
   banUser,
   batchPublishWhitelist,
@@ -28,6 +28,7 @@ import {
   unbanUser,
 } from '../api/admin';
 import PageHeader from '../components/PageHeader';
+import ModalPanel from '../components/ModalPanel';
 import StatusTag from '../components/StatusTag';
 import { useTableColumnSettings } from '../components/tableColumnSettings';
 import { pageSizeOptions, responsePageSize } from '../utils/pagination';
@@ -55,6 +56,7 @@ const renderCreditStatus = (value: unknown) => {
 };
 
 export default function Users() {
+  const navigate = useNavigate();
   const [rows, setRows] = useState<UserRow[]>([]);
   const [total, setTotal] = useState(0);
   const [loading, setLoading] = useState(false);
@@ -108,15 +110,7 @@ export default function Users() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
-  const openDetail = async (id: React.Key) => {
-    setDetailLoading(true);
-    setDetail({ id });
-    try {
-      setDetail((await getUser(id)) as UserRow);
-    } finally {
-      setDetailLoading(false);
-    }
-  };
+  const openDetail = (id: React.Key) => navigate(`/users/${id}`);
 
   const refreshAfterAction = async (text: string) => {
     message.success(text);
@@ -361,7 +355,7 @@ export default function Users() {
           showTotal: (n) => `共 ${n} 条`,
         }}
       />
-      <Drawer
+      <ModalPanel
         title="用户详情"
         width={620}
         open={!!detail}
@@ -403,7 +397,7 @@ export default function Users() {
             </Descriptions.Item>
           </Descriptions>
         )}
-      </Drawer>
+      </ModalPanel>
       <Modal
         title="封禁用户"
         open={!!banTarget}

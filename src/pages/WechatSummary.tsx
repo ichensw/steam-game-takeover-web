@@ -1,5 +1,5 @@
 import { CheckCircleOutlined, ClockCircleOutlined, FileTextOutlined, HistoryOutlined, MessageOutlined, SyncOutlined } from '@ant-design/icons';
-import { Alert, App as AntApp, Button, Card, Col, Drawer, Empty, Form, Input, List, Progress, Row, Select, Space, Spin, Statistic, Steps, Tag, Typography } from 'antd';
+import { Alert, App as AntApp, Button, Card, Col, Empty, Form, Input, List, Progress, Row, Select, Space, Spin, Statistic, Steps, Tag, Typography } from 'antd';
 import { useEffect, useMemo, useRef, useState } from 'react';
 import {
   createWechatSummaryJob,
@@ -16,6 +16,7 @@ import {
   type WechatSummaryTopic,
 } from '../api/wechatBot';
 import PageHeader from '../components/PageHeader';
+import ModalPanel from '../components/ModalPanel';
 import { formatWechatTime, summaryPayload, toApiTime, todayString, type SummaryFormValues } from '../utils/wechatBot';
 
 const periodOptions = [
@@ -362,7 +363,7 @@ export default function WechatSummary() {
         />
       </Card>
 
-      <Drawer title="总结详情" open={detailOpen} onClose={() => setDetailOpen(false)} width={920}>
+      <ModalPanel title="总结详情" open={detailOpen} onClose={() => setDetailOpen(false)} width={920}>
         <Spin spinning={detailLoading}>
           {result ? (
             <Space direction="vertical" size={16} style={{ width: '100%' }}>
@@ -431,9 +432,9 @@ export default function WechatSummary() {
             </Space>
           ) : <Empty description="请选择一条历史总结" />}
         </Spin>
-      </Drawer>
+      </ModalPanel>
 
-      <Drawer title={`相关原文：${originalTitle}`} open={originalOpen} onClose={() => setOriginalOpen(false)} width={720}>
+      <ModalPanel title={`相关原文：${originalTitle}`} open={originalOpen} onClose={() => setOriginalOpen(false)} width={720}>
         <List
           dataSource={originalMessages}
           locale={{ emptyText: '没有可追溯的原文' }}
@@ -446,7 +447,7 @@ export default function WechatSummary() {
             </List.Item>
           )}
         />
-      </Drawer>
+      </ModalPanel>
     </>
   );
 }

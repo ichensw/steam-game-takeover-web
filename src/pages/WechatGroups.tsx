@@ -1,5 +1,5 @@
 import { EyeOutlined, ReloadOutlined } from '@ant-design/icons';
-import { Button, Descriptions, Drawer, Modal, Select, Space, Switch, Table, Tabs, Tag, Tooltip, Typography, App as AntApp } from 'antd';
+import { Button, Descriptions, Modal, Select, Space, Switch, Table, Tabs, Tag, Tooltip, Typography, App as AntApp } from 'antd';
 import type { ColumnsType } from 'antd/es/table';
 import { useEffect, useMemo, useState } from 'react';
 import {
@@ -17,6 +17,7 @@ import {
   type WxbotRecord,
 } from '../api/wechatBot';
 import PageHeader from '../components/PageHeader';
+import ModalPanel from '../components/ModalPanel';
 import { pageSizeOptions } from '../utils/pagination';
 import { formatWechatTime } from '../utils/wechatBot';
 
@@ -203,7 +204,7 @@ export default function WechatGroups() {
           showTotal: (count) => `共 ${count} 个群`,
         }}
       />
-      <Drawer
+      <ModalPanel
         width={860}
         title={selectedGroup?.roomName || selectedGroup?.roomId || '群聊详情'}
         open={Boolean(selectedGroup)}
@@ -276,7 +277,7 @@ export default function WechatGroups() {
             },
           ]}
         />
-      </Drawer>
+      </ModalPanel>
       <Modal
         width={760}
         title={selectedMember?.displayName || selectedMember?.memberWxid || '成员详情'}
