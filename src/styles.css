@@ -4651,3 +4651,330 @@ body,
     grid-template-columns: 1fr;
   }
 }
+
+/* LoginFormPage standard layout: let ProComponents own the split ratio. */
+.login-page.login-pro-page,
+.login-pro-page .ant-pro-form-login-page {
+  min-height: 100dvh !important;
+  background-color: #f8f9f8 !important;
+  background-repeat: no-repeat !important;
+  background-position: center !important;
+  background-size: cover !important;
+}
+
+.login-pro-page .ant-pro-form-login-page > .ant-pro-form-login-page {
+  min-height: 100dvh !important;
+  display: flex !important;
+  background: #f8f9f8 !important;
+}
+
+.login-pro-page .ant-pro-form-login-page-notice {
+  flex: 1 1 auto !important;
+  max-width: none !important;
+  min-height: 100dvh !important;
+  height: auto !important;
+  display: flex !important;
+  align-items: stretch !important;
+  overflow: visible !important;
+}
+
+.login-pro-page .ant-pro-form-login-page-left {
+  flex: 1 1 auto !important;
+  width: auto !important;
+  max-width: 550px !important;
+  height: max-content !important;
+  min-height: auto !important;
+  margin: auto !important;
+  padding: 24px !important;
+  background: transparent !important;
+  overflow: auto !important;
+}
+
+.login-pro-page .ant-pro-form-login-page-container {
+  width: auto !important;
+  max-width: 392px !important;
+  padding: 32px !important;
+  border: 1px solid rgb(255 255 255 / 62%) !important;
+  border-radius: 8px !important;
+  background: rgb(255 255 255 / 88%) !important;
+  box-shadow: 0 18px 48px rgb(23 23 23 / 10%) !important;
+  backdrop-filter: blur(10px);
+}
+
+.login-pro-page .ant-pro-form-login-page-notice-activity {
+  width: 100% !important;
+  height: 100% !important;
+  margin: 0 !important;
+  padding: 0 !important;
+  color: #ffffff !important;
+  text-shadow: 0 2px 18px rgb(0 0 0 / 36%);
+}
+
+.login-pro-page .ant-pro-form-login-page-notice-activity-title {
+  width: 100% !important;
+  height: 100% !important;
+  color: #ffffff !important;
+  font-size: inherit !important;
+  font-weight: 700 !important;
+}
+
+.login-pro-page .login-visual-content,
+.login-pro-page .login-visual-image {
+  display: block !important;
+  min-height: 100dvh !important;
+}
+
+.login-pro-page .ant-pro-form-login-page-notice-activity-subTitle {
+  max-width: 360px;
+  color: rgb(255 255 255 / 84%) !important;
+  line-height: 1.7;
+}
+
+.login-standard-intro {
+  margin: 0 0 24px !important;
+  color: #666666 !important;
+  text-align: center;
+}
+
+@media (min-width: 901px) {
+  html:has(.login-pro-page),
+  body:has(.login-pro-page) {
+    height: 100%;
+    overflow: hidden;
+  }
+}
+
+@media (max-width: 900px) {
+  .login-pro-page .ant-pro-form-login-page {
+    background-image: none !important;
+  }
+
+  .login-pro-page .ant-pro-form-login-page > .ant-pro-form-login-page {
+    min-height: 100dvh !important;
+  }
+
+  .login-pro-page .ant-pro-form-login-page-notice {
+    display: none !important;
+  }
+
+  .login-pro-page .ant-pro-form-login-page-left {
+    min-height: 100dvh !important;
+    max-width: none !important;
+    width: 100% !important;
+  }
+
+  .login-pro-page .ant-pro-form-login-page-container {
+    box-shadow: none !important;
+    border-color: transparent !important;
+    background: transparent !important;
+  }
+}
+
+/* Login final pass: split wallpaper plus a plain white form side. */
+.login-page.login-pro-page {
+  min-height: 100dvh !important;
+  padding: 0 !important;
+  overflow: hidden !important;
+  background: #ffffff !important;
+}
+
+.login-pro-page .ant-pro-form-login-page,
+.login-pro-page .ant-pro-form-login-page > .ant-pro-form-login-page {
+  min-height: 100dvh !important;
+  width: 100% !important;
+  background: #ffffff !important;
+}
+
+.login-pro-page .ant-pro-form-login-page > .ant-pro-form-login-page {
+  display: flex !important;
+}
+
+.login-pro-page .ant-pro-form-login-page-notice {
+  flex: 1 1 auto !important;
+  max-width: none !important;
+  min-height: 100dvh !important;
+  overflow: hidden !important;
+  background: #111111 !important;
+}
+
+.login-pro-page .login-visual-content {
+  position: relative;
+  min-height: 100dvh !important;
+  height: 100% !important;
+  overflow: hidden;
+}
+
+.login-pro-page .login-visual-image {
+  width: 100%;
+  height: 100%;
+  min-height: 100dvh !important;
+  display: block;
+  object-fit: cover;
+  object-position: center;
+}
+
+.login-pro-page .login-visual-scrim {
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(90deg, rgb(0 0 0 / 28%), rgb(0 0 0 / 8%) 58%, rgb(0 0 0 / 0%));
+}
+
+.login-pro-page .login-visual-copy {
+  position: absolute;
+  inset: 0;
+  z-index: 1;
+  height: auto !important;
+  min-height: 0 !important;
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+  padding: 44px;
+  color: #ffffff;
+  text-shadow: 0 2px 16px rgb(0 0 0 / 26%);
+}
+
+.login-pro-page .login-visual-title,
+.login-pro-page .login-visual-subtitle,
+.login-pro-page .login-visual-copy h1,
+.login-pro-page .login-visual-copy p {
+  color: #ffffff !important;
+}
+
+.login-pro-page .login-visual-copy h1 {
+  max-width: 520px;
+  margin: 0 0 12px !important;
+  font-size: 42px !important;
+  line-height: 1.12 !important;
+}
+
+.login-pro-page .login-visual-copy p {
+  max-width: 420px;
+  margin: 0 !important;
+  color: rgb(255 255 255 / 82%) !important;
+}
+
+.login-pro-page .ant-pro-form-login-page-left {
+  flex: 0 0 clamp(420px, 30vw, 520px) !important;
+  width: auto !important;
+  max-width: none !important;
+  min-height: 100dvh !important;
+  display: flex !important;
+  align-items: center !important;
+  justify-content: center !important;
+  padding: 48px !important;
+  overflow: auto !important;
+  background: #ffffff !important;
+}
+
+.login-pro-page .ant-pro-form-login-page-container {
+  width: min(420px, 100%) !important;
+  max-width: 420px !important;
+  margin: 0 !important;
+  padding: 0 !important;
+  border: 0 !important;
+  border-radius: 0 !important;
+  background: transparent !important;
+  box-shadow: none !important;
+  backdrop-filter: none !important;
+}
+
+.login-pro-page .ant-pro-form-login-page-main {
+  width: 100% !important;
+}
+
+.login-pro-page .ant-pro-form-login-page-title {
+  color: #171717 !important;
+  font-size: 30px !important;
+  font-weight: 760 !important;
+  line-height: 1.2 !important;
+}
+
+.login-pro-page .ant-pro-form-login-page-desc,
+.login-standard-intro {
+  color: #6f6f76 !important;
+}
+
+.login-standard-intro {
+  margin: 8px 0 30px !important;
+  text-align: center;
+}
+
+.login-pro-page .ant-form-item-label > label {
+  color: #35323b !important;
+  font-weight: 650;
+}
+
+.login-pro-page .ant-input-affix-wrapper,
+.login-pro-page .ant-input {
+  border: 0 !important;
+  background: #f5f5f7 !important;
+  box-shadow: none !important;
+}
+
+.login-pro-page .ant-input-affix-wrapper {
+  height: 46px;
+  padding: 0 14px;
+  border-radius: 8px !important;
+  border-bottom: 1px solid transparent !important;
+  transition: none;
+}
+
+.login-pro-page .ant-input-affix-wrapper:hover {
+  background: #f5f5f7 !important;
+}
+
+.login-pro-page .ant-input-affix-wrapper-focused,
+.login-pro-page .ant-input-affix-wrapper:focus,
+.login-pro-page .ant-input-affix-wrapper:focus-within {
+  border: 0 !important;
+  border-bottom: 1px solid transparent !important;
+  outline: 0 !important;
+  background: #f5f5f7 !important;
+  box-shadow: none !important;
+}
+
+.login-pro-page .ant-input-affix-wrapper-focused .anticon,
+.login-pro-page .ant-input-affix-wrapper:focus-within .anticon {
+  color: inherit !important;
+}
+
+.login-pro-page .ant-input:focus,
+.login-pro-page .ant-input-focused,
+.login-pro-page .ant-input-password:focus,
+.login-pro-page .ant-input-password-focused {
+  border: 0 !important;
+  outline: 0 !important;
+  background: #f5f5f7 !important;
+  box-shadow: none !important;
+}
+
+.login-pro-page .ant-input::placeholder {
+  color: #aaa7b0;
+}
+
+.login-pro-page .ant-pro-form-login-page-main .ant-btn-primary {
+  min-height: 46px !important;
+  border-radius: 8px !important;
+  font-weight: 750;
+}
+
+@media (max-width: 900px) {
+  .login-page.login-pro-page {
+    overflow: auto !important;
+  }
+
+  .login-pro-page .ant-pro-form-login-page-notice {
+    display: none !important;
+  }
+
+  .login-pro-page .ant-pro-form-login-page-left {
+    flex: 1 1 100% !important;
+    width: 100% !important;
+    min-height: 100dvh !important;
+    padding: 14vh 24px 40px !important;
+  }
+
+  .login-pro-page .ant-pro-form-login-page-container {
+    width: min(420px, calc(100vw - 48px)) !important;
+  }
+}

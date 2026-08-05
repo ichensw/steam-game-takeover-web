@@ -17,6 +17,12 @@ export type WechatManagedGroup = WechatGroup & {
   aiWhitelisted: boolean;
 };
 
+export type WechatManagedGroupPage = {
+  botId: string;
+  items: WechatManagedGroup[];
+  pagination?: Pagination;
+};
+
 export type WechatGroupMember = {
   memberWxid: string;
   displayName: string;
@@ -430,8 +436,8 @@ const aiRoot = `${root}/ai`;
 
 export const listWechatGroups = () => unwrap<WechatGroup[]>(http.get(`${root}/groups`));
 
-export const listWechatManagedGroups = (params?: { botId?: string }) =>
-  unwrap<{ botId: string; items: WechatManagedGroup[] }>(http.get(`${root}/groups/manage`, { params }));
+export const listWechatManagedGroups = (params?: { botId?: string; page?: number; pageSize?: number }) =>
+  unwrap<WechatManagedGroupPage>(http.get(`${root}/groups/manage`, { params }));
 
 export const listWechatGroupMembers = (roomId: string, params: { page: number; pageSize: number }) =>
   unwrap<WechatPage<WechatGroupMember>>(http.get(`${root}/groups/manage/${encodeURIComponent(roomId)}/members`, { params }));

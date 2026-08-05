@@ -40,7 +40,7 @@ export default function ModalPanel({
       title={extra ? <div className="modal-panel-title"><span>{title}</span>{extra}</div> : title}
       width={width}
     >
-      <Spin spinning={loading}>{children}</Spin>
+      <Spin spinning={Boolean(loading)}>{children}</Spin>
     </Modal>
   );
 }

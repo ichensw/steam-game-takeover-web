@@ -1,9 +1,9 @@
-import { LockOutlined, ThunderboltOutlined, UserOutlined } from '@ant-design/icons';
+import { LockOutlined, UserOutlined } from '@ant-design/icons';
 import { Alert, App as AntApp, Typography } from 'antd';
 import { LoginFormPage, ProFormText } from '@ant-design/pro-components';
 import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import loginCommunityImage from '../assets/login-community.jpg';
+import loginWallpaperImage from '../assets/login-wallpaper.png';
 import { adminLogin } from '../api/admin';
 import { setSession } from '../auth';
 
@@ -44,22 +44,20 @@ export default function Login() {
         activityConfig={{
           title: (
             <div className="login-visual-content">
-              <img src={loginCommunityImage} alt="游戏社群成员正在联机游玩" className="login-visual-image" />
+              <img src={loginWallpaperImage} alt="游戏社群成员正在联机游玩" className="login-visual-image" />
               <div className="login-visual-scrim" />
               <div className="login-visual-copy">
-                <div className="login-visual-brand">
-                  <span className="login-mark"><ThunderboltOutlined /></span>
-                  <div>
-                    <Typography.Text className="login-visual-title">兔兔窝管理后台</Typography.Text>
-                    <Typography.Text className="login-visual-subtitle">GAME TAKEOVER ADMIN</Typography.Text>
-                  </div>
+                <Typography.Text className="login-visual-title">兔兔窝管理后台</Typography.Text>
+                <Typography.Text className="login-visual-subtitle">GAME TAKEOVER ADMIN</Typography.Text>
+                <div>
+                  <Typography.Title level={1}>连接每一次组队</Typography.Title>
+                  <Typography.Paragraph>把接龙、审核与社群运营放在同一张工作台。</Typography.Paragraph>
                 </div>
-                <Typography.Title level={1}>连接每一次组队</Typography.Title>
-                <Typography.Paragraph>把接龙、审核与社群运营放在同一张工作台。</Typography.Paragraph>
               </div>
             </div>
           ),
         }}
+        backgroundImageUrl={loginWallpaperImage}
         className="login-form-page"
         message={loginError ? <Alert type="error" showIcon message={loginError} /> : false}
         onFinish={onFinish}
@@ -68,14 +66,10 @@ export default function Login() {
           submitButtonProps: { loading: submitting, disabled: submitting },
         }}
         style={{ minHeight: '100dvh' }}
-        title={false}
-        subTitle={false}
+        title="兔兔窝管理后台"
+        subTitle="GAME TAKEOVER ADMIN"
       >
-        <div className="login-form-heading">
-          <Typography.Text>管理员登录</Typography.Text>
-          <Typography.Title level={2}>进入工作台</Typography.Title>
-          <Typography.Paragraph>使用管理员账号继续管理接龙与社群。</Typography.Paragraph>
-        </div>
+        <Typography.Paragraph className="login-standard-intro">使用管理员账号继续管理接龙与社群。</Typography.Paragraph>
         <ProFormText
           label="管理员账号"
           name="username"

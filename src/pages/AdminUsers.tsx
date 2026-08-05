@@ -36,12 +36,12 @@ export default function AdminUsers() {
   const [drawerOpen, setDrawerOpen] = useState(false);
   const [roleMenuOpen, setRoleMenuOpen] = useState(false);
   const [roleMenus, setRoleMenus] = useState<{ allMenus: { key: string; label: string }[]; roles: { role: string; label: string; menuKeys: string[] }[] } | null>(null);
+  const [editingId, setEditingId] = useState<React.Key | null>(null);
   const [submitting, setSubmitting] = useState(false);
   const [roleMenuSaving, setRoleMenuSaving] = useState(false);
   const [filterForm] = Form.useForm();
   const [form] = Form.useForm();
   const { message } = AntApp.useApp();
-  const editingId = Form.useWatch('id', form);
 
   const load = async (targetPage = page, targetPageSize = pageSize) => {
     setLoading(true);
@@ -69,6 +69,7 @@ export default function AdminUsers() {
   }, []);
 
   const openCreate = (row?: AdminUserRow) => {
+    setEditingId(row?.id ?? null);
     form.resetFields();
     form.setFieldsValue(row ? {
       id: row.id,
@@ -97,6 +98,7 @@ export default function AdminUsers() {
         message.success('管理员已新增');
       }
       setDrawerOpen(false);
+      setEditingId(null);
       await load(1);
     } catch (error) {
       message.error(error instanceof Error ? error.message : '保存失败');
@@ -245,7 +247,7 @@ export default function AdminUsers() {
           showTotal: (n) => `共 ${n} 条`,
         }}
       />
-      <ModalPanel title={editingId ? '编辑管理员' : '新增管理员'} width={520} open={drawerOpen} onClose={() => setDrawerOpen(false)}>
+      <ModalPanel title={editingId ? '编辑管理员' : '新增管理员'} width={520} open={drawerOpen} onClose={() => { setDrawerOpen(false); setEditingId(null); }}>
         <Form form={form} layout="vertical" onFinish={save} disabled={submitting}>
           <Form.Item name="id" hidden>
             <Input />
@@ -255,7 +257,7 @@ export default function AdminUsers() {
             name="username"
             rules={[{ required: true, message: '请输入用户名' }, { max: 64, message: '用户名最多 64 字' }]}
           >
-            <Input className="mono" maxLength={64} autoComplete="off" disabled={Boolean(editingId)} />
+            <Input className="mono" maxLength={64} autoComplete="off" disabled={editingId !== null} />
           </Form.Item>
           <Form.Item
             label={editingId ? '新密码' : '密码'}
@@ -282,7 +284,7 @@ export default function AdminUsers() {
             <Button type="primary" htmlType="submit" loading={submitting}>
               保存
             </Button>
-            <Button onClick={() => setDrawerOpen(false)} disabled={submitting}>
+            <Button onClick={() => { setDrawerOpen(false); setEditingId(null); }} disabled={submitting}>
               取消
             </Button>
           </Space>

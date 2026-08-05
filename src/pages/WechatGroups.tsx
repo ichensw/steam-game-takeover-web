@@ -1,7 +1,7 @@
 import { EyeOutlined, ReloadOutlined } from '@ant-design/icons';
 import { Button, Descriptions, Modal, Select, Space, Switch, Table, Tabs, Tag, Tooltip, Typography, App as AntApp } from 'antd';
 import type { ColumnsType } from 'antd/es/table';
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import {
   listWechatMessages,
   listWechatGroupMemberEvents,
@@ -27,6 +27,7 @@ export default function WechatGroups() {
   const [bots, setBots] = useState<WxbotRecord[]>([]);
   const [botId, setBotId] = useState('');
   const [groups, setGroups] = useState<WechatManagedGroup[]>([]);
+  const [groupPage, setGroupPage] = useState<Pagination>({ page: 1, pageSize: 20, totalItems: 0, totalPages: 0 });
   const [loading, setLoading] = useState(false);
   const [selectedGroup, setSelectedGroup] = useState<WechatManagedGroup | null>(null);
   const [activeTab, setActiveTab] = useState<DetailTab>('members');
@@ -34,16 +35,22 @@ export default function WechatGroups() {
   const [events, setEvents] = useState<WechatGroupMemberEvent[]>([]);
   const [selectedMember, setSelectedMember] = useState<WechatGroupMember | null>(null);
   const [memberMessages, setMemberMessages] = useState<WechatMessage[]>([]);
-  const [memberPage, setMemberPage] = useState<Pagination>({ page: 1, pageSize: 50, totalItems: 0, totalPages: 0 });
-  const [eventPage, setEventPage] = useState<Pagination>({ page: 1, pageSize: 50, totalItems: 0, totalPages: 0 });
+  const [memberPage, setMemberPage] = useState<Pagination>({ page: 1, pageSize: 20, totalItems: 0, totalPages: 0 });
+  const [eventPage, setEventPage] = useState<Pagination>({ page: 1, pageSize: 20, totalItems: 0, totalPages: 0 });
   const [detailLoading, setDetailLoading] = useState(false);
+  const [memberMessagesLoading, setMemberMessagesLoading] = useState(false);
+  const detailCache = useRef(new Map<string, { data: WechatGroupMember[] | WechatGroupMemberEvent[]; pagination: Pagination }>());
+  const messageCache = useRef(new Map<string, WechatMessage[]>());
   const { message } = AntApp.useApp();
 
-  const loadGroups = async (targetBotId = botId) => {
+  const cacheKey = (kind: DetailTab, roomId: string, page: number, pageSize: number) => `${kind}:${roomId}:${page}:${pageSize}`;
+
+  const loadGroups = async (targetBotId = botId, page = groupPage.page, pageSize = groupPage.pageSize) => {
     setLoading(true);
     try {
-      const result = await listWechatManagedGroups(targetBotId ? { botId: targetBotId } : undefined);
+      const result = await listWechatManagedGroups({ ...(targetBotId ? { botId: targetBotId } : {}), page, pageSize });
       setGroups(result.items || []);
+      setGroupPage(result.pagination || { page, pageSize, totalItems: result.items?.length || 0, totalPages: 1 });
       if (!targetBotId && result.botId) setBotId(result.botId);
     } catch (error) {
       message.error(error instanceof Error ? error.message : '群聊列表加载失败');
@@ -58,7 +65,9 @@ export default function WechatGroups() {
     setBots(list);
     const nextBotId = botId || list[0]?.botId || '';
     if (nextBotId) setBotId(nextBotId);
-    await loadGroups(nextBotId);
+    detailCache.current.clear();
+    messageCache.current.clear();
+    await loadGroups(nextBotId, 1, groupPage.pageSize);
   };
 
   useEffect(() => {
@@ -67,11 +76,19 @@ export default function WechatGroups() {
   }, []);
 
   const loadMembers = async (roomId: string, page = memberPage.page, pageSize = memberPage.pageSize) => {
+    const key = cacheKey('members', roomId, page, pageSize);
+    const cached = detailCache.current.get(key);
+    if (cached) {
+      setMembers(cached.data as WechatGroupMember[]);
+      setMemberPage(cached.pagination);
+      return;
+    }
     setDetailLoading(true);
     try {
       const result = await listWechatGroupMembers(roomId, { page, pageSize });
       setMembers(result.data || []);
       setMemberPage(result.pagination || { page, pageSize, totalItems: 0, totalPages: 0 });
+      detailCache.current.set(key, { data: result.data || [], pagination: result.pagination || { page, pageSize, totalItems: 0, totalPages: 0 } });
     } catch (error) {
       message.error(error instanceof Error ? error.message : '成员列表加载失败');
     } finally {
@@ -80,11 +97,19 @@ export default function WechatGroups() {
   };
 
   const loadEvents = async (roomId: string, page = eventPage.page, pageSize = eventPage.pageSize) => {
+    const key = cacheKey('events', roomId, page, pageSize);
+    const cached = detailCache.current.get(key);
+    if (cached) {
+      setEvents(cached.data as WechatGroupMemberEvent[]);
+      setEventPage(cached.pagination);
+      return;
+    }
     setDetailLoading(true);
     try {
       const result = await listWechatGroupMemberEvents(roomId, { page, pageSize });
       setEvents(result.data || []);
       setEventPage(result.pagination || { page, pageSize, totalItems: 0, totalPages: 0 });
+      detailCache.current.set(key, { data: result.data || [], pagination: result.pagination || { page, pageSize, totalItems: 0, totalPages: 0 } });
     } catch (error) {
       message.error(error instanceof Error ? error.message : '进出群记录加载失败');
     } finally {
@@ -95,6 +120,8 @@ export default function WechatGroups() {
   const openDetail = (group: WechatManagedGroup, tab: DetailTab) => {
     setSelectedGroup(group);
     setActiveTab(tab);
+    setMembers([]);
+    setEvents([]);
     if (tab === 'members') void loadMembers(group.roomId, 1);
     if (tab === 'events') void loadEvents(group.roomId, 1);
   };
@@ -102,11 +129,22 @@ export default function WechatGroups() {
   const openMember = async (member: WechatGroupMember) => {
     if (!selectedGroup) return;
     setSelectedMember(member);
+    const key = `${selectedGroup.roomId}:${member.memberWxid}`;
+    const cached = messageCache.current.get(key);
+    if (cached) {
+      setMemberMessages(cached);
+      return;
+    }
+    setMemberMessages([]);
+    setMemberMessagesLoading(true);
     try {
       const result = await listWechatMessages({ roomId: selectedGroup.roomId, sender: member.memberWxid, page: 1, pageSize: 10 });
       setMemberMessages(result.data || []);
+      messageCache.current.set(key, result.data || []);
     } catch (error) {
       message.error(error instanceof Error ? error.message : '最近消息加载失败');
+    } finally {
+      setMemberMessagesLoading(false);
     }
   };
 
@@ -125,7 +163,7 @@ export default function WechatGroups() {
       message.success('已保存');
     } catch (error) {
       message.error(error instanceof Error ? error.message : '白名单保存失败');
-      void loadGroups();
+      void loadGroups(botId, groupPage.page, groupPage.pageSize);
     }
   };
 
@@ -184,7 +222,9 @@ export default function WechatGroups() {
               options={bots.map((bot) => ({ value: bot.botId, label: bot.name ? `${bot.name} / ${bot.botId}` : bot.botId }))}
               onChange={(value) => {
                 setBotId(value);
-                void loadGroups(value);
+                detailCache.current.clear();
+                messageCache.current.clear();
+                void loadGroups(value, 1, groupPage.pageSize);
               }}
             />
             <Button icon={<ReloadOutlined />} loading={loading} onClick={() => void loadBots()}>刷新</Button>
@@ -198,9 +238,12 @@ export default function WechatGroups() {
         dataSource={groups}
         scroll={{ x: 1050 }}
         pagination={{
-          pageSize: 50,
+          current: groupPage.page,
+          pageSize: groupPage.pageSize,
+          total: groupPage.totalItems,
           showSizeChanger: true,
           pageSizeOptions,
+          onChange: (page, pageSize) => void loadGroups(botId, page, pageSize),
           showTotal: (count) => `共 ${count} 个群`,
         }}
       />
@@ -300,6 +343,7 @@ export default function WechatGroups() {
               rowKey="msgId"
               size="small"
               dataSource={memberMessages}
+              loading={memberMessagesLoading}
               pagination={false}
               columns={[
                 { title: '时间', dataIndex: 'createdAt', width: 170, render: formatWechatTime },
