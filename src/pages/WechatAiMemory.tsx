@@ -39,6 +39,7 @@ import {
   updateWechatAiHistoryLearningTask,
   updateWechatAiPromptInstruction,
   updateWechatAiRoleCard,
+  type WechatAiPromptInstruction,
   type WechatAiError,
   type WechatAiHistoryLearningTask,
   type WechatAiJob,
@@ -105,8 +106,10 @@ export default function WechatAiMemory() {
   const [jobs, setJobs] = useState<WechatAiJob[]>([]);
   const [errors, setErrors] = useState<WechatAiError[]>([]);
   const [replyLogs, setReplyLogs] = useState<WechatAiReplyLog[]>([]);
+  const [promptInstructions, setPromptInstructions] = useState<WechatAiPromptInstruction[]>([]);
   const [indexForm] = Form.useForm<IndexFormValues>();
   const [styleForm] = Form.useForm<{ roleCard: string; replyInstruction: string }>();
+  const [templateForm] = Form.useForm<{ key: string; content: string }>();
 
   const roomNameByID = useMemo(() => new Map(groups.map((item) => [item.roomId, item.roomName || item.roomId])), [groups]);
   const roomLabel = (roomID: string) => roomNameByID.get(roomID) || roomID;
@@ -131,8 +134,13 @@ export default function WechatAiMemory() {
       setJobs(nextJobs.items || []);
       setErrors(nextErrors.items || []);
       setReplyLogs(nextLogs.items || []);
+      const instructions = nextInstructions.items || [];
+      setPromptInstructions(instructions);
       const replyInstruction = (nextInstructions.items || []).find((item) => item.key === 'reply')?.content || '';
       styleForm.setFieldsValue({ roleCard: nextRoleCard.content, replyInstruction });
+      const selectedKey = templateForm.getFieldValue('key') || instructions.find((item) => item.key === 'reply_user')?.key || instructions[0]?.key;
+      const selected = instructions.find((item) => item.key === selectedKey);
+      templateForm.setFieldsValue({ key: selectedKey, content: selected?.content || '' });
       if (!indexForm.getFieldValue('roomId') && nextGroups[0]?.roomId) {
         indexForm.setFieldValue('roomId', nextGroups[0].roomId);
       }
@@ -181,6 +189,25 @@ export default function WechatAiMemory() {
       message.success('回复风格已保存');
     } catch (error) {
       message.error(errorText(error, '保存回复风格失败'));
+    } finally {
+      setSavingStyle(false);
+    }
+  };
+
+  const selectTemplate = (key: string) => {
+    const selected = promptInstructions.find((item) => item.key === key);
+    templateForm.setFieldsValue({ key, content: selected?.content || '' });
+  };
+
+  const saveTemplate = async (values: { key: string; content: string }) => {
+    if (!values.key) return;
+    setSavingStyle(true);
+    try {
+      await updateWechatAiPromptInstruction(values.key, values.content || '');
+      message.success('提示词模板已保存');
+      await refresh(true);
+    } catch (error) {
+      message.error(errorText(error, '保存提示词模板失败'));
     } finally {
       setSavingStyle(false);
     }
@@ -286,6 +313,19 @@ export default function WechatAiMemory() {
             <Form.Item name="roleCard" label="角色卡"><Input.TextArea rows={4} maxLength={8000} /></Form.Item>
             <Form.Item name="replyInstruction" label="回答规则"><Input.TextArea rows={3} maxLength={4000} /></Form.Item>
             <Button type="primary" htmlType="submit" loading={savingStyle}>保存</Button>
+          </Form>
+        </Card>
+      </Col>
+      <Col span={24}>
+        <Card title="提示词模板">
+          <Form form={templateForm} layout="vertical" onFinish={(values) => void saveTemplate(values)}>
+            <Form.Item name="key" label="模板"><Select options={promptInstructions.map((item) => ({ value: item.key, label: item.label || item.key }))} onChange={selectTemplate} /></Form.Item>
+            <Form.Item shouldUpdate noStyle>{() => {
+              const selected = promptInstructions.find((item) => item.key === templateForm.getFieldValue('key'));
+              return selected?.placeholders?.length ? <Typography.Text type="secondary">可用占位符：{selected.placeholders.map((item) => `{{${item}}}`).join('、')}</Typography.Text> : null;
+            }}</Form.Item>
+            <Form.Item name="content" label="内容" rules={[{ required: true, message: '提示词不能为空' }]}><Input.TextArea rows={14} maxLength={16000} /></Form.Item>
+            <Button type="primary" htmlType="submit" loading={savingStyle}>保存模板</Button>
           </Form>
         </Card>
       </Col>

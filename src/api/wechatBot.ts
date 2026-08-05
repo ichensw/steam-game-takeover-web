@@ -170,10 +170,12 @@ export type WechatAiRoleCard = {
   updatedAt?: ApiUnixTime;
 };
 
-export type WechatAiPromptInstructionKey = 'reply';
+export type WechatAiPromptInstructionKey = string;
 
 export type WechatAiPromptInstruction = {
   key: WechatAiPromptInstructionKey;
+  label?: string;
+  placeholders?: string[];
   content: string;
   updatedAt?: ApiUnixTime;
 };
@@ -331,6 +333,7 @@ export type WxbotRemoteConfig = {
     api_base_url?: string;
     api_key?: string;
     reply_model?: string;
+    reply_temperature?: number;
     reply_context_messages?: number;
     reply_input_token_budget?: number;
     worker_queue_size?: number;

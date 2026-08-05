@@ -194,6 +194,7 @@ const defaultWxbotConfig = {
     api_base_url: '',
     api_key: '',
     reply_model: 'gpt-5.4-mini',
+    reply_temperature: 0.6,
     reply_context_messages: 100,
     reply_input_token_budget: 6000,
     worker_queue_size: 200,
@@ -349,6 +350,7 @@ const configSections: SectionDef[] = [
       { key: 'gpt_api_key', label: 'GPT API Key', type: 'password', wide: true, visible: (provider) => provider === 'gpt' },
       { key: 'doubao_api_key', label: '豆包 Ark API Key', type: 'password', wide: true, visible: (provider) => provider === 'doubao' },
       { key: 'reply_model', label: '回复模型', type: 'select' },
+      { key: 'reply_temperature', label: '回复温度', type: 'decimal', min: 0, max: 1, extra: '0 更稳定，1 更多样；当前建议 0.6。' },
       { key: 'reply_context_messages', label: '回复上下文消息数', type: 'number' },
       { key: 'reply_input_token_budget', label: '回复输入 token 预算', type: 'number' },
       { key: 'worker_queue_size', label: '任务队列容量', type: 'number' },
@@ -796,6 +798,10 @@ export function validateWxbotConfig(config: WxbotRemoteConfig) {
   if (config.ai?.enabled) {
     checks.push(
       () => requireText(config.ai, 'reply_model', '回复模型'),
+      () => {
+        const temperature = Number(config.ai?.reply_temperature);
+        return Number.isFinite(temperature) && temperature >= 0 && temperature <= 1 ? '' : '回复温度必须在 0 到 1 之间';
+      },
       () => requireInt(config.ai, 'reply_context_messages', 'AI 回复上下文消息数'),
       () => requireInt(config.ai, 'reply_input_token_budget', '回复输入 token 预算'),
       () => requireInt(config.ai, 'worker_queue_size', 'AI 任务队列容量'),
