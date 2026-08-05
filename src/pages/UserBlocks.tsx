@@ -161,6 +161,8 @@ export default function UserBlocks() {
         });
         return Array.from(map.values());
       });
+    } catch (error) {
+      message.error(error instanceof Error ? error.message : '查询用户失败');
     } finally {
       setUserSearching(false);
     }
@@ -192,6 +194,8 @@ export default function UserBlocks() {
       setPage(targetPage);
       setPageSize(responsePageSize(res, targetPageSize));
       rememberUsers(list.flatMap((row) => [row.ownerUser, row.blockedUser]));
+    } catch (error) {
+      message.error(error instanceof Error ? error.message : '加载拉黑关系失败');
     } finally {
       setLoading(false);
     }
@@ -285,13 +289,13 @@ export default function UserBlocks() {
   const columns: ColumnsType<UserBlockRow> = [
     { title: '关系ID', dataIndex: 'id', width: 100, className: 'mono' },
     {
-      title: '发起拉黑用户',
+      title: '执行拉黑的用户',
       dataIndex: 'ownerUser',
       width: 280,
       render: (_, row) => renderUser(row.ownerUser),
     },
     {
-      title: '被拉黑用户',
+      title: '被其拉黑的用户',
       dataIndex: 'blockedUser',
       width: 280,
       render: (_, row) => renderUser(row.blockedUser),
@@ -309,7 +313,7 @@ export default function UserBlocks() {
           </Button>
           <Popconfirm
             title="删除拉黑关系"
-            description="确认删除这条拉黑关系？"
+            description="确认解除这条用户拉黑关系？解除后，该用户将不再屏蔽对方。"
             okText="删除"
             cancelText="取消"
             okButtonProps={{ danger: true }}
@@ -335,7 +339,7 @@ export default function UserBlocks() {
     <>
       <PageHeader
         title="用户拉黑关系"
-        description="管理小程序用户之间的拉黑关系。"
+        description="每条关系表示：一个用户主动屏蔽另一个用户。"
         extra={
           <Space>
             {tableColumns.button}
@@ -354,7 +358,7 @@ export default function UserBlocks() {
             <Select
               {...userSelectProps}
               options={userOptions}
-              placeholder="发起拉黑用户"
+              placeholder="选择执行拉黑的用户"
               style={{ width: 220 }}
             />
           </Form.Item>
@@ -362,7 +366,7 @@ export default function UserBlocks() {
             <Select
               {...userSelectProps}
               options={userOptions}
-              placeholder="被拉黑用户"
+              placeholder="选择被其拉黑的用户"
               style={{ width: 220 }}
             />
           </Form.Item>
@@ -391,7 +395,7 @@ export default function UserBlocks() {
         }}
       />
       <Modal
-        title={editing ? '编辑拉黑关系' : '新增拉黑关系'}
+        title={editing ? '编辑用户拉黑关系' : '新增用户拉黑关系'}
         open={editorOpen}
         okText="保存"
         cancelText="取消"
@@ -405,11 +409,12 @@ export default function UserBlocks() {
       >
         <Form form={editorForm} layout="vertical" onFinish={save}>
           <Form.Item
-            label="发起拉黑用户"
+            label="执行拉黑的用户"
+            extra="该用户将主动屏蔽另一位用户。"
             name="ownerUserId"
             dependencies={['blockedUserId']}
             rules={[
-              { required: true, message: '请选择发起拉黑用户' },
+              { required: true, message: '请选择执行拉黑的用户' },
               ({ getFieldValue }) => ({
                 validator(_, value) {
                   if (value && value === getFieldValue('blockedUserId')) {
@@ -427,11 +432,12 @@ export default function UserBlocks() {
             />
           </Form.Item>
           <Form.Item
-            label="被拉黑用户"
+            label="被其拉黑的用户"
+            extra="被选择的用户将被前一位用户屏蔽。"
             name="blockedUserId"
             dependencies={['ownerUserId']}
             rules={[
-              { required: true, message: '请选择被拉黑用户' },
+              { required: true, message: '请选择被其拉黑的用户' },
               ({ getFieldValue }) => ({
                 validator(_, value) {
                   if (value && value === getFieldValue('ownerUserId')) {
@@ -452,7 +458,7 @@ export default function UserBlocks() {
             <Alert
               type="info"
               showIcon
-              message={`${selectedOwnerLabel} 将拉黑 ${selectedBlockedLabel}`}
+              message={`确认关系：${selectedOwnerLabel} 将主动拉黑 ${selectedBlockedLabel}`}
             />
           )}
         </Form>

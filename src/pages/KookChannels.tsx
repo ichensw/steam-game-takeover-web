@@ -368,9 +368,13 @@ export default function KookChannels() {
       okText: '确认移动',
       cancelText: '取消',
       onOk: async () => {
-        await moveKookChannel(source.id, request);
-        message.success('频道已移动');
-        await refreshChannelData();
+        try {
+          await moveKookChannel(source.id, request);
+          message.success('频道已移动');
+          await refreshChannelData();
+        } catch (error) {
+          message.error(getErrorMessage(error));
+        }
       },
     });
   };
@@ -383,6 +387,8 @@ export default function KookChannels() {
       message.success('频道已移动');
       setMoveTarget(null);
       await refreshChannelData();
+    } catch (error) {
+      message.error(getErrorMessage(error));
     } finally {
       setMoving(false);
     }
@@ -404,20 +410,24 @@ export default function KookChannels() {
   };
 
   const openEdit = async (row: Row) => {
-    const data = await getKookChannel(row.id, { needChildren: true });
-    setEditing({ ...row, ...data, id: row.id });
-    form.resetFields();
-    form.setFieldsValue({
-      name: data.name,
-      parentId: data.parent_id || data.parentId,
-      topic: data.topic,
-      level: data.level,
-      slowMode: data.slow_mode,
-      limitAmount: data.limit_amount,
-      voiceQuality: data.voice_quality,
-      password: '',
-    });
-    setDrawerOpen(true);
+    try {
+      const data = await getKookChannel(row.id, { needChildren: true });
+      setEditing({ ...row, ...data, id: row.id });
+      form.resetFields();
+      form.setFieldsValue({
+        name: data.name,
+        parentId: data.parent_id || data.parentId,
+        topic: data.topic,
+        level: data.level,
+        slowMode: data.slow_mode,
+        limitAmount: data.limit_amount,
+        voiceQuality: data.voice_quality,
+        password: '',
+      });
+      setDrawerOpen(true);
+    } catch (error) {
+      message.error(getErrorMessage(error));
+    }
   };
 
   const save = async (values: Record<string, unknown>) => {
@@ -440,15 +450,21 @@ export default function KookChannels() {
       }
       setDrawerOpen(false);
       await load();
+    } catch (error) {
+      message.error(getErrorMessage(error));
     } finally {
       setSaving(false);
     }
   };
 
   const remove = async (row: Row) => {
-    await deleteKookChannel(row.id);
-    message.success('频道已删除');
-    await load();
+    try {
+      await deleteKookChannel(row.id);
+      message.success('频道已删除');
+      await load();
+    } catch (error) {
+      message.error(getErrorMessage(error));
+    }
   };
 
   const openDetail = (row: Row) => navigate(`/kook-channels/${row.id}`);
@@ -458,6 +474,8 @@ export default function KookChannels() {
     setUsersLoading(true);
     try {
       setUsers((await listKookChannelUsers(row.id)) as UserRow[]);
+    } catch (error) {
+      message.error(getErrorMessage(error));
     } finally {
       setUsersLoading(false);
     }
@@ -469,17 +487,25 @@ export default function KookChannels() {
     const userIds = Array.isArray(values.userIds)
       ? values.userIds
       : values.userIds.split(/[\s,，]+/).map((id) => id.trim()).filter(Boolean);
-    await moveKookChannelUsers(usersTarget.id, userIds);
-    moveForm.resetFields();
-    message.success('用户已移动到该语音频道');
-    await openUsers(usersTarget);
+    try {
+      await moveKookChannelUsers(usersTarget.id, userIds);
+      moveForm.resetFields();
+      message.success('用户已移动到该语音频道');
+      await openUsers(usersTarget);
+    } catch (error) {
+      message.error(getErrorMessage(error));
+    }
   };
 
   const kickUser = async (userId: React.Key) => {
     if (!usersTarget) return;
-    await kickoutKookChannelUser(usersTarget.id, String(userId));
-    message.success('用户已踢出语音频道');
-    await openUsers(usersTarget);
+    try {
+      await kickoutKookChannelUser(usersTarget.id, String(userId));
+      message.success('用户已踢出语音频道');
+      await openUsers(usersTarget);
+    } catch (error) {
+      message.error(getErrorMessage(error));
+    }
   };
 
   const openRoles = async (row: Row) => {
@@ -489,6 +515,8 @@ export default function KookChannels() {
     roleForm.setFieldsValue({ type: 'user_id', allow: 0, deny: 0 });
     try {
       setRoles(await getKookChannelRoles(row.id));
+    } catch (error) {
+      message.error(getErrorMessage(error));
     } finally {
       setRolesLoading(false);
     }
@@ -499,6 +527,8 @@ export default function KookChannels() {
     setRolesLoading(true);
     try {
       setRoles(await getKookChannelRoles(rolesTarget.id));
+    } catch (error) {
+      message.error(getErrorMessage(error));
     } finally {
       setRolesLoading(false);
     }
@@ -513,32 +543,44 @@ export default function KookChannels() {
       allow: permissionValue(values.allowPermissions),
       deny: permissionValue(values.denyPermissions),
     };
-    if (update) {
-      await updateKookChannelRole(rolesTarget.id, payload);
-      message.success('权限已更新');
-    } else {
-      await createKookChannelRole(rolesTarget.id, payload);
-      message.success('权限已创建');
+    try {
+      if (update) {
+        await updateKookChannelRole(rolesTarget.id, payload);
+        message.success('权限已更新');
+      } else {
+        await createKookChannelRole(rolesTarget.id, payload);
+        message.success('权限已创建');
+      }
+      await refreshRoles();
+    } catch (error) {
+      message.error(getErrorMessage(error));
     }
-    await refreshRoles();
   };
 
   const deleteRole = async (row: RoleRow) => {
     if (!rolesTarget) return;
-    const isRole = row.role_id !== undefined;
-    await deleteKookChannelRole(rolesTarget.id, {
-      type: isRole ? 'role_id' : 'user_id',
-      value: String(isRole ? row.role_id : row.user?.id || row.user_id),
-    });
-    message.success('权限已删除');
-    await refreshRoles();
+    try {
+      const isRole = row.role_id !== undefined;
+      await deleteKookChannelRole(rolesTarget.id, {
+        type: isRole ? 'role_id' : 'user_id',
+        value: String(isRole ? row.role_id : row.user?.id || row.user_id),
+      });
+      message.success('权限已删除');
+      await refreshRoles();
+    } catch (error) {
+      message.error(getErrorMessage(error));
+    }
   };
 
   const syncRoles = async () => {
     if (!rolesTarget) return;
-    await syncKookChannelRoles(rolesTarget.id);
-    message.success('已同步分组权限');
-    await refreshRoles();
+    try {
+      await syncKookChannelRoles(rolesTarget.id);
+      message.success('已同步分组权限');
+      await refreshRoles();
+    } catch (error) {
+      message.error(getErrorMessage(error));
+    }
   };
 
   const saveColumnPreference = (next: ColumnPreference) => {

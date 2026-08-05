@@ -179,6 +179,25 @@ export default function WechatAiMemory() {
     }
   };
 
+  const resolveError = async (id: number, retry = false) => {
+    try {
+      if (retry) await retryWechatAiError(id);
+      else await resolveWechatAiError(id);
+      await refresh(true);
+    } catch (error) {
+      message.error(errorText(error, retry ? '重试错误任务失败' : '标记错误已处理失败'));
+    }
+  };
+
+  const reviewReply = async (id: number, feedback: 'human' | 'too_ai' | 'too_much') => {
+    try {
+      await reviewWechatAiReplyLog(id, feedback);
+      await refresh(true);
+    } catch (error) {
+      message.error(errorText(error, '回复反馈保存失败'));
+    }
+  };
+
   const saveStyle = async (values: { roleCard: string; replyInstruction: string }) => {
     setSavingStyle(true);
     try {
@@ -249,8 +268,8 @@ export default function WechatAiMemory() {
     { title: '时间', dataIndex: 'createdAt', width: 170, render: (value) => formatWechatTime(value) || '-' },
     {
       title: '操作', width: 130, render: (_, item) => <Space size={2}>
-        {!item.resolved && <Button type="text" size="small" icon={<ReloadOutlined />} onClick={async () => { await retryWechatAiError(item.id); await refresh(true); }} />}
-        {!item.resolved && <Button type="text" size="small" icon={<CheckOutlined />} onClick={async () => { await resolveWechatAiError(item.id); await refresh(true); }} />}
+        {!item.resolved && <Button type="text" size="small" icon={<ReloadOutlined />} onClick={() => void resolveError(item.id, true)} />}
+        {!item.resolved && <Button type="text" size="small" icon={<CheckOutlined />} onClick={() => void resolveError(item.id)} />}
       </Space>,
     },
   ];
@@ -262,9 +281,9 @@ export default function WechatAiMemory() {
     { title: '时间', dataIndex: 'createdAt', width: 170, render: (value) => formatWechatTime(value) || '-' },
     {
       title: '反馈', width: 175, render: (_, item) => <Space size={2}>
-        <Button size="small" type={item.feedback === 'human' ? 'primary' : 'default'} onClick={async () => { await reviewWechatAiReplyLog(item.id, 'human'); await refresh(true); }}>像人</Button>
-        <Button size="small" danger={item.feedback === 'too_ai'} onClick={async () => { await reviewWechatAiReplyLog(item.id, 'too_ai'); await refresh(true); }}>太 AI</Button>
-        <Button size="small" danger={item.feedback === 'too_much'} onClick={async () => { await reviewWechatAiReplyLog(item.id, 'too_much'); await refresh(true); }}>过火</Button>
+        <Button size="small" type={item.feedback === 'human' ? 'primary' : 'default'} onClick={() => void reviewReply(item.id, 'human')}>像人</Button>
+        <Button size="small" danger={item.feedback === 'too_ai'} onClick={() => void reviewReply(item.id, 'too_ai')}>太 AI</Button>
+        <Button size="small" danger={item.feedback === 'too_much'} onClick={() => void reviewReply(item.id, 'too_much')}>过火</Button>
       </Space>,
     },
   ];

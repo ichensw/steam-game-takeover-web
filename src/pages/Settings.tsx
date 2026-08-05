@@ -86,6 +86,8 @@ export default function Settings() {
       await updateSettings(normalizeSettings(values));
       message.success('系统设置已保存');
       await loadSettings();
+    } catch (error) {
+      message.error(error instanceof Error ? error.message : '系统设置保存失败');
     } finally {
       setSubmitting(false);
     }
@@ -125,8 +127,12 @@ export default function Settings() {
   };
 
   const refresh = async () => {
-    await loadSettings();
-    message.success('配置已刷新');
+    try {
+      await loadSettings();
+      message.success('配置已刷新');
+    } catch (error) {
+      message.error(error instanceof Error ? error.message : '配置刷新失败');
+    }
   };
 
   const copy = async (text: string, successText: string) => {

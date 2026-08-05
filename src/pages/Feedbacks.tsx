@@ -106,10 +106,14 @@ export default function Feedbacks() {
   const openDetail = (id: React.Key) => navigate(`/feedbacks/${id}`);
 
   const changeStatus = async (id: React.Key, status: number, closeDetail = false) => {
-    await updateFeedbackStatus(id, status);
-    message.success('反馈状态已更新');
-    if (closeDetail) setDetail(null);
-    load();
+    try {
+      await updateFeedbackStatus(id, status);
+      message.success('反馈状态已更新');
+      if (closeDetail) setDetail(null);
+      await load();
+    } catch (error) {
+      message.error(error instanceof Error ? error.message : '反馈状态更新失败');
+    }
   };
 
   useEffect(() => {

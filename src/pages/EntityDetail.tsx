@@ -135,6 +135,24 @@ function PersonCell({ data, nameKeys, avatarKeys, idKeys }: {
   );
 }
 
+function DetailIdentity({ name, id, avatarUrl, status }: {
+  name: string;
+  id: string;
+  avatarUrl?: string;
+  status?: React.ReactNode;
+}) {
+  return (
+    <div className="entity-identity">
+      <PersonAvatar name={name} url={avatarUrl} size={76} />
+      <div>
+        <Typography.Title level={4}>{name}</Typography.Title>
+        {id ? <Typography.Text type="secondary" className="mono">用户 ID：{id}</Typography.Text> : null}
+        {status ? <div className="entity-identity-status">{status}</div> : null}
+      </div>
+    </div>
+  );
+}
+
 function ImageGallery({ urls, label = '图片' }: { urls: string[]; label?: string }) {
   if (!urls.length) return <Empty image={Empty.PRESENTED_IMAGE_SIMPLE} description={`暂无${label}`} className="entity-inline-empty" />;
   return (
@@ -181,11 +199,18 @@ function genderText(value: string) {
 
 function UserDetail({ data }: { data: DetailData }) {
   const nickname = text(data, ['nickname', 'nickName', 'name'], '未知用户');
+  const userId = text(data, ['id', 'userId', 'user_id'], '');
+  const isBanned = truthy(data, ['isBanned', 'is_banned', 'blocked']);
   return (
     <>
+      <DetailIdentity
+        name={nickname}
+        id={userId}
+        avatarUrl={text(data, ['avatarUrl', 'avatar_url'], '') || undefined}
+        status={isBanned ? <Tag color="red">已封禁</Tag> : <Tag color="green">正常</Tag>}
+      />
       <DetailSection title="基础信息">
         <DescriptionList items={[
-          { label: '用户', value: <PersonCell data={data} nameKeys={['nickname', 'nickName', 'name']} avatarKeys={['avatarUrl', 'avatar_url']} idKeys={['id', 'userId', 'user_id']} />, span: 2 },
           { label: 'Steam ID', value: <span className="mono">{text(data, ['steamId', 'steam_id'])}</span> },
           { label: '性别', value: genderText(text(data, ['gender', 'genderText'], '')) },
           { label: 'OpenID', value: <span className="mono">{text(data, ['openid', 'openId', 'open_id'])}</span>, span: 2 },
@@ -195,7 +220,7 @@ function UserDetail({ data }: { data: DetailData }) {
       </DetailSection>
       <DetailSection title="当前状态">
         <DescriptionList items={[
-          { label: '账号状态', value: truthy(data, ['isBanned', 'is_banned', 'blocked']) ? <Tag color="red">已封禁</Tag> : <Tag color="green">正常</Tag> },
+          { label: '账号状态', value: isBanned ? <Tag color="red">已封禁</Tag> : <Tag color="green">正常</Tag> },
           { label: '资料完成度', value: truthy(data, ['profileCompleted', 'profile_completed']) ? <Tag color="green">资料完整</Tag> : <Tag color="gold">待补充</Tag> },
           { label: 'Steam ID 校验', value: truthy(data, ['steamIdVerified', 'steam_id_verified']) ? <Tag color="green">已验证</Tag> : <Tag>未验证</Tag> },
           { label: '信誉分', value: text(data, ['creditScore', 'credit_score']) },
@@ -203,9 +228,6 @@ function UserDetail({ data }: { data: DetailData }) {
           { label: '封禁时间', value: <span className="mono">{text(data, ['bannedAt', 'banned_at'])}</span> },
           { label: '发布白名单', value: truthy(data, ['publishWhitelisted', 'publish_whitelisted']) ? '已开通' : '未开通' },
         ]} />
-      </DetailSection>
-      <DetailSection title="资料头像">
-        <div className="entity-avatar-panel"><PersonAvatar name={nickname} url={text(data, ['avatarUrl', 'avatar_url'], '') || undefined} size={76} /><Typography.Text type="secondary">用户头像</Typography.Text></div>
       </DetailSection>
     </>
   );
@@ -374,11 +396,18 @@ function KookChannelDetail({ data, permissions, permissionsLoading, permissionEr
 function KookMemberDetail({ data }: { data: DetailData }) {
   const roleIds = stringList(data, ['roleIds', 'role_ids']);
   const nickname = text(data, ['nickname', 'username', 'name'], '未知成员');
+  const memberId = text(data, ['kookUserId', 'kook_user_id'], '');
+  const isBlacklisted = truthy(data, ['isBlacklisted', 'is_blacklisted']);
   return (
     <>
+      <DetailIdentity
+        name={nickname}
+        id={memberId}
+        avatarUrl={text(data, ['avatarUrl', 'avatar_url'], '') || undefined}
+        status={isBlacklisted ? <Tag color="red">已拉黑</Tag> : <Tag color="green">正常</Tag>}
+      />
       <DetailSection title="成员资料">
         <DescriptionList items={[
-          { label: '成员', value: <PersonCell data={data} nameKeys={['nickname', 'username', 'name']} avatarKeys={['avatarUrl', 'avatar_url']} idKeys={['kookUserId', 'kook_user_id']} />, span: 2 },
           { label: '服务器 ID', value: <span className="mono">{text(data, ['guildId', 'guild_id'])}</span> },
           { label: '识别码', value: <span className="mono">{text(data, ['identifyNum', 'identify_num'])}</span> },
           { label: '加入时间', value: <span className="mono">{text(data, ['joinedAt', 'joined_at'])}</span> },
@@ -390,7 +419,7 @@ function KookMemberDetail({ data }: { data: DetailData }) {
         <DescriptionList items={[
           { label: '成员状态', value: Number(pick(data, ['memberStatus', 'member_status'])) === 2 ? <Tag>已退出</Tag> : <Tag color="green">在服</Tag> },
           { label: '机器人账号', value: truthy(data, ['isBot', 'is_bot', 'bot']) ? '是' : '否' },
-          { label: '黑名单状态', value: truthy(data, ['isBlacklisted', 'is_blacklisted']) ? <Tag color="red">已拉黑</Tag> : <Tag color="green">正常</Tag> },
+          { label: '黑名单状态', value: isBlacklisted ? <Tag color="red">已拉黑</Tag> : <Tag color="green">正常</Tag> },
           { label: '拉黑时间', value: <span className="mono">{text(data, ['blacklistedAt', 'blacklisted_at'])}</span> },
           { label: '拉黑原因', value: text(data, ['blacklistReason', 'blacklist_reason']), span: 2 },
         ]} />
@@ -398,7 +427,6 @@ function KookMemberDetail({ data }: { data: DetailData }) {
       <DetailSection title={`角色（${roleIds.length}）`}>
         {roleIds.length ? <div className="entity-id-list">{roleIds.map((roleId) => <span key={roleId} className="mono">角色 ID：{roleId}</span>)}</div> : <Empty image={Empty.PRESENTED_IMAGE_SIMPLE} description="暂无相关数据" className="entity-inline-empty" />}
       </DetailSection>
-      <DetailSection title="成员头像"><div className="entity-avatar-panel"><PersonAvatar name={nickname} url={text(data, ['avatarUrl', 'avatar_url'], '') || undefined} size={76} /><Typography.Text type="secondary">KOOK 头像</Typography.Text></div></DetailSection>
     </>
   );
 }

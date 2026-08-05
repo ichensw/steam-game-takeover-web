@@ -113,15 +113,19 @@ export default function Announcements() {
   };
 
   const openEdit = async (id: React.Key) => {
-    const detail = (await getAnnouncement(id)) as AnnouncementRow;
-    setEditing(detail);
-    form.resetFields();
-    form.setFieldsValue({
-      ...detail,
-      start_time: parseDateTime(detail.start_time),
-      end_time: parseDateTime(detail.end_time),
-    });
-    setDrawerOpen(true);
+    try {
+      const detail = (await getAnnouncement(id)) as AnnouncementRow;
+      setEditing(detail);
+      form.resetFields();
+      form.setFieldsValue({
+        ...detail,
+        start_time: parseDateTime(detail.start_time),
+        end_time: parseDateTime(detail.end_time),
+      });
+      setDrawerOpen(true);
+    } catch (error) {
+      message.error(error instanceof Error ? error.message : '公告详情加载失败');
+    }
   };
 
   const beforeImageUpload = (file: RcFile) => {
@@ -172,26 +176,36 @@ export default function Announcements() {
       message.success('公告已保存');
       setDrawerOpen(false);
       await load(editing ? page : 1);
+    } catch (error) {
+      message.error(error instanceof Error ? error.message : '公告保存失败');
     } finally {
       setSubmitting(false);
     }
   };
 
   const changeEnabled = async (row: AnnouncementRow) => {
-    if (Number(row.status) === 1) {
-      await disableAnnouncement(row.id);
-      message.success('公告已停用');
-    } else {
-      await enableAnnouncement(row.id);
-      message.success('公告已启用');
+    try {
+      if (Number(row.status) === 1) {
+        await disableAnnouncement(row.id);
+        message.success('公告已停用');
+      } else {
+        await enableAnnouncement(row.id);
+        message.success('公告已启用');
+      }
+      await load();
+    } catch (error) {
+      message.error(error instanceof Error ? error.message : '公告状态更新失败');
     }
-    await load();
   };
 
   const remove = async (id: React.Key) => {
-    await deleteAnnouncement(id);
-    message.success('公告已删除');
-    await load(1);
+    try {
+      await deleteAnnouncement(id);
+      message.success('公告已删除');
+      await load(1);
+    } catch (error) {
+      message.error(error instanceof Error ? error.message : '公告删除失败');
+    }
   };
 
   const columns: ColumnsType<AnnouncementRow> = [

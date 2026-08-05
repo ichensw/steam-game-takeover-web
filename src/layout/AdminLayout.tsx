@@ -225,6 +225,8 @@ export default function AdminLayout() {
       const updated = await updateAdminMe(values);
       saveAdminSession(updated);
       message.success('资料已保存');
+    } catch (error) {
+      message.error(error instanceof Error ? error.message : '保存资料失败');
     } finally {
       setProfileSaving(false);
     }
@@ -237,6 +239,8 @@ export default function AdminLayout() {
       message.success('密码已修改，请重新登录');
       clearSession();
       navigate('/login', { replace: true });
+    } catch (error) {
+      message.error(error instanceof Error ? error.message : '修改密码失败');
     } finally {
       setPasswordSaving(false);
     }
@@ -279,30 +283,21 @@ export default function AdminLayout() {
         className="admin-sider"
       >
         <div className="brand">
-          <div className="brand-mark">
-            <ThunderboltOutlined />
-          </div>
-          <div>
+          <div className="brand-copy">
             <Typography.Text className="brand-title">兔兔窝管理后台</Typography.Text>
             <Typography.Text className="brand-subtitle">GAME TAKEOVER ADMIN</Typography.Text>
+            <Typography.Text className="brand-compact-title">TTW</Typography.Text>
           </div>
         </div>
         {renderNavMenu()}
-        <div className="sider-footer">
-          <span className="status-dot" />
-          <div>
-            <Typography.Text type="secondary">当前管理员</Typography.Text>
-            <Typography.Text className="mono">{adminName}</Typography.Text>
-          </div>
-          <Tooltip title="退出登录">
-            <Button
-              aria-label="退出登录"
-              className="sider-logout"
-              icon={<LogoutOutlined />}
-              onClick={onLogout}
-              type="text"
-            />
-          </Tooltip>
+        <div className={`sider-footer${siderCollapsed ? ' is-collapsed' : ''}`}>
+          {!siderCollapsed ? <>
+            <span className="status-dot" />
+            <div>
+              <Typography.Text type="secondary">当前管理员</Typography.Text>
+              <Typography.Text className="mono">{adminName}</Typography.Text>
+            </div>
+          </> : null}
           <Tooltip title={siderCollapsed ? '展开导航' : '收起导航'}>
             <Button
               aria-label={siderCollapsed ? '展开导航' : '收起导航'}
@@ -346,11 +341,13 @@ export default function AdminLayout() {
                   <Button shape="circle" icon={<BellOutlined />} />
                 </Tooltip>
               </Badge>
-              <Button className="admin-avatar-button" onClick={openProfile}>
-                <Avatar className="admin-avatar" src={admin?.avatarUrl}>
-                  {adminName.slice(0, 1)}
-                </Avatar>
-              </Button>
+              <Tooltip title="个人资料">
+                <Button className="admin-avatar-button" onClick={openProfile}>
+                  <Avatar className="admin-avatar" src={admin?.avatarUrl}>
+                    {adminName.slice(0, 1)}
+                  </Avatar>
+                </Button>
+              </Tooltip>
               <Button icon={<LogoutOutlined />} onClick={onLogout}>
                 退出
               </Button>
@@ -372,12 +369,9 @@ export default function AdminLayout() {
         size={304}
       >
         <div className="brand mobile-drawer-brand">
-          <div className="brand-mark">
-            <ThunderboltOutlined />
-          </div>
-          <div>
-            <Typography.Text className="brand-title">兔兔窝接龙</Typography.Text>
-            <Typography.Text className="brand-subtitle">后台管理系统</Typography.Text>
+          <div className="brand-copy">
+            <Typography.Text className="brand-title">兔兔窝管理后台</Typography.Text>
+            <Typography.Text className="brand-subtitle">GAME TAKEOVER ADMIN</Typography.Text>
           </div>
         </div>
         {renderNavMenu()}
@@ -389,9 +383,6 @@ export default function AdminLayout() {
           <Space>
             <Button icon={<UserOutlined />} onClick={openProfile}>
               个人资料
-            </Button>
-            <Button icon={<LogoutOutlined />} onClick={onLogout}>
-              退出
             </Button>
           </Space>
         </div>

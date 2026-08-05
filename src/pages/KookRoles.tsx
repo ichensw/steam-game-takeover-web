@@ -141,19 +141,25 @@ export default function KookRoles() {
         if (createdRole && roleId(createdRole)) {
           await updateKookRole(roleId(createdRole), payload);
         }
-        message.success('KOOK 角色已创建');
+      message.success('KOOK 角色已创建');
       }
       setDrawerOpen(false);
       await load(editing ? page : 1);
+    } catch (error) {
+      message.error(error instanceof Error ? error.message : '角色保存失败');
     } finally {
       setSubmitting(false);
     }
   };
 
   const remove = async (row: RoleRow) => {
-    await deleteKookRole(roleId(row));
-    message.success('KOOK 角色已删除');
-    await load(1);
+    try {
+      await deleteKookRole(roleId(row));
+      message.success('KOOK 角色已删除');
+      await load(1);
+    } catch (error) {
+      message.error(error instanceof Error ? error.message : '角色删除失败');
+    }
   };
 
   const openGrant = (row: RoleRow, mode: 'grant' | 'revoke') => {
@@ -165,14 +171,18 @@ export default function KookRoles() {
   const submitGrant = async () => {
     if (!grantTarget) return;
     const values = await grantForm.validateFields();
-    if (grantMode === 'grant') {
-      await grantKookRole(roleId(grantTarget), values.userId.trim());
-      message.success('角色已授予用户');
-    } else {
-      await revokeKookRole(roleId(grantTarget), values.userId.trim());
-      message.success('已移除用户角色');
+    try {
+      if (grantMode === 'grant') {
+        await grantKookRole(roleId(grantTarget), values.userId.trim());
+        message.success('角色已授予用户');
+      } else {
+        await revokeKookRole(roleId(grantTarget), values.userId.trim());
+        message.success('已移除用户角色');
+      }
+      setGrantTarget(null);
+    } catch (error) {
+      message.error(error instanceof Error ? error.message : '角色授权操作失败');
     }
-    setGrantTarget(null);
   };
 
   const columns: ColumnsType<RoleRow> = [

@@ -204,9 +204,13 @@ export default function Takeovers() {
   };
 
   const remove = async (id: React.Key) => {
-    await deleteTakeover(id);
-    message.success('接龙已删除');
-    load();
+    try {
+      await deleteTakeover(id);
+      message.success('接龙已删除');
+      await load();
+    } catch (error) {
+      message.error(error instanceof Error ? error.message : '接龙删除失败');
+    }
   };
 
   const openCreate = () => {
@@ -240,6 +244,8 @@ export default function Takeovers() {
         summaryName: row.summaryName || '',
       });
       setEditorOpen(true);
+    } catch (error) {
+      message.error(error instanceof Error ? error.message : '接龙详情加载失败');
     } finally {
       setEditorSubmitting(false);
     }
@@ -275,6 +281,8 @@ export default function Takeovers() {
       }
       setEditorOpen(false);
       await load(editing ? page : 1);
+    } catch (error) {
+      message.error(error instanceof Error ? error.message : '接龙保存失败');
     } finally {
       setEditorSubmitting(false);
     }
@@ -306,6 +314,8 @@ export default function Takeovers() {
       setSummaryModalOpen(false);
       message.success('汇总展示词已保存');
       load();
+    } catch (error) {
+      message.error(error instanceof Error ? error.message : '汇总展示词保存失败');
     } finally {
       setSummarySubmitting(false);
     }
@@ -349,6 +359,8 @@ export default function Takeovers() {
           const result = await refreshTakeoverSummaries();
           message.success(`已处理 ${result.count} 个接龙`);
           await load();
+        } catch (error) {
+          message.error(error instanceof Error ? error.message : '接龙汇总词生成失败');
         } finally {
           setRefreshingSummaries(false);
         }

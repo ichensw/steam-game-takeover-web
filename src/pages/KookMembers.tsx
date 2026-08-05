@@ -180,11 +180,15 @@ export default function KookMembers() {
   };
 
   const openEdit = async (id: React.Key) => {
-    const row = (await getKookMember(id)) as KookMemberRow;
-    setEditing(row);
-    form.resetFields();
-    form.setFieldsValue(row);
-    setDrawerOpen(true);
+    try {
+      const row = (await getKookMember(id)) as KookMemberRow;
+      setEditing(row);
+      form.resetFields();
+      form.setFieldsValue(row);
+      setDrawerOpen(true);
+    } catch (error) {
+      message.error(getErrorMessage(error));
+    }
   };
 
   const openDetail = (id: React.Key) => navigate(`/kook-members/${id}`);
@@ -235,15 +239,21 @@ export default function KookMembers() {
       message.success(`已同步 ${res.count} 个 KOOK 成员`);
       setLastSyncTime(formatDateTime(new Date()));
       await load(1);
+    } catch (error) {
+      message.error(getErrorMessage(error));
     } finally {
       setSyncing(false);
     }
   };
 
   const remove = async (id: React.Key) => {
-    await deleteKookMember(id);
-    message.success('KOOK 成员已删除');
-    await load(1);
+    try {
+      await deleteKookMember(id);
+      message.success('KOOK 成员已删除');
+      await load(1);
+    } catch (error) {
+      message.error(getErrorMessage(error));
+    }
   };
 
   const submitBlacklist = async () => {

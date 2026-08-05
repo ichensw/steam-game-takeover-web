@@ -2467,12 +2467,17 @@ body {
 /* LoginFormPage owns the form workflow; this scoped layer owns the product layout. */
 .login-pro-page {
   min-height: 100dvh;
+  width: 100%;
+  margin: 0 !important;
   padding: 0;
 }
 
 .login-pro-page .ant-pro-form-login-page,
 .login-pro-page .ant-pro-form-login-page > .ant-pro-form-login-page {
   min-height: 100dvh !important;
+  width: 100% !important;
+  margin: 0 !important;
+  box-sizing: border-box;
   background: #ffffff !important;
 }
 
@@ -2646,7 +2651,7 @@ body {
   color: #666666 !important;
 }
 
-@media (max-width: 767px) {
+@media (max-width: 900px) {
   .login-pro-page .ant-pro-form-login-page-notice {
     display: none !important;
   }
@@ -4372,4 +4377,197 @@ body,
   background: #fafafa;
   color: var(--text);
   font-size: 12px;
+}
+
+/* Final layout corrections: the desktop login occupies, rather than exceeds, the viewport. */
+@media (min-width: 901px) {
+  html:has(.login-pro-page),
+  body:has(.login-pro-page) {
+    height: 100%;
+    overflow: hidden;
+  }
+
+  .login-page.login-pro-page,
+  .login-pro-page .ant-pro-form-login-page,
+  .login-pro-page .ant-pro-form-login-page > .ant-pro-form-login-page,
+  .login-pro-page .ant-pro-form-login-page-left,
+  .login-pro-page .ant-pro-form-login-page-notice,
+  .login-visual-content,
+  .login-visual-copy {
+    height: 100dvh !important;
+    min-height: 0 !important;
+    max-height: 100dvh;
+  }
+
+.login-page.login-pro-page {
+  padding: 0 !important;
+  box-sizing: border-box;
+  overflow: hidden;
+}
+
+  .login-pro-page .ant-pro-form-login-page-left {
+    overflow: hidden !important;
+  }
+}
+
+@media (max-width: 900px) {
+  .login-page.login-pro-page {
+    min-height: 100dvh;
+    height: auto;
+    padding: 0 !important;
+    overflow: visible;
+  }
+
+  .login-pro-page .ant-pro-form-login-page,
+  .login-pro-page .ant-pro-form-login-page > .ant-pro-form-login-page,
+  .login-pro-page .ant-pro-form-login-page-left {
+    min-height: 100dvh !important;
+    height: auto !important;
+  }
+
+  .login-pro-page .ant-pro-form-login-page-left {
+    overflow: visible !important;
+  }
+}
+
+/* Keep every operational button on the same violet workbench system. */
+.ant-btn:not(.ant-btn-primary):not(.ant-btn-dangerous):not(.ant-btn-text):not(.ant-btn-link) {
+  border-color: #e8eae8 !important;
+  background: #ffffff !important;
+  color: #454545 !important;
+}
+
+.ant-btn:not(.ant-btn-primary):not(.ant-btn-dangerous):not(.ant-btn-text):not(.ant-btn-link):hover {
+  border-color: #cfc0f3 !important;
+  background: #f7f4ff !important;
+  color: #6d28d9 !important;
+}
+
+.ant-btn-dangerous:not(.ant-btn-primary) {
+  border-color: #e5c3c3 !important;
+  background: #ffffff !important;
+  color: #b84444 !important;
+}
+
+.ant-btn-dangerous:not(.ant-btn-primary):hover {
+  border-color: #b84444 !important;
+  background: #fff5f5 !important;
+  color: #a33434 !important;
+}
+
+/* The brand is intentionally typographic; no logo container competes with navigation. */
+.brand {
+  min-height: 70px;
+  display: flex;
+  align-items: flex-start;
+  padding: 8px 10px 18px;
+}
+
+.brand-mark {
+  display: none !important;
+}
+
+.brand-copy {
+  min-width: 0;
+  display: grid;
+  gap: 4px;
+}
+
+.brand-title {
+  color: #171717 !important;
+  font-family: Georgia, "Times New Roman", serif;
+  font-size: 18px;
+  font-weight: 700;
+  line-height: 1.2;
+}
+
+.brand-subtitle,
+.brand-compact-title {
+  color: #7c3aed !important;
+  font-family: "SFMono-Regular", Consolas, "Liberation Mono", Menlo, monospace;
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: .08em;
+  line-height: 1.2;
+}
+
+.brand-compact-title {
+  display: none;
+}
+
+.sider-footer {
+  min-height: 54px;
+  display: flex;
+  align-items: center;
+  gap: 9px;
+  padding: 8px 9px;
+}
+
+.sider-footer.is-collapsed {
+  width: 48px;
+  min-height: 48px;
+  display: grid;
+  place-items: center;
+  padding: 0;
+}
+
+.sider-collapse {
+  width: 32px !important;
+  min-width: 32px !important;
+  height: 32px !important;
+  display: inline-grid !important;
+  place-items: center;
+  margin-left: auto !important;
+  padding: 0 !important;
+  border-radius: 6px !important;
+}
+
+.sider-footer.is-collapsed .sider-collapse {
+  margin-left: 0 !important;
+}
+
+.admin-sider.ant-layout-sider-collapsed .brand {
+  justify-content: center;
+  padding-inline: 0;
+}
+
+.admin-sider.ant-layout-sider-collapsed .brand-title,
+.admin-sider.ant-layout-sider-collapsed .brand-subtitle {
+  display: none;
+}
+
+.admin-sider.ant-layout-sider-collapsed .brand-compact-title {
+  display: block;
+  font-size: 12px;
+}
+
+.mobile-nav-drawer .brand {
+  padding: 8px 4px 18px;
+}
+
+.mobile-nav-drawer .brand-compact-title {
+  display: none;
+}
+
+.entity-identity {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  min-height: 94px;
+  padding: 4px 0 20px;
+  border-bottom: 1px solid var(--line);
+}
+
+.entity-identity .ant-typography {
+  display: block;
+}
+
+.entity-identity h4 {
+  margin: 0 0 5px !important;
+  color: var(--text) !important;
+  font-size: 20px !important;
+}
+
+.entity-identity-status {
+  margin-top: 9px;
 }

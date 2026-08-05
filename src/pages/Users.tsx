@@ -121,23 +121,31 @@ export default function Users() {
 
   const submitBan = async () => {
     if (!banTarget) return;
-    const values = await banForm.validateFields();
-    await banUser(banTarget.id, values.reason || '');
-    setBanTarget(null);
-    banForm.resetFields();
-    refreshAfterAction('用户已封禁');
+    try {
+      const values = await banForm.validateFields();
+      await banUser(banTarget.id, values.reason || '');
+      setBanTarget(null);
+      banForm.resetFields();
+      await refreshAfterAction('用户已封禁');
+    } catch (error) {
+      message.error(error instanceof Error ? error.message : '用户封禁失败');
+    }
   };
 
   const submitPenalty = async () => {
     if (!penaltyTarget) return;
-    const values = await penaltyForm.validateFields();
-    await penalizeUserCredit(penaltyTarget.id, {
-      penaltyScore: Number(values.penaltyScore),
-      reason: values.reason || '',
-    });
-    setPenaltyTarget(null);
-    penaltyForm.resetFields();
-    refreshAfterAction('信誉分已扣除');
+    try {
+      const values = await penaltyForm.validateFields();
+      await penalizeUserCredit(penaltyTarget.id, {
+        penaltyScore: Number(values.penaltyScore),
+        reason: values.reason || '',
+      });
+      setPenaltyTarget(null);
+      penaltyForm.resetFields();
+      await refreshAfterAction('信誉分已扣除');
+    } catch (error) {
+      message.error(error instanceof Error ? error.message : '信誉分扣除失败');
+    }
   };
 
   const addWhitelist = async () => {
@@ -151,10 +159,14 @@ export default function Users() {
       message.warning('请选择有 openid 的用户');
       return;
     }
-    const res = await batchPublishWhitelist(openids);
-    message.success(`已加白 ${res.count} 个用户`);
-    setSelectedRowKeys([]);
-    load();
+    try {
+      const res = await batchPublishWhitelist(openids);
+      message.success(`已加白 ${res.count} 个用户`);
+      setSelectedRowKeys([]);
+      await load();
+    } catch (error) {
+      message.error(error instanceof Error ? error.message : '发布白名单更新失败');
+    }
   };
 
   const setTakeoverView = async (canViewAllTakeovers: boolean) => {
@@ -163,10 +175,14 @@ export default function Users() {
       message.warning('请选择用户');
       return;
     }
-    const res = await batchTakeoverView(userIds, canViewAllTakeovers);
-    message.success(`${canViewAllTakeovers ? '已开放' : '已关闭'} ${res.count} 个用户查看全部接龙`);
-    setSelectedRowKeys([]);
-    load();
+    try {
+      const res = await batchTakeoverView(userIds, canViewAllTakeovers);
+      message.success(`${canViewAllTakeovers ? '已开放' : '已关闭'} ${res.count} 个用户查看全部接龙`);
+      setSelectedRowKeys([]);
+      await load();
+    } catch (error) {
+      message.error(error instanceof Error ? error.message : '接龙查看权限更新失败');
+    }
   };
 
   const onTableChange = (
@@ -239,7 +255,14 @@ export default function Users() {
               description="确认解除该用户封禁？"
               okText="解封"
               cancelText="取消"
-              onConfirm={() => unbanUser(row.id).then(() => refreshAfterAction('用户已解封'))}
+              onConfirm={async () => {
+                try {
+                  await unbanUser(row.id);
+                  await refreshAfterAction('用户已解封');
+                } catch (error) {
+                  message.error(error instanceof Error ? error.message : '用户解封失败');
+                }
+              }}
             >
               <Button size="small">解封</Button>
             </Popconfirm>
@@ -259,9 +282,14 @@ export default function Users() {
             description="确认将该用户信誉分恢复到 100？"
             okText="恢复"
             cancelText="取消"
-            onConfirm={() =>
-              restoreUserCredit(row.id).then(() => refreshAfterAction('信誉分已恢复'))
-            }
+            onConfirm={async () => {
+              try {
+                await restoreUserCredit(row.id);
+                await refreshAfterAction('信誉分已恢复');
+              } catch (error) {
+                message.error(error instanceof Error ? error.message : '信誉分恢复失败');
+              }
+            }}
           >
             <Button size="small">恢复信誉</Button>
           </Popconfirm>

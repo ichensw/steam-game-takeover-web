@@ -198,6 +198,8 @@ export default function KookUsers() {
     setLoadingBot(true);
     try {
       setBot(await getKookUserMe());
+    } catch (error) {
+      message.error(error instanceof Error ? error.message : 'Bot 信息加载失败');
     } finally {
       setLoadingBot(false);
     }
@@ -207,6 +209,8 @@ export default function KookUsers() {
     setLoadingStatus(true);
     try {
       setBotStatus(await getKookBotOnlineStatus());
+    } catch (error) {
+      message.error(error instanceof Error ? error.message : 'Bot 状态加载失败');
     } finally {
       setLoadingStatus(false);
     }
@@ -231,12 +235,16 @@ export default function KookUsers() {
   const searchMemberOptions = (keyword = '') => {
     window.clearTimeout(memberSearchTimer.current);
     memberSearchTimer.current = window.setTimeout(async () => {
-      const res = await listKookMembers({ page: 1, pageSize: 10, keyword, isBlacklisted: false });
-      setMemberOptions(
-        ((res.list || res.items || []) as KookMember[])
-          .map((row) => ({ value: memberUserId(row), label: memberLabel(row) }))
-          .filter((option) => option.value),
-      );
+      try {
+        const res = await listKookMembers({ page: 1, pageSize: 10, keyword, isBlacklisted: false });
+        setMemberOptions(
+          ((res.list || res.items || []) as KookMember[])
+            .map((row) => ({ value: memberUserId(row), label: memberLabel(row) }))
+            .filter((option) => option.value),
+        );
+      } catch (error) {
+        message.error(error instanceof Error ? error.message : '成员搜索失败');
+      }
     }, 300);
   };
 
@@ -253,6 +261,8 @@ export default function KookUsers() {
         id = memberUserId(matched);
       }
       setTarget(await getKookUser(id));
+    } catch (error) {
+      message.error(error instanceof Error ? error.message : 'KOOK 用户查询失败');
     } finally {
       setLoadingTarget(false);
     }
@@ -268,6 +278,8 @@ export default function KookUsers() {
       }
       message.success(online ? 'Bot 已设为在线' : 'Bot 已设为离线');
       await loadStatus();
+    } catch (error) {
+      message.error(error instanceof Error ? error.message : 'Bot 状态更新失败');
     } finally {
       setSwitching(false);
     }

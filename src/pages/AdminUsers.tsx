@@ -98,6 +98,8 @@ export default function AdminUsers() {
       }
       setDrawerOpen(false);
       await load(1);
+    } catch (error) {
+      message.error(error instanceof Error ? error.message : '保存失败');
     } finally {
       setSubmitting(false);
     }
@@ -110,7 +112,12 @@ export default function AdminUsers() {
 
   const openRoleMenus = async () => {
     setRoleMenuOpen(true);
-    setRoleMenus(await listRoleMenus());
+    try {
+      setRoleMenus(await listRoleMenus());
+    } catch (error) {
+      setRoleMenuOpen(false);
+      message.error(error instanceof Error ? error.message : '角色菜单加载失败');
+    }
   };
 
   const saveRoleMenus = async () => {
@@ -120,6 +127,8 @@ export default function AdminUsers() {
       await updateRoleMenus(roleMenus.roles.map(({ role, menuKeys }) => ({ role, menuKeys })));
       message.success('角色菜单已保存，当前登录账号重新登录后生效');
       setRoleMenuOpen(false);
+    } catch (error) {
+      message.error(error instanceof Error ? error.message : '角色菜单保存失败');
     } finally {
       setRoleMenuSaving(false);
     }
