@@ -74,6 +74,7 @@ export default function Announcements() {
   const [loading, setLoading] = useState(false);
   const [drawerOpen, setDrawerOpen] = useState(false);
   const [editing, setEditing] = useState<AnnouncementRow | null>(null);
+  const [editorLoading, setEditorLoading] = useState(false);
   const [submitting, setSubmitting] = useState(false);
   const [imageUploading, setImageUploading] = useState(false);
   const [form] = Form.useForm();
@@ -113,18 +114,23 @@ export default function Announcements() {
   };
 
   const openEdit = async (id: React.Key) => {
+    setEditing(null);
+    form.resetFields();
+    setDrawerOpen(true);
+    setEditorLoading(true);
     try {
       const detail = (await getAnnouncement(id)) as AnnouncementRow;
       setEditing(detail);
-      form.resetFields();
       form.setFieldsValue({
         ...detail,
         start_time: parseDateTime(detail.start_time),
         end_time: parseDateTime(detail.end_time),
       });
-      setDrawerOpen(true);
     } catch (error) {
+      setDrawerOpen(false);
       message.error(error instanceof Error ? error.message : '公告详情加载失败');
+    } finally {
+      setEditorLoading(false);
     }
   };
 
@@ -295,6 +301,7 @@ export default function Announcements() {
         width={620}
         open={drawerOpen}
         onClose={() => setDrawerOpen(false)}
+        loading={editorLoading}
       >
         <Form form={form} layout="vertical" onFinish={save} disabled={submitting}>
           <Form.Item label="标题" name="title" rules={[{ required: true, message: '请输入标题' }]}>

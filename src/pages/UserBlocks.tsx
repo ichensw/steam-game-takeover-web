@@ -71,7 +71,6 @@ function userFullLabel(user?: WXUser) {
   const parts = [
     displayName(user),
     user.steamId ? `SteamID: ${user.steamId}` : '',
-    user.openid ? `openid: ${user.openid}` : '',
     user.id ? `ID: ${user.id}` : '',
   ].filter(Boolean);
   return parts.join(' / ') || '-';
@@ -92,7 +91,7 @@ function renderUser(user?: WXUser) {
   const label = userFullLabel(user);
   const name = displayName(user);
   const id = user?.id || '-';
-  const secondary = user?.steamId || user?.openid || '-';
+  const secondary = user?.steamId || `用户 ID ${id}`;
   return (
     <Tooltip title={label}>
       <Space size={8} style={{ maxWidth: '100%' }}>
@@ -352,7 +351,7 @@ export default function UserBlocks() {
       <Card className="filter-card">
         <Form form={filterForm} layout="inline" onFinish={() => load(1)}>
           <Form.Item name="keyword">
-            <Input.Search placeholder="昵称 / openid / SteamID" allowClear />
+            <Input.Search placeholder="昵称 / SteamID / 用户 ID" allowClear />
           </Form.Item>
           <Form.Item name="ownerUserId">
             <Select
@@ -408,6 +407,17 @@ export default function UserBlocks() {
         onOk={() => editorForm.submit()}
       >
         <Form form={editorForm} layout="vertical" onFinish={save}>
+          <div className="user-block-editor-preview">
+            <div>
+              <Typography.Text type="secondary">执行拉黑的用户</Typography.Text>
+              <div>{selectedOwnerLabel || '请选择用户'}</div>
+            </div>
+            <div className="user-block-editor-arrow">→</div>
+            <div>
+              <Typography.Text type="secondary">被该用户拉黑的用户</Typography.Text>
+              <div>{selectedBlockedLabel || '请选择用户'}</div>
+            </div>
+          </div>
           <Form.Item
             label="执行拉黑的用户"
             extra="该用户将主动屏蔽另一位用户。"
@@ -428,7 +438,7 @@ export default function UserBlocks() {
             <Select
               {...userSelectProps}
               options={ownerOptions}
-              placeholder="搜索昵称 / SteamID / openid / 用户ID"
+              placeholder="搜索昵称 / SteamID / 用户 ID"
             />
           </Form.Item>
           <Form.Item
@@ -451,7 +461,7 @@ export default function UserBlocks() {
             <Select
               {...userSelectProps}
               options={blockedOptions}
-              placeholder="搜索昵称 / SteamID / openid / 用户ID"
+              placeholder="搜索昵称 / SteamID / 用户 ID"
             />
           </Form.Item>
           {showRelationPreview && (

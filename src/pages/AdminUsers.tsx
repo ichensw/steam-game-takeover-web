@@ -171,7 +171,7 @@ export default function AdminUsers() {
       title: '操作',
       width: 100,
       fixed: 'right',
-      render: (_, row) => <Button type="link" onClick={() => openCreate(row)}>编辑</Button>,
+      render: (_, row) => <Button size="small" onClick={() => openCreate(row)}>编辑</Button>,
     },
   ];
   const tableColumns = useTableColumnSettings('admin-users', columns);

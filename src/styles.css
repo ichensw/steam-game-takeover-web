@@ -4455,6 +4455,17 @@ body,
   color: #a33434 !important;
 }
 
+.wechat-summary-console .ant-btn-text,
+.wechat-summary-history .ant-btn-text {
+  color: #6d28d9 !important;
+}
+
+.wechat-summary-console .ant-btn-text:hover,
+.wechat-summary-history .ant-btn-text:hover {
+  background: #f7f4ff !important;
+  color: #5b21b6 !important;
+}
+
 /* The brand is intentionally typographic; no logo container competes with navigation. */
 .brand {
   min-height: 70px;
@@ -4570,4 +4581,73 @@ body,
 
 .entity-identity-status {
   margin-top: 9px;
+}
+
+.entity-identity-pair {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 14px;
+}
+
+.entity-identity--compact {
+  min-height: 70px;
+  padding: 8px 0 0;
+  border-bottom: 0;
+}
+
+.entity-avatar-panel .entity-identity h4 {
+  font-size: 17px !important;
+}
+
+.user-block-editor-preview {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto minmax(0, 1fr);
+  gap: 12px;
+  align-items: center;
+  margin-bottom: 16px;
+  padding: 12px;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: #fbfbfb;
+}
+
+.user-block-editor-preview > div:not(.user-block-editor-arrow) {
+  min-width: 0;
+}
+
+.user-block-editor-preview > div:not(.user-block-editor-arrow) > div {
+  overflow: hidden;
+  color: var(--text);
+  font-weight: 600;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.user-block-editor-arrow {
+  color: var(--violet);
+  font-weight: 700;
+}
+
+.ant-table-wrapper .ant-table-cell-fix-left,
+.ant-table-wrapper .ant-table-cell-fix-right,
+.ant-table-wrapper .ant-table-cell-fix {
+  background: #ffffff !important;
+}
+
+.ant-table-wrapper .ant-table-thead .ant-table-cell-fix-left,
+.ant-table-wrapper .ant-table-thead .ant-table-cell-fix-right,
+.ant-table-wrapper .ant-table-thead .ant-table-cell-fix {
+  background: #fafafa !important;
+}
+
+.ant-table-wrapper .ant-table-tbody > tr:hover > .ant-table-cell-fix-left,
+.ant-table-wrapper .ant-table-tbody > tr:hover > .ant-table-cell-fix-right,
+.ant-table-wrapper .ant-table-tbody > tr:hover > .ant-table-cell-fix {
+  background: #fbf9ff !important;
+}
+
+@media (max-width: 720px) {
+  .entity-identity-pair {
+    grid-template-columns: 1fr;
+  }
 }

@@ -125,6 +125,7 @@ export default function KookMembers() {
   const [roleMap, setRoleMap] = useState<Record<string, RoleRow>>({});
   const [drawerOpen, setDrawerOpen] = useState(false);
   const [editing, setEditing] = useState<KookMemberRow | null>(null);
+  const [editorLoading, setEditorLoading] = useState(false);
   const [detail, setDetail] = useState<KookMemberRow | null>(null);
   const [detailLoading, setDetailLoading] = useState(false);
   const [submitting, setSubmitting] = useState(false);
@@ -180,14 +181,19 @@ export default function KookMembers() {
   };
 
   const openEdit = async (id: React.Key) => {
+    setEditing(null);
+    form.resetFields();
+    setDrawerOpen(true);
+    setEditorLoading(true);
     try {
       const row = (await getKookMember(id)) as KookMemberRow;
       setEditing(row);
-      form.resetFields();
       form.setFieldsValue(row);
-      setDrawerOpen(true);
     } catch (error) {
+      setDrawerOpen(false);
       message.error(getErrorMessage(error));
+    } finally {
+      setEditorLoading(false);
     }
   };
 
@@ -400,6 +406,7 @@ export default function KookMembers() {
         width={620}
         open={drawerOpen}
         onClose={() => setDrawerOpen(false)}
+        loading={editorLoading}
       >
         <Form form={form} layout="vertical" onFinish={save} disabled={submitting}>
           <Form.Item label="KOOK 服务器 ID" name="guildId" rules={[{ required: !editing, message: '请输入 KOOK 服务器 ID' }]}>

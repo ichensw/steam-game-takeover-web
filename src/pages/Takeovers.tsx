@@ -106,6 +106,7 @@ export default function Takeovers() {
   const [activityLoading, setActivityLoading] = useState(false);
   const [editorOpen, setEditorOpen] = useState(false);
   const [editing, setEditing] = useState<TakeoverRow | null>(null);
+  const [editorLoading, setEditorLoading] = useState(false);
   const [editorSubmitting, setEditorSubmitting] = useState(false);
   const [summaryModalOpen, setSummaryModalOpen] = useState(false);
   const [summarySubmitting, setSummarySubmitting] = useState(false);
@@ -227,11 +228,13 @@ export default function Takeovers() {
   };
 
   const openEdit = async (id: React.Key) => {
-    setEditorSubmitting(true);
+    setEditing(null);
+    editorForm.resetFields();
+    setEditorOpen(true);
+    setEditorLoading(true);
     try {
       const row = (await getTakeover(id)) as TakeoverRow;
       setEditing(row);
-      editorForm.resetFields();
       editorForm.setFieldsValue({
         title: row.title,
         participantLimit: row.participantLimit,
@@ -243,11 +246,11 @@ export default function Takeovers() {
         kookChannelId: row.kookChannelId || '',
         summaryName: row.summaryName || '',
       });
-      setEditorOpen(true);
     } catch (error) {
+      setEditorOpen(false);
       message.error(error instanceof Error ? error.message : '接龙详情加载失败');
     } finally {
-      setEditorSubmitting(false);
+      setEditorLoading(false);
     }
   };
 
@@ -679,6 +682,7 @@ export default function Takeovers() {
         width={640}
         open={editorOpen}
         onClose={() => setEditorOpen(false)}
+        loading={editorLoading}
       >
         <Form form={editorForm} layout="vertical" disabled={editorSubmitting} onFinish={saveTakeover}>
           {!editing && (

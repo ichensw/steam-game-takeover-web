@@ -1,5 +1,7 @@
 import {
   App as AntApp,
+  Alert,
+  Avatar,
   Button,
   Card,
   Checkbox,
@@ -73,6 +75,8 @@ type UserRow = Record<string, unknown> & {
   id: React.Key;
   username?: string;
   nickname?: string;
+  avatarUrl?: string;
+  avatar_url?: string;
   identify_num?: string;
   bot?: boolean;
 };
@@ -138,6 +142,13 @@ function channelItems(data: Record<string, unknown>) {
     ...item,
     id: String(item.id || item.channel_id || item.channelId),
   }));
+}
+
+export function channelUserItems(data: unknown): UserRow[] {
+  const rows = Array.isArray(data)
+    ? data
+    : ((data as Record<string, unknown> | null)?.items || (data as Record<string, unknown> | null)?.list || []);
+  return (Array.isArray(rows) ? rows : []).map((item) => item as UserRow);
 }
 
 function channelType(value: unknown) {
@@ -305,9 +316,11 @@ export default function KookChannels() {
   const [moving, setMoving] = useState(false);
   const [drawerOpen, setDrawerOpen] = useState(false);
   const [editing, setEditing] = useState<Row | null>(null);
+  const [editorLoading, setEditorLoading] = useState(false);
   const [usersTarget, setUsersTarget] = useState<Row | null>(null);
   const [users, setUsers] = useState<UserRow[]>([]);
   const [usersLoading, setUsersLoading] = useState(false);
+  const [usersError, setUsersError] = useState('');
   const [rolesTarget, setRolesTarget] = useState<Row | null>(null);
   const [roles, setRoles] = useState<Record<string, unknown> | null>(null);
   const [rolesLoading, setRolesLoading] = useState(false);
@@ -410,10 +423,13 @@ export default function KookChannels() {
   };
 
   const openEdit = async (row: Row) => {
+    setEditing(null);
+    form.resetFields();
+    setDrawerOpen(true);
+    setEditorLoading(true);
     try {
       const data = await getKookChannel(row.id, { needChildren: true });
       setEditing({ ...row, ...data, id: row.id });
-      form.resetFields();
       form.setFieldsValue({
         name: data.name,
         parentId: data.parent_id || data.parentId,
@@ -424,9 +440,11 @@ export default function KookChannels() {
         voiceQuality: data.voice_quality,
         password: '',
       });
-      setDrawerOpen(true);
     } catch (error) {
+      setDrawerOpen(false);
       message.error(getErrorMessage(error));
+    } finally {
+      setEditorLoading(false);
     }
   };
 
@@ -471,11 +489,15 @@ export default function KookChannels() {
 
   const openUsers = async (row: Row) => {
     setUsersTarget(row);
+    setUsers([]);
+    setUsersError('');
     setUsersLoading(true);
     try {
-      setUsers((await listKookChannelUsers(row.id)) as UserRow[]);
+      setUsers(channelUserItems(await listKookChannelUsers(row.id)));
     } catch (error) {
-      message.error(getErrorMessage(error));
+      const nextError = getErrorMessage(error);
+      setUsersError(nextError);
+      message.error(nextError);
     } finally {
       setUsersLoading(false);
     }
@@ -663,8 +685,22 @@ export default function KookChannels() {
 
   const userColumns: ColumnsType<UserRow> = [
     { title: '用户 ID', dataIndex: 'id', width: 150, className: 'mono', ellipsis: true },
-    { title: '用户名', dataIndex: 'username', width: 140, ellipsis: true },
-    { title: '昵称', dataIndex: 'nickname', width: 140, ellipsis: true },
+    {
+      title: '成员',
+      width: 220,
+      render: (_, row) => {
+        const name = row.nickname || row.username || String(row.id || '-');
+        return (
+          <Space size={8}>
+            <Avatar size={30} src={row.avatarUrl || row.avatar_url}>{String(name).slice(0, 1)}</Avatar>
+            <span style={{ minWidth: 0 }}>
+              <Typography.Text ellipsis style={{ display: 'block', maxWidth: 150 }}>{name}</Typography.Text>
+              <Typography.Text type="secondary" className="mono" ellipsis style={{ display: 'block', maxWidth: 150 }}>{row.username || row.id}</Typography.Text>
+            </span>
+          </Space>
+        );
+      },
+    },
     { title: '认证号', dataIndex: 'identify_num', width: 100, className: 'mono' },
     { title: '机器人', dataIndex: 'bot', width: 90, render: (v) => (v ? <Tag>是</Tag> : <Tag>否</Tag>) },
     {
@@ -899,7 +935,7 @@ export default function KookChannels() {
         </Space>
       </Modal>
 
-      <ModalPanel title={editing ? '编辑 KOOK 频道' : '创建 KOOK 频道'} width={620} open={drawerOpen} onClose={() => setDrawerOpen(false)}>
+      <ModalPanel title={editing ? '编辑 KOOK 频道' : '创建 KOOK 频道'} width={620} open={drawerOpen} onClose={() => setDrawerOpen(false)} loading={editorLoading}>
         <Form form={form} layout="vertical" disabled={saving} onFinish={save}>
           {!editing && (
             <Form.Item label="频道类型" name="type" rules={[{ required: true, message: '请选择频道类型' }]}>
@@ -949,12 +985,14 @@ export default function KookChannels() {
             <Button type="primary" htmlType="submit">移动到当前频道</Button>
           </Form>
         </Space>
+        {usersError ? <Alert type="error" showIcon message={usersError} style={{ marginTop: 12 }} /> : null}
         <Table
           style={{ marginTop: 16 }}
           rowKey={(row) => String(row.id)}
           loading={usersLoading}
           columns={userTableColumns.columns}
           dataSource={users}
+          locale={{ emptyText: usersError ? '语音成员加载失败' : '当前频道暂无语音成员' }}
           pagination={false}
           scroll={{ x: userTableColumns.scrollX }}
         />

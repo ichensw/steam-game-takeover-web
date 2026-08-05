@@ -153,6 +153,32 @@ function DetailIdentity({ name, id, avatarUrl, status }: {
   );
 }
 
+function IdentityCard({ title, name, id, steamId, avatarUrl, status }: {
+  title: string;
+  name: string;
+  id: string;
+  steamId?: string;
+  avatarUrl?: string;
+  status?: React.ReactNode;
+}) {
+  return (
+    <div className="entity-avatar-panel">
+      <Typography.Text type="secondary">{title}</Typography.Text>
+      <div className="entity-identity entity-identity--compact">
+        <PersonAvatar name={name} url={avatarUrl} size={56} />
+        <div>
+          <Typography.Title level={4}>{name}</Typography.Title>
+          <Space wrap size={10}>
+            {id ? <Typography.Text type="secondary" className="mono">用户 ID：{id}</Typography.Text> : null}
+            {steamId ? <Typography.Text type="secondary" className="mono">Steam ID：{steamId}</Typography.Text> : null}
+          </Space>
+          {status ? <div className="entity-identity-status">{status}</div> : null}
+        </div>
+      </div>
+    </div>
+  );
+}
+
 function ImageGallery({ urls, label = '图片' }: { urls: string[]; label?: string }) {
   if (!urls.length) return <Empty image={Empty.PRESENTED_IMAGE_SIMPLE} description={`暂无${label}`} className="entity-inline-empty" />;
   return (
@@ -181,6 +207,13 @@ function reportState(value: unknown) {
   if (state === 2 || value === 'approved') return <Tag color="green">已扣分</Tag>;
   if (state === 3 || value === 'rejected') return <Tag>已驳回</Tag>;
   return <Tag>{value ? String(value) : '-'}</Tag>;
+}
+
+function renderCreditStatus(value: unknown) {
+  const status = String(value || 'normal');
+  if (status === 'disabled') return <Tag color="red">禁用</Tag>;
+  if (status === 'limited') return <Tag color="gold">受限</Tag>;
+  return <Tag color="green">正常</Tag>;
 }
 
 function feedbackState(value: unknown) {
@@ -294,8 +327,27 @@ function TakeoverDetail({ data, activities, activitiesLoading, activityError, on
 
 function ReportDetail({ data }: { data: DetailData }) {
   const images = stringList(data, ['imageUrls', 'image_urls', 'images']);
+  const reporterName = text(data, ['reporterNickname', 'reporter_nickname'], '未知用户');
+  const reportedName = text(data, ['reportedNickname', 'reported_nickname'], '未知用户');
   return (
     <>
+      <div className="entity-identity-pair">
+        <IdentityCard
+          title="举报人"
+          name={reporterName}
+          id={text(data, ['reporterUserId', 'reporter_user_id'], '')}
+          steamId={text(data, ['reporterSteamId', 'reporter_steam_id'], '')}
+          avatarUrl={text(data, ['reporterAvatarUrl', 'reporter_avatar_url'], '') || undefined}
+        />
+        <IdentityCard
+          title="被举报人"
+          name={reportedName}
+          id={text(data, ['reportedUserId', 'reported_user_id'], '')}
+          steamId={text(data, ['reportedSteamId', 'reported_steam_id'], '')}
+          avatarUrl={text(data, ['reportedAvatarUrl', 'reported_avatar_url'], '') || undefined}
+          status={renderCreditStatus(text(data, ['reportedCreditStatus', 'reported_credit_status'], ''))}
+        />
+      </div>
       <DetailSection title="举报信息">
         <DescriptionList items={[
           { label: '举报 ID', value: <span className="mono">{text(data, ['id', 'reportId'])}</span> },
@@ -305,12 +357,8 @@ function ReportDetail({ data }: { data: DetailData }) {
           { label: '处理时间', value: <span className="mono">{text(data, ['handledAt', 'handled_at'])}</span> },
         ]} />
       </DetailSection>
-      <DetailSection title="涉及用户">
+      <DetailSection title="处理结果">
         <DescriptionList items={[
-          { label: '举报人', value: <PersonCell data={data} nameKeys={['reporterNickname', 'reporter_nickname']} avatarKeys={['reporterAvatarUrl', 'reporter_avatar_url']} idKeys={['reporterUserId', 'reporter_user_id']} /> },
-          { label: '举报人 Steam ID', value: <span className="mono">{text(data, ['reporterSteamId', 'reporter_steam_id'])}</span> },
-          { label: '被举报人', value: <PersonCell data={data} nameKeys={['reportedNickname', 'reported_nickname']} avatarKeys={['reportedAvatarUrl', 'reported_avatar_url']} idKeys={['reportedUserId', 'reported_user_id']} /> },
-          { label: '被举报人 Steam ID', value: <span className="mono">{text(data, ['reportedSteamId', 'reported_steam_id'])}</span> },
           { label: '被举报人信誉分', value: text(data, ['reportedCreditScore', 'reported_credit_score']) },
           { label: '扣除信誉分', value: text(data, ['penaltyScore', 'penalty_score']) },
         ]} />
@@ -434,14 +482,21 @@ function KookMemberDetail({ data }: { data: DetailData }) {
 function FeedbackDetail({ data }: { data: DetailData }) {
   const images = stringList(data, ['images', 'imageUrls', 'image_urls']);
   const type = ({ suggestion: '建议', problem: '问题', experience: '体验', other: '其他' }[text(data, ['feedback_type', 'feedbackType'], '')] || '-');
+  const nickname = text(data, ['nickname', 'nickName'], '未知用户');
   return (
     <>
+      <IdentityCard
+        title="反馈用户"
+        name={nickname}
+        id={text(data, ['userId', 'user_id'], '')}
+        steamId={text(data, ['steamId', 'steam_id'], '')}
+        avatarUrl={text(data, ['avatarUrl', 'avatar_url'], '') || undefined}
+        status={feedbackState(pick(data, ['status']))}
+      />
       <DetailSection title="反馈信息">
         <DescriptionList items={[
           { label: '反馈 ID', value: <span className="mono">{text(data, ['id'])}</span> },
           { label: '处理状态', value: feedbackState(pick(data, ['status'])) },
-          { label: '提交用户', value: <PersonCell data={data} nameKeys={['nickname', 'nickName']} avatarKeys={['avatarUrl', 'avatar_url']} idKeys={['userId', 'user_id']} /> },
-          { label: 'Steam ID', value: <span className="mono">{text(data, ['steamId', 'steam_id'])}</span> },
           { label: '反馈类型', value: type },
           { label: '联系方式', value: text(data, ['contact']) },
           { label: '提交时间', value: <span className="mono">{text(data, ['createdAt', 'created_at'])}</span> },
