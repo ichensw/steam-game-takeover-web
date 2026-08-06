@@ -34,6 +34,8 @@ describe('admin settings normalization', () => {
   });
 
   it('uses only models available from the selected provider', () => {
+    expect(normalizeSettings({ aiExtractProvider: 'gpt', aiExtractModel: 'codex-mini-latest' }).aiExtractModel).toBe('codex-mini-latest');
+    expect(normalizeSettings({ aiExtractProvider: 'gpt', aiExtractModel: '' }).aiExtractModel).toBe('codex-mini-latest');
     expect(normalizeSettings({ aiExtractProvider: 'gpt', aiExtractModel: 'gpt-5.5' }).aiExtractModel).toBe('gpt-5.5');
     expect(normalizeSettings({ aiExtractProvider: 'doubao', aiExtractModel: 'gpt-5.5' }).aiExtractModel).toBe('doubao-seed-2-0-mini-260428');
   });
