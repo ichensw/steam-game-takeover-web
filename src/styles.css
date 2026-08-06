@@ -5123,25 +5123,26 @@ body,
   }
 }
 
-/* Sidebar collapse control follows the current purple navigation theme. */
+/* Sidebar collapse control stays quiet; selected navigation carries the accent. */
 .sider-collapse.ant-btn {
-  border: 1px solid #e3d7fb !important;
-  background: #f7f3ff !important;
-  color: #6d28d9 !important;
-  box-shadow: none !important;
+  border: 1px solid #e8eae8 !important;
+  background: #ffffff !important;
+  color: #666666 !important;
+  box-shadow: inset 0 1px 0 rgb(255 255 255 / 84%) !important;
 }
 
 .sider-collapse.ant-btn:hover,
 .sider-collapse.ant-btn:focus-visible {
-  border-color: #c7b3f4 !important;
-  background: #eee7ff !important;
-  color: #5b21b6 !important;
+  border-color: #cfc0f3 !important;
+  background: #faf8ff !important;
+  color: #6d28d9 !important;
+  box-shadow: 0 0 0 3px rgb(109 40 217 / 8%) !important;
 }
 
 .sider-collapse.ant-btn:active {
-  border-color: #b79cf1 !important;
-  background: #e6dcff !important;
-  color: #4c1d95 !important;
+  border-color: #bda7ee !important;
+  background: #f3efff !important;
+  color: #5b21b6 !important;
   transform: translateY(1px);
 }
 
@@ -5150,5 +5151,5 @@ body,
 }
 
 .sider-footer.is-collapsed .sider-collapse.ant-btn {
-  background: #f4efff !important;
+  background: #ffffff !important;
 }
