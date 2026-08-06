@@ -9,7 +9,6 @@ export const aiProviderOptions = [
 
 export const aiModelOptionsByProvider: Record<AIProvider, Array<{ label: string; value: string }>> = {
   gpt: [
-    { label: 'Codex Mini', value: 'codex-mini-latest' },
     { label: 'GPT-5.4 Mini', value: 'gpt-5.4-mini' },
     { label: 'GPT-5.5', value: 'gpt-5.5' },
     { label: 'GPT-5.2', value: 'gpt-5.2' },
@@ -22,7 +21,7 @@ export const aiModelOptionsByProvider: Record<AIProvider, Array<{ label: string;
 };
 
 export const aiModelDefaults: Record<AIProvider, string> = {
-  gpt: 'codex-mini-latest',
+  gpt: 'gpt-5.4-mini',
   doubao: 'doubao-seed-2-0-mini-260428',
 };
 
