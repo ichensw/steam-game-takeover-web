@@ -14,7 +14,6 @@ import {
 } from '../api/wechatBot';
 import PageHeader from '../components/PageHeader';
 import { pageSizeOptions } from '../utils/pagination';
-import { formatWechatTime } from '../utils/wechatBot';
 
 const defaultPage: Pagination = { page: 1, pageSize: 20, totalItems: 0, totalPages: 0 };
 const syncStatusLabel: Record<string, string> = {
@@ -170,8 +169,8 @@ export default function WechatGroupMembers() {
       width: 90,
       render: (value) => (value === false ? <Tag>未知/离群</Tag> : value === true ? <Tag color="green">在群</Tag> : <Tag>未知</Tag>),
     },
-    { title: '资料同步', dataIndex: 'profileSyncedAt', width: 170, render: (value) => value || '-' },
-    { title: '群昵称同步', dataIndex: 'groupInfoSyncedAt', width: 170, render: (value) => value || '-' },
+    { title: '资料同步时间', dataIndex: 'profileSyncedAt', width: 170, render: (value) => value || '-' },
+    { title: '群昵称同步时间', dataIndex: 'groupInfoSyncedAt', width: 170, render: (value) => value || '-' },
     {
       title: '同步错误',
       dataIndex: 'profileSyncError',
@@ -179,9 +178,6 @@ export default function WechatGroupMembers() {
       ellipsis: true,
       render: (value) => value ? <Tooltip title={value}><Typography.Text type="danger" ellipsis style={{ maxWidth: 160 }}>{value}</Typography.Text></Tooltip> : '-',
     },
-    { title: '消息数', dataIndex: 'messageCount', width: 110 },
-    { title: '首次发言', dataIndex: 'firstMessageAt', width: 180, render: formatWechatTime },
-    { title: '最后发言', dataIndex: 'lastMessageAt', width: 180, render: formatWechatTime },
     {
       title: '操作',
       fixed: 'right',
@@ -248,7 +244,7 @@ export default function WechatGroupMembers() {
         loading={loading}
         columns={columns}
         dataSource={items}
-        scroll={{ x: 2050 }}
+        scroll={{ x: 1850 }}
         pagination={{
           current: pagination.page,
           pageSize: pagination.pageSize,

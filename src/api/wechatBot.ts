@@ -41,9 +41,6 @@ export type WechatGroupMember = {
   profileSyncedAt?: string;
   groupInfoSyncedAt?: string;
   profileSyncError?: string;
-  messageCount: number;
-  firstMessageAt?: ApiUnixTime;
-  lastMessageAt?: ApiUnixTime;
 };
 
 export type WechatGroupMemberProfileSyncState = {
