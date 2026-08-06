@@ -1,6 +1,5 @@
 import { ReloadOutlined, SaveOutlined, ThunderboltOutlined } from '@ant-design/icons';
-import { App as AntApp, Button, Card, Col, Empty, Form, Input, InputNumber, Row, Select, Space, Switch, Table, Tabs, Tag, Typography } from 'antd';
-import type { ColumnsType } from 'antd/es/table';
+import { App as AntApp, Button, Card, Empty, Form, Input, InputNumber, Select, Space, Switch, Tabs, Tag, Typography } from 'antd';
 import { useEffect, useState } from 'react';
 import { getSettings } from '../api/admin';
 import {
@@ -506,101 +505,77 @@ export default function WechatWxbotControl() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
-  const columns: ColumnsType<WxbotRecord> = [
-    {
-      title: '实例',
-      render: (_, row) => (
-        <Space orientation="vertical" size={0}>
-          <Typography.Text strong>{row.name || row.botId}</Typography.Text>
-          <Typography.Text type="secondary" className="mono">{row.botId}</Typography.Text>
-        </Space>
-      ),
-    },
-    {
-      title: '状态',
-      width: 110,
-      render: (_, row) => <Tag color={row.online ? 'green' : 'default'}>{row.online ? '在线' : '离线'}</Tag>,
-    },
-    { title: '微信ID', dataIndex: 'wxid', width: 180, className: 'mono', render: (value) => value || '-' },
-    { title: '最后心跳', dataIndex: 'lastSeenAt', width: 170, render: (value) => formatWechatTime(value) || '-' },
-  ];
-
   return (
     <>
       <PageHeader
         title="微信机器人控制"
         description="查看 Windows wxbot 在线状态，远程下发管理员、模型、监听和提醒配置；群白名单在微信群管理维护。"
-        extra={<Button icon={<ReloadOutlined />} loading={loading} onClick={loadBots}>刷新</Button>}
+        extra={(
+          <Space>
+            <Select
+              value={selectedBotId || undefined}
+              placeholder="选择机器人"
+              style={{ width: 220 }}
+              loading={loading}
+              options={bots.map((bot) => ({ value: bot.botId, label: bot.name ? `${bot.name} / ${bot.botId}` : bot.botId }))}
+              onChange={selectBot}
+            />
+            <Button icon={<ReloadOutlined />} loading={loading} onClick={loadBots}>刷新</Button>
+          </Space>
+        )}
       />
-      <Row gutter={[16, 16]}>
-        <Col xs={24} xl={10}>
-          <Card title="wxbot 实例" loading={loading}>
-            {bots.length ? (
-              <Table
-                rowKey="botId"
-                size="small"
-                columns={columns}
-                dataSource={bots}
-                pagination={false}
-                rowClassName={(row) => (row.botId === selectedBotId ? 'selected-row' : '')}
-                onRow={(row) => ({ onClick: () => selectBot(row.botId) })}
-                scroll={{ x: 720 }}
+      <Card
+        title={<Space><ThunderboltOutlined />远程配置</Space>}
+        loading={configLoading}
+        extra={<Button type="primary" icon={<SaveOutlined />} disabled={!selectedBotId} loading={saving} onClick={saveConfig}>保存</Button>}
+      >
+        {selectedBot ? (
+          <>
+            <div className="wxbot-config-meta">
+              <Typography.Text type="secondary">当前机器人：{selectedBot.name || selectedBot.botId}</Typography.Text>
+              <Typography.Text type="secondary" className="mono">ID：{selectedBot.botId}</Typography.Text>
+              <Typography.Text type="secondary">状态：<Tag color={selectedBot.online ? 'green' : 'default'}>{selectedBot.online ? '在线' : '离线'}</Tag></Typography.Text>
+              <Typography.Text type="secondary">微信ID：{selectedBot.wxid || '-'}</Typography.Text>
+              <Typography.Text type="secondary">最后心跳：{formatWechatTime(selectedBot.lastSeenAt) || '-'}</Typography.Text>
+              <Typography.Text type="secondary">配置更新时间：{formatWechatTime(configUpdatedAt) || '-'}</Typography.Text>
+              <Typography.Text type="secondary">应用时间：{formatWechatTime(selectedBot.configAppliedAt) || '-'}</Typography.Text>
+              <Typography.Text type={selectedBot.lastConfigError ? 'danger' : 'secondary'}>
+                配置状态：{selectedBot.lastConfigError ? `失败：${selectedBot.lastConfigError}` : `v${selectedBot.configSchemaVersion || WXBOT_CONFIG_SCHEMA_VERSION}`}
+              </Typography.Text>
+              <Typography.Text type="secondary">当前展示：{configSource || '-'}</Typography.Text>
+              <Typography.Text type="secondary">主机：{selectedBot.host || '-'}</Typography.Text>
+            </div>
+            <Form form={form} layout="vertical" className="wxbot-config-form" onValuesChange={handleConfigValuesChange}>
+              <Tabs
+                className="wxbot-config-tabs"
+                tabPosition="left"
+                items={configSections.map((section) => ({
+                  key: section.key,
+                  label: section.label,
+                  children: (
+                    <div className="wxbot-field-grid">
+                      {section.fields.filter((field) => !field.visible || field.visible(aiProvider)).map((field) => (
+                        <Form.Item
+                          key={`${section.key}.${field.key}`}
+                          className={field.wide ? 'wxbot-wide-field' : undefined}
+                          label={field.label}
+                          name={[section.key, field.key]}
+                          valuePropName={field.type === 'boolean' ? 'checked' : 'value'}
+                          extra={field.extra}
+                        >
+                          {renderField(field, groupOptions, aiProvider)}
+                        </Form.Item>
+                      ))}
+                    </div>
+                  ),
+                }))}
               />
-            ) : (
-              <Empty image={Empty.PRESENTED_IMAGE_SIMPLE} description="暂无机器人连接" />
-            )}
-          </Card>
-        </Col>
-        <Col xs={24} xl={14}>
-          <Card
-            title={<Space><ThunderboltOutlined />远程配置</Space>}
-            loading={configLoading}
-            extra={<Button type="primary" icon={<SaveOutlined />} disabled={!selectedBotId} loading={saving} onClick={saveConfig}>保存</Button>}
-          >
-            {selectedBot ? (
-              <>
-                <div className="wxbot-config-meta">
-                  <Typography.Text type="secondary">配置更新时间：{formatWechatTime(configUpdatedAt) || '-'}</Typography.Text>
-                  <Typography.Text type="secondary">应用时间：{formatWechatTime(selectedBot.configAppliedAt) || '-'}</Typography.Text>
-                  <Typography.Text type={selectedBot.lastConfigError ? 'danger' : 'secondary'}>
-                    配置状态：{selectedBot.lastConfigError ? `失败：${selectedBot.lastConfigError}` : `v${selectedBot.configSchemaVersion || WXBOT_CONFIG_SCHEMA_VERSION}`}
-                  </Typography.Text>
-                  <Typography.Text type="secondary">当前展示：{configSource || '-'}</Typography.Text>
-                  <Typography.Text type="secondary">主机：{selectedBot.host || '-'}</Typography.Text>
-                </div>
-                <Form form={form} layout="vertical" className="wxbot-config-form" onValuesChange={handleConfigValuesChange}>
-                  <Tabs
-                    className="wxbot-config-tabs"
-                    tabPosition="left"
-                    items={configSections.map((section) => ({
-                      key: section.key,
-                      label: section.label,
-                      children: (
-                        <div className="wxbot-field-grid">
-                          {section.fields.filter((field) => !field.visible || field.visible(aiProvider)).map((field) => (
-                            <Form.Item
-                              key={`${section.key}.${field.key}`}
-                              className={field.wide ? 'wxbot-wide-field' : undefined}
-                              label={field.label}
-                              name={[section.key, field.key]}
-                              valuePropName={field.type === 'boolean' ? 'checked' : 'value'}
-                              extra={field.extra}
-                            >
-                              {renderField(field, groupOptions, aiProvider)}
-                            </Form.Item>
-                          ))}
-                        </div>
-                      ),
-                    }))}
-                  />
-                </Form>
-              </>
-            ) : (
-              <Empty image={Empty.PRESENTED_IMAGE_SIMPLE} description="请选择一个 wxbot 实例" />
-            )}
-          </Card>
-        </Col>
-      </Row>
+            </Form>
+          </>
+        ) : (
+          <Empty image={Empty.PRESENTED_IMAGE_SIMPLE} description={loading ? '正在加载机器人' : '暂无机器人连接'} />
+        )}
+      </Card>
     </>
   );
 }

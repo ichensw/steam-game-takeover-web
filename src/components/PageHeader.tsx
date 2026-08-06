@@ -24,6 +24,7 @@ const workspaceNames: Record<string, string> = {
   '微信消息查询': 'WECHAT MESSAGES',
   '微信聊天统计': 'WECHAT ANALYTICS',
   '微信群管理': 'WECHAT GROUPS',
+  '微信机器人控制': 'WECHAT CONTROL',
   '微信数据库浏览': 'WECHAT DATABASE',
   'AI 聊天检索': 'AI MEMORY',
   '用户详情': 'USER DETAIL',
