@@ -167,7 +167,7 @@ export default function WechatGroupMembers() {
       title: '在群',
       dataIndex: 'isInChatRoom',
       width: 90,
-      render: (value) => (value === false ? <Tag>未知/离群</Tag> : value === true ? <Tag color="green">在群</Tag> : <Tag>未知</Tag>),
+      render: (value) => (value === false ? <Tag>离群</Tag> : value === true ? <Tag color="green">在群</Tag> : <Tag>未知</Tag>),
     },
     { title: '资料同步时间', dataIndex: 'profileSyncedAt', width: 170, render: (value) => value || '-' },
     { title: '群昵称同步时间', dataIndex: 'groupInfoSyncedAt', width: 170, render: (value) => value || '-' },
