@@ -64,8 +64,19 @@ export type WechatGroupMemberEvent = {
   action: 'join' | 'leave';
   memberWxid: string;
   memberName: string;
+  memberRoomName?: string;
+  alias?: string;
+  remark?: string;
+  sex?: number;
+  country?: string;
+  province?: string;
+  city?: string;
+  bigHeadImgUrl?: string;
+  smallHeadImgUrl?: string;
+  profileSyncedAt?: string;
   memberCount?: number;
   rawPayload?: string;
+  rawDetails?: Record<string, string>;
   createdAt: ApiUnixTime;
 };
 
