@@ -26,9 +26,38 @@ export type WechatManagedGroupPage = {
 export type WechatGroupMember = {
   memberWxid: string;
   displayName: string;
+  nickname?: string;
+  alias?: string;
+  remark?: string;
+  sex?: number;
+  country?: string;
+  province?: string;
+  city?: string;
+  signature?: string;
+  bigHeadImgUrl?: string;
+  smallHeadImgUrl?: string;
+  headImgMd5?: string;
+  isInChatRoom?: boolean;
+  profileSyncedAt?: string;
+  groupInfoSyncedAt?: string;
+  profileSyncError?: string;
   messageCount: number;
-  firstMessageAt: ApiUnixTime;
-  lastMessageAt: ApiUnixTime;
+  firstMessageAt?: ApiUnixTime;
+  lastMessageAt?: ApiUnixTime;
+};
+
+export type WechatGroupMemberProfileSyncState = {
+  roomId: string;
+  status: 'idle' | 'running' | 'failed' | 'succeeded' | string;
+  syncType?: 'full' | 'incremental' | string;
+  cursorMemberWxid?: string;
+  processedCount: number;
+  failedCount: number;
+  lastFullSyncedAt?: string;
+  lastIncrementalSyncedAt?: string;
+  lastError?: string;
+  lockedUntil?: string;
+  updatedAt?: string;
 };
 
 export type WechatGroupMemberEvent = {
@@ -361,6 +390,19 @@ export const listWechatManagedGroups = (params?: { botId?: string; page?: number
 
 export const listWechatGroupMembers = (roomId: string, params: { page: number; pageSize: number; keyword?: string; fast?: 1 }) =>
   unwrap<WechatPage<WechatGroupMember>>(http.get(`${root}/groups/manage/${encodeURIComponent(roomId)}/members`, { params }));
+
+export const startWechatGroupMemberProfileSync = (roomId: string, mode: 'full' | 'incremental') =>
+  unwrap<WechatGroupMemberProfileSyncState>(
+    http.post(`${root}/groups/manage/${encodeURIComponent(roomId)}/member-profiles/sync`, { mode }),
+  );
+
+export const getWechatGroupMemberProfileSyncStatus = (roomId: string) =>
+  unwrap<WechatGroupMemberProfileSyncState>(http.get(`${root}/groups/manage/${encodeURIComponent(roomId)}/member-profiles/sync`));
+
+export const refreshWechatGroupMemberProfile = (roomId: string, memberWxid: string) =>
+  unwrap<WechatGroupMemberProfileSyncState>(
+    http.post(`${root}/groups/manage/${encodeURIComponent(roomId)}/members/${encodeURIComponent(memberWxid)}/profile/refresh`),
+  );
 
 export const listWechatGroupMemberEvents = (roomId: string, params: { page: number; pageSize: number; keyword?: string; fast?: 1 }) =>
   unwrap<WechatPage<WechatGroupMemberEvent>>(http.get(`${root}/groups/manage/${encodeURIComponent(roomId)}/events`, { params }));
