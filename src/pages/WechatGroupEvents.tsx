@@ -1,5 +1,5 @@
 import { ArrowLeftOutlined, ReloadOutlined } from '@ant-design/icons';
-import { App as AntApp, Button, Space, Table, Tag, Tooltip, Typography } from 'antd';
+import { App as AntApp, Button, Input, Space, Table, Tag, Tooltip, Typography } from 'antd';
 import type { ColumnsType } from 'antd/es/table';
 import { useEffect, useMemo, useState } from 'react';
 import { useNavigate, useParams, useSearchParams } from 'react-router-dom';
@@ -20,12 +20,18 @@ export default function WechatGroupEvents() {
   const [items, setItems] = useState<WechatGroupMemberEvent[]>([]);
   const [pagination, setPagination] = useState<Pagination>(defaultPage);
   const [loading, setLoading] = useState(false);
+  const [keyword, setKeyword] = useState('');
 
-  const load = async (page = pagination.page, pageSize = pagination.pageSize) => {
+  const load = async (page = pagination.page, pageSize = pagination.pageSize, nextKeyword = keyword) => {
     if (!decodedRoomId) return;
+    const trimmedKeyword = nextKeyword.trim();
     setLoading(true);
     try {
-      const result = await listWechatGroupMemberEvents(decodedRoomId, { page, pageSize, fast: 1 });
+      const result = await listWechatGroupMemberEvents(decodedRoomId, {
+        page,
+        pageSize,
+        keyword: trimmedKeyword || undefined,
+      });
       setItems(result.data || []);
       setPagination(result.pagination || { page, pageSize, totalItems: result.data?.length || 0, totalPages: 1 });
     } catch (error) {
@@ -39,6 +45,12 @@ export default function WechatGroupEvents() {
     void load(1, defaultPage.pageSize);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [decodedRoomId]);
+
+  const searchEvents = (value: string) => {
+    const trimmed = value.trim();
+    setKeyword(trimmed);
+    void load(1, pagination.pageSize, trimmed);
+  };
 
   const columns = useMemo<ColumnsType<WechatGroupMemberEvent>>(() => [
     { title: '时间', dataIndex: 'createdAt', width: 180, render: formatWechatTime },
@@ -67,7 +79,23 @@ export default function WechatGroupEvents() {
         title="进出记录"
         description={roomName}
         extra={(
-          <Space>
+          <Space wrap>
+            <Input.Search
+              allowClear
+              aria-label="搜索进出记录"
+              placeholder="搜索 wxid / 群昵称 / 微信昵称"
+              enterButton="搜索"
+              value={keyword}
+              onChange={(event) => {
+                const value = event.target.value;
+                setKeyword(value);
+                if (!value) {
+                  void load(1, pagination.pageSize, '');
+                }
+              }}
+              onSearch={searchEvents}
+              style={{ width: 300 }}
+            />
             <Button icon={<ArrowLeftOutlined />} onClick={() => navigate('/wechat-groups')}>返回群列表</Button>
             <Button icon={<ReloadOutlined />} loading={loading} onClick={() => void load()}>刷新</Button>
           </Space>
@@ -85,7 +113,7 @@ export default function WechatGroupEvents() {
           total: pagination.totalItems,
           pageSizeOptions,
           showSizeChanger: true,
-          onChange: (page, pageSize) => void load(page, pageSize),
+          onChange: (page, pageSize) => void load(page, pageSize, keyword),
           showTotal: (count) => `共 ${count} 条`,
         }}
       />

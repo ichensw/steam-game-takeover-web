@@ -359,10 +359,10 @@ export const listWechatGroups = () => unwrap<WechatGroup[]>(http.get(`${root}/gr
 export const listWechatManagedGroups = (params?: { botId?: string; page?: number; pageSize?: number }) =>
   unwrap<WechatManagedGroupPage>(http.get(`${root}/groups/manage`, { params }));
 
-export const listWechatGroupMembers = (roomId: string, params: { page: number; pageSize: number; fast?: 1 }) =>
+export const listWechatGroupMembers = (roomId: string, params: { page: number; pageSize: number; keyword?: string; fast?: 1 }) =>
   unwrap<WechatPage<WechatGroupMember>>(http.get(`${root}/groups/manage/${encodeURIComponent(roomId)}/members`, { params }));
 
-export const listWechatGroupMemberEvents = (roomId: string, params: { page: number; pageSize: number; fast?: 1 }) =>
+export const listWechatGroupMemberEvents = (roomId: string, params: { page: number; pageSize: number; keyword?: string; fast?: 1 }) =>
   unwrap<WechatPage<WechatGroupMemberEvent>>(http.get(`${root}/groups/manage/${encodeURIComponent(roomId)}/events`, { params }));
 
 export const updateWechatGroupWhitelist = (roomId: string, body: { botId: string; type: 'bot' | 'ai'; enabled: boolean }) =>
