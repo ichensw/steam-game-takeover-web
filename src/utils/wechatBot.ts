@@ -1,5 +1,3 @@
-export type SummaryPeriod = 'day' | 'morning' | 'afternoon' | 'evening' | 'custom';
-
 export type ApiUnixTime = {
   unix: number;
   text: string;
@@ -33,22 +31,6 @@ export const wechatMessageSubTypes = [
   { value: 'card_file', label: '其他卡片 / 文件' },
 ];
 
-export type SummaryFormValues = {
-  roomId?: string;
-  date?: string;
-  period?: SummaryPeriod;
-  start?: string;
-  end?: string;
-};
-
-export type SummaryPayload = {
-  period: string;
-  roomId?: string;
-  date?: string;
-  start?: string;
-  end?: string;
-};
-
 export function buildQuery(values: Record<string, unknown>) {
   const params = new URLSearchParams();
   for (const [key, value] of Object.entries(values)) {
@@ -56,26 +38,6 @@ export function buildQuery(values: Record<string, unknown>) {
     params.set(key, String(value));
   }
   return params.toString();
-}
-
-export function toApiTime(value?: string) {
-  if (!value) return '';
-  const text = String(value).trim();
-  if (/^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}$/.test(text)) return `${text}:00`;
-  return text;
-}
-
-export function summaryPayload(values: SummaryFormValues): SummaryPayload {
-  const period = values.period || 'day';
-  const payload: SummaryPayload = { period };
-  if (values.roomId) payload.roomId = values.roomId;
-  if (period === 'custom') {
-    payload.start = toApiTime(values.start);
-    payload.end = toApiTime(values.end);
-    return payload;
-  }
-  if (values.date) payload.date = values.date;
-  return payload;
 }
 
 export function todayString(now = new Date()) {

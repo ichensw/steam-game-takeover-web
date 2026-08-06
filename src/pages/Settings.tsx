@@ -18,7 +18,6 @@ import PageHeader from '../components/PageHeader';
 import {
   aiModelOptionsByProvider,
   aiProviderOptions,
-  isAIModel,
   normalizeAIModel,
   normalizeAIProvider,
   normalizeSettings,
@@ -34,18 +33,6 @@ import {
 function kookWebhookUrl() {
   return 'https://www.rabbits.ink/miniprogram-api/api/kook/webhook?compress=0';
 }
-
-const wechatSummaryPeriodOptions = [
-  { value: 'morning', label: '上午' },
-  { value: 'afternoon', label: '下午' },
-  { value: 'evening', label: '晚上' },
-  { value: 'day', label: '全天' },
-];
-
-const wechatSummaryDateOptions = [
-  { value: 'today', label: '当天' },
-  { value: 'yesterday', label: '昨天' },
-];
 
 export default function Settings() {
   const [form] = Form.useForm();
@@ -100,7 +87,6 @@ export default function Settings() {
     form.setFieldsValue({
       aiExtractProvider: provider,
       aiExtractModel: normalizeAIModel(provider, values.aiExtractModel),
-      wechatSummaryModel: isAIModel(provider, values.wechatSummaryModel) ? values.wechatSummaryModel : '',
     });
   };
 
@@ -346,95 +332,6 @@ export default function Settings() {
                     <Input.Password placeholder="豆包 Ark API Key" autoComplete="off" />
                   </Form.Item>
                 )}
-                <Form.Item
-                  label="微信 AI 总结消息上限"
-                  name="wechatSummaryMaxMessages"
-                  extra="异步总结会按该数量分段处理，不再截断超大时间段。"
-                  rules={[{ required: true, message: '请输入 1 至 10000 条' }]}
-                >
-                  <InputNumber min={1} max={10000} step={100} precision={0} className="settings-number-input" />
-                </Form.Item>
-                <Form.Item
-                  label="微信总结 Prompt 模板"
-                  name="wechatSummaryPrompt"
-                  extra="追加到系统角色 Prompt 后的定制要求。适合写群规则、关注重点和禁止输出内容。"
-                >
-                  <Input.TextArea rows={5} placeholder="例如：重点保留游戏名、昵称、活动名；不要输出没有上下文的玩笑。" />
-                </Form.Item>
-                <div className="settings-field-grid">
-                  <Form.Item label="微信总结风格" name="wechatSummaryStyle" extra="不选则使用默认日报风格。">
-                    <Select
-                      allowClear
-                      placeholder="默认风格"
-                      options={[
-                        { value: 'brief', label: '简洁版' },
-                        { value: 'detailed', label: '详细版' },
-                        { value: 'fun', label: '轻松版' },
-                      ]}
-                    />
-                  </Form.Item>
-                  <Form.Item label="微信总结主模型" name="wechatSummaryModel" extra="为空时使用微信 Bot 后端默认模型。">
-                    <Select allowClear placeholder="跟随微信 Bot 默认模型" options={aiModelOptionsByProvider[aiProvider]} />
-                  </Form.Item>
-                </div>
-                <Form.Item
-                  label="微信总结对比模型"
-                  name="wechatSummaryCompareModels"
-                  extra="多个模型用逗号或换行分隔。生成主总结后，会把不同模型的概览和话题附在结果里。"
-                >
-                  <Input.TextArea rows={2} placeholder={'gpt-4o\nclaude-sonnet'} className="mono" />
-                </Form.Item>
-                <div className="settings-field-grid">
-                  <Form.Item
-                    label="总结完成后自动发回微信群"
-                    name="wechatSummaryAutoSend"
-                    valuePropName="checked"
-                    extra="仅在选择了具体群聊时生效。需要微信 Hook 发送接口配置完整。"
-                  >
-                    <Switch checkedChildren="开启" unCheckedChildren="关闭" />
-                  </Form.Item>
-                  <Form.Item
-                    label="自动生成每日总结"
-                    name="wechatSummaryAutoDaily"
-                    valuePropName="checked"
-                    extra="开启后由后台按下面时间创建日报任务。"
-                  >
-                    <Switch checkedChildren="开启" unCheckedChildren="关闭" />
-                  </Form.Item>
-                </div>
-                <Form.List name="wechatSummaryDailySchedules">
-                  {(fields, { add, remove }) => (
-                    <div className="settings-subsection">
-                      <Space wrap className="settings-subsection-head">
-                        <Typography.Text strong>定时总结计划</Typography.Text>
-                        <Button onClick={() => add({ enabled: true, time: '00:05', dateMode: 'yesterday', period: 'day', name: '昨日总结' })}>新增计划</Button>
-                      </Space>
-                      {fields.map((field) => (
-                        <div className="settings-schedule-row" key={field.key}>
-                          <Form.Item label="启用" name={[field.name, 'enabled']} valuePropName="checked">
-                            <Switch checkedChildren="开" unCheckedChildren="关" />
-                          </Form.Item>
-                          <Form.Item label="生成时间" name={[field.name, 'time']} rules={[{ required: true, message: '请选择时间' }]}>
-                            <Input type="time" />
-                          </Form.Item>
-                          <Form.Item label="总结日期" name={[field.name, 'dateMode']} rules={[{ required: true, message: '请选择日期' }]}>
-                            <Select options={wechatSummaryDateOptions} />
-                          </Form.Item>
-                          <Form.Item label="总结范围" name={[field.name, 'period']} rules={[{ required: true, message: '请选择范围' }]}>
-                            <Select options={wechatSummaryPeriodOptions} />
-                          </Form.Item>
-                          <Form.Item label="群聊 RoomID" name={[field.name, 'roomId']}>
-                            <Input placeholder="为空则总结全部群聊" className="mono" />
-                          </Form.Item>
-                          <Form.Item label="备注" name={[field.name, 'name']}>
-                            <Input placeholder="上午总结" />
-                          </Form.Item>
-                          <Button danger onClick={() => remove(field.name)} disabled={fields.length <= 1}>删除</Button>
-                        </div>
-                      ))}
-                    </div>
-                  )}
-                </Form.List>
                 <div className="settings-status-list" aria-label="AI 配置状态">
                   <Typography.Text type={currentValues.aiExtractEnabled ? 'success' : 'secondary'}>
                     AI 提取 {currentValues.aiExtractEnabled ? '已开启' : '未开启'}
@@ -450,18 +347,6 @@ export default function Settings() {
                   </Typography.Text>
                   <Typography.Text type={aiProvider === 'doubao' ? currentValues.aiExtractDoubaoApiKey ? 'success' : 'danger' : currentValues.aiExtractGptApiKey ? 'success' : 'danger'}>
                     API Key {aiProvider === 'doubao' ? currentValues.aiExtractDoubaoApiKey ? '已填写' : '未填写' : currentValues.aiExtractGptApiKey ? '已填写' : '未填写'}
-                  </Typography.Text>
-                  <Typography.Text type="secondary">
-                    微信总结上限 {currentValues.wechatSummaryMaxMessages || 1000} 条
-                  </Typography.Text>
-                  <Typography.Text type={currentValues.wechatSummaryModel ? 'success' : 'secondary'}>
-                    微信总结模型 {currentValues.wechatSummaryModel || '后端默认'}
-                  </Typography.Text>
-                  <Typography.Text type={currentValues.wechatSummaryAutoDaily ? 'success' : 'secondary'}>
-                    定时日报 {currentValues.wechatSummaryAutoDaily ? `已开启 ${currentValues.wechatSummaryDailySchedules?.filter((item) => item.enabled).length || 0} 个计划` : '未开启'}
-                  </Typography.Text>
-                  <Typography.Text type={currentValues.wechatSummaryAutoSend ? 'success' : 'secondary'}>
-                    发回微信群 {currentValues.wechatSummaryAutoSend ? '已开启' : '未开启'}
                   </Typography.Text>
                 </div>
               </section>

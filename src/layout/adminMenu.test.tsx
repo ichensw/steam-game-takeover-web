@@ -9,9 +9,9 @@ function group(items: TestMenuItem[], key: string) {
 
 describe('WeChat bot admin navigation', () => {
   it('shows only authorized WeChat child pages', () => {
-    const items = buildMenuItems(['dashboard', 'wechat-summary']) as TestMenuItem[];
+    const items = buildMenuItems(['dashboard', 'wechat-stats']) as TestMenuItem[];
     const wechat = group(items, 'wechat-group');
-    expect(wechat?.children?.map((item) => item?.key)).toEqual(['/wechat-summary']);
+    expect(wechat?.children?.map((item) => item?.key)).toEqual(['/wechat-stats']);
   });
 
   it('hides the WeChat group without any WeChat permission', () => {
@@ -27,7 +27,6 @@ describe('WeChat bot admin navigation', () => {
 
   it('maps every WeChat route to the same open group', () => {
     expect(openKeyByPath['/wechat-messages']).toBe('wechat-group');
-    expect(openKeyByPath['/wechat-summary']).toBe('wechat-group');
     expect(openKeyByPath['/wechat-stats']).toBe('wechat-group');
     expect(openKeyByPath['/wechat-database']).toBe('wechat-group');
     expect(openKeyByPath['/wechat-ai-memory']).toBe('wechat-group');

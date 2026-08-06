@@ -26,7 +26,6 @@ const workspaceNames: Record<string, string> = {
   '微信群管理': 'WECHAT GROUPS',
   '微信数据库浏览': 'WECHAT DATABASE',
   'AI 聊天检索': 'AI MEMORY',
-  'AI 总结': 'AI SUMMARY',
   '用户详情': 'USER DETAIL',
   '接龙详情': 'TAKEOVER DETAIL',
   '举报详情': 'REPORT DETAIL',
@@ -48,4 +47,3 @@ export default function PageHeader({ title, description, extra }: Props) {
     </Flex>
   );
 }
-

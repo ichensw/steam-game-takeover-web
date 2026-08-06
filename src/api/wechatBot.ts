@@ -82,86 +82,6 @@ export type WechatMessageQuery = {
   pageSize: number;
 };
 
-export type WechatSummaryRequest = {
-  roomId?: string;
-  date?: string;
-  period: string;
-  start?: string;
-  end?: string;
-};
-
-export type WechatSummaryJob = {
-  id: number;
-  status: 'pending' | 'running' | 'succeeded' | 'failed';
-  roomId?: string;
-  roomName?: string;
-  start?: string;
-  end?: string;
-  period?: string;
-  messageCount: number;
-  chunkCount: number;
-  processedChunkCount?: number;
-  summaryId?: number;
-  summary?: WechatSummary;
-  error?: string;
-  sendStatus?: string;
-  sendError?: string;
-  createdAt?: string;
-  startedAt?: string;
-  finishedAt?: string;
-};
-
-export type WechatSummary = {
-  id?: number;
-  summary: string;
-  report?: WechatSummaryReport;
-  messageCount: number;
-  speakerCount?: number;
-  maxMessages?: number;
-  truncated: boolean;
-  start?: string;
-  end?: string;
-  roomId?: string;
-  roomName?: string;
-  period?: string;
-  model?: string;
-  createdBy?: string;
-  createdAt?: string;
-};
-
-export type WechatSummaryReport = {
-  overview: string;
-  topics: WechatSummaryTopic[];
-  importantInfo: string[];
-  memes: string[];
-  disputes: string;
-  miniPrograms: string[];
-  modelComparisons?: Array<{
-    model: string;
-    overview: string;
-    topics: WechatSummaryTopic[];
-  }>;
-  parseFailed?: boolean;
-};
-
-export type WechatSummaryTopic = {
-  title: string;
-  summary: string;
-  start?: string;
-  end?: string;
-  keywords: string[];
-  messageIds: string[];
-  messageCount: number;
-  speakerCount: number;
-  samples: Array<{
-    id?: string;
-    roomId?: string;
-    sender?: string;
-    content?: string;
-    time?: string;
-  }>;
-};
-
 export type WechatAiJobType = 'reply' | 'vector_sync' | 'vector_backfill';
 
 export type WechatAiJob = {
@@ -452,24 +372,6 @@ export const updateWechatGroupWhitelist = (roomId: string, body: { botId: string
 
 export const listWechatMessages = (params: WechatMessageQuery) =>
   unwrap<WechatPage<WechatMessage>>(http.get(`${root}/messages`, { params }));
-
-export const createWechatSummary = (body: WechatSummaryRequest) =>
-  unwrap<WechatSummary>(http.post(`${root}/messages/summary`, body, { timeout: 140000 }));
-
-export const createWechatSummaryJob = (body: WechatSummaryRequest) =>
-  unwrap<WechatSummaryJob>(http.post(`${root}/messages/summary-jobs`, body));
-
-export const getWechatSummaryJob = (id: number) =>
-  unwrap<WechatSummaryJob>(http.get(`${root}/messages/summary-jobs/${id}`));
-
-export const listWechatSummaryHistory = (params: { roomId?: string; start?: string; end?: string; page: number; pageSize: number }) =>
-  unwrap<WechatPage<WechatSummary>>(http.get(`${root}/messages/summary/history`, { params }));
-
-export const getWechatSummary = (id: number) =>
-  unwrap<WechatSummary>(http.get(`${root}/messages/summary/${id}`));
-
-export const listWechatSummaryMessages = (id: number, params: { topicIndex?: number }) =>
-  unwrap<{ data: WechatMessage[] }>(http.get(`${root}/messages/summary/${id}/messages`, { params }));
 
 export const getWechatAiStatus = () => unwrap<WechatAiStatus>(http.get(`${aiRoot}/status`));
 
