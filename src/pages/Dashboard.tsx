@@ -1,61 +1,29 @@
 import {
   AlertOutlined,
-  ClockCircleOutlined,
-  FireOutlined,
-  NodeIndexOutlined,
   TeamOutlined,
   UserOutlined,
+  NodeIndexOutlined,
 } from '@ant-design/icons';
-import { Button, Card, Col, Empty, List, Progress, Row, Skeleton, Space, Statistic, Tag, Typography } from 'antd';
+import { Button, Card, Col, Empty, Progress, Row, Skeleton, Space, Statistic, Table, Tag, Typography } from 'antd';
+import type { ColumnsType } from 'antd/es/table';
 import { useEffect, useMemo, useState } from 'react';
 import { Link } from 'react-router-dom';
 import {
   getDashboardSummary,
-  getKookVoiceStats,
-  listFeedbacks,
-  listKookChannels,
-  listKookChannelUsageSummary,
-  listKookMembers,
-  listReports,
-  listTakeovers,
-  type KookChannelUsage,
-  type KookVoiceStats,
-  type KookVoiceUsage,
-  type PageResult,
+  type DashboardSummary,
 } from '../api/admin';
 import PageHeader from '../components/PageHeader';
 
-type Summary = Record<string, number>;
 type PlainRow = Record<string, unknown>;
-type DashboardData = {
-  summary: Summary;
-  recentTakeovers: PlainRow[];
-  pendingReports: PlainRow[];
-  pendingFeedbacks: PlainRow[];
-  kookMemberTotal: number;
-  kookUsage: KookChannelUsage[];
-  kookChannelNames: Record<string, string>;
-  voiceStats: KookVoiceStats | null;
-};
+type DashboardData = Omit<DashboardSummary, 'voiceStats'> & { voiceStats: DashboardSummary['voiceStats'] | null };
 
 const emptyData: DashboardData = {
   summary: {},
   recentTakeovers: [],
-  pendingReports: [],
-  pendingFeedbacks: [],
   kookMemberTotal: 0,
   kookUsage: [],
-  kookChannelNames: {},
   voiceStats: null,
 };
-
-function pageItems<T extends PlainRow>(value?: PageResult<T>) {
-  return value?.list || value?.items || [];
-}
-
-function pageTotal(value?: PageResult<PlainRow>) {
-  return Number(value?.total || 0);
-}
 
 function shortNumber(value: unknown) {
   const count = Number(value || 0);
@@ -67,7 +35,7 @@ function hours(seconds: number) {
   return Math.round((seconds / 3600) * 10) / 10;
 }
 
-function displayName(row: KookVoiceUsage) {
+function displayName(row: { nickname?: string; username?: string; kookUserId?: string }) {
   return row.nickname || row.username || row.kookUserId || '-';
 }
 
@@ -77,6 +45,10 @@ function rowText(row: PlainRow, ...keys: string[]) {
     if (value !== undefined && value !== null && value !== '') return String(value);
   }
   return '-';
+}
+
+function takeoverCountText(row: PlainRow) {
+  return `${rowText(row, 'joinedCount', 'joined_count')} / ${rowText(row, 'participantLimit', 'participant_limit')}`;
 }
 
 function todayRangeText(range?: { startTime: string; endTime: string }) {
@@ -89,59 +61,26 @@ function topUsagePercent(value: number, max: number) {
   return Math.max(4, Math.round((value / max) * 100));
 }
 
-function listRows(data: Record<string, unknown>) {
-  return ((data.list || data.items || []) as PlainRow[]);
-}
-
-function channelId(row: PlainRow) {
-  return String(row.id || row.channel_id || row.channelId || '');
-}
-
-function channelName(row: PlainRow) {
-  return String(row.name || row.channelName || row.channel_name || channelId(row));
-}
-
 export default function Dashboard() {
   const [data, setData] = useState<DashboardData>(emptyData);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
     let mounted = true;
+    let loadingRequest = false;
+    let hasLoaded = false;
     async function load() {
-      setLoading(true);
-      const [
-        summary,
-        takeovers,
-        reports,
-        feedbacks,
-        kookMembers,
-        kookChannels,
-        kookUsage,
-        voiceStats,
-      ] = await Promise.allSettled([
-        getDashboardSummary(),
-        listTakeovers({ page: 1, pageSize: 6, sortField: 'createdAt', sortOrder: 'desc' }),
-        listReports({ page: 1, pageSize: 5, state: 'pending' }),
-        listFeedbacks({ page: 1, page_size: 5, status: 1 }),
-        listKookMembers({ page: 1, pageSize: 1 }),
-        listKookChannels({ page: 1, pageSize: 500 }),
-        listKookChannelUsageSummary({}),
-        getKookVoiceStats({ page: 1, pageSize: 6 }),
-      ]);
-      if (!mounted) return;
-      setData({
-        summary: summary.status === 'fulfilled' ? summary.value : {},
-        recentTakeovers: takeovers.status === 'fulfilled' ? pageItems(takeovers.value) : [],
-        pendingReports: reports.status === 'fulfilled' ? pageItems(reports.value) : [],
-        pendingFeedbacks: feedbacks.status === 'fulfilled' ? pageItems(feedbacks.value) : [],
-        kookMemberTotal: kookMembers.status === 'fulfilled' ? pageTotal(kookMembers.value) : 0,
-        kookChannelNames: kookChannels.status === 'fulfilled'
-          ? Object.fromEntries(listRows(kookChannels.value).map((row) => [channelId(row), channelName(row)]).filter(([id]) => id))
-          : {},
-        kookUsage: kookUsage.status === 'fulfilled' ? kookUsage.value.list || [] : [],
-        voiceStats: voiceStats.status === 'fulfilled' ? voiceStats.value : null,
-      });
-      setLoading(false);
+      if (loadingRequest) return;
+      loadingRequest = true;
+      if (!hasLoaded) setLoading(true);
+      try {
+        const dashboard = await getDashboardSummary();
+        if (mounted) setData(dashboard);
+        hasLoaded = true;
+      } finally {
+        loadingRequest = false;
+        if (mounted) setLoading(false);
+      }
     }
     load();
     const timer = window.setInterval(load, 30000);
@@ -152,9 +91,9 @@ export default function Dashboard() {
   }, []);
 
   const computed = useMemo(() => {
-    const totalVoiceSeconds = data.voiceStats?.channelStats?.reduce((sum, item) => sum + item.durationSeconds, 0) || 0;
-    const activeUsers = data.kookUsage.reduce((sum, item) => sum + Number(item.activeUserCount || 0), 0);
-    const activeChannels = data.kookUsage.filter((item) => Number(item.activeUserCount || 0) > 0).length;
+    const totalVoiceSeconds = data.voiceStats?.totalDurationSeconds || 0;
+    const activeUsers = data.voiceStats?.activeUserTotal || 0;
+    const activeChannels = data.voiceStats?.activeChannelTotal || 0;
     const maxChannelSeconds = Math.max(...data.kookUsage.map((item) => Number(item.durationSeconds || 0)), 0);
     const maxUserSeconds = Math.max(...(data.voiceStats?.userStats || []).map((item) => Number(item.durationSeconds || 0)), 0);
     return {
@@ -177,12 +116,28 @@ export default function Dashboard() {
     .slice(0, 5);
 
   const metrics = [
-    { key: 'takeoverTotal', label: '接龙总数', value: data.summary.takeoverTotal, icon: <TeamOutlined />, tone: 'orange', to: '/takeovers', featured: true, hint: '平台累计接龙' },
-    { key: 'voiceHours', label: '今日语音小时', value: computed.totalVoiceHours, icon: <ClockCircleOutlined />, tone: 'green', to: '/kook-voice-stats', precision: 1, featured: true, hint: todayRangeText(data.voiceStats?.range) },
+    { key: 'takeoverTotal', label: '接龙总数', value: data.summary.takeoverTotal, icon: <TeamOutlined />, tone: 'orange', to: '/takeovers', hint: '平台累计接龙' },
     { key: 'userTotal', label: '微信用户', value: data.summary.userTotal, icon: <UserOutlined />, tone: 'blue', to: '/users', hint: '用户池规模' },
-    { key: 'activeUsers', label: '当前语音在线', value: computed.activeUsers, icon: <FireOutlined />, tone: 'red', to: '/kook-channels', hint: `${computed.activeChannels} 个频道活跃` },
-    { key: 'kookMembers', label: 'KOOK 成员', value: data.kookMemberTotal, icon: <NodeIndexOutlined />, tone: 'blue', to: '/kook-members', hint: '社区成员' },
-    { key: 'pendingReportTotal', label: '待处理举报', value: data.summary.pendingReportTotal, icon: <AlertOutlined />, tone: 'red', to: '/reports', hint: computed.urgentTotal > 0 ? '需要处理' : '队列清爽' },
+    { key: 'kookMembers', label: 'KOOK 成员', value: data.kookMemberTotal, icon: <NodeIndexOutlined />, tone: 'green', to: '/kook-members', hint: '社区成员' },
+  ];
+
+  const takeoverColumns: ColumnsType<PlainRow> = [
+    {
+      title: '标题',
+      width: 240,
+      render: (_, row) => {
+        const id = rowText(row, 'id', 'takeoverId');
+        const title = rowText(row, 'title');
+        const content = <Typography.Text ellipsis>{title}</Typography.Text>;
+        return id === '-' ? content : <Link to={`/takeovers/${id}`}>{content}</Link>;
+      },
+    },
+    { title: '状态', width: 110, render: (_, row) => <Tag>{rowText(row, 'statusLabel', 'status')}</Tag> },
+    { title: '人数', width: 110, render: (_, row) => takeoverCountText(row) },
+    { title: '活动时间', width: 190, className: 'mono', render: (_, row) => rowText(row, 'scheduleText', 'schedule_text', 'startDate') },
+    { title: '创建人', width: 140, render: (_, row) => rowText(row, 'creatorName', 'creatorNickname', 'creator_name') },
+    { title: 'KOOK 频道', width: 160, render: (_, row) => rowText(row, 'kookChannelName', 'kook_channel_name') },
+    { title: '创建时间', width: 170, className: 'mono', render: (_, row) => rowText(row, 'createdAt', 'created_at') },
   ];
 
   return (
@@ -238,14 +193,14 @@ export default function Dashboard() {
 
         <Row className="dashboard-metrics">
           {metrics.map((item, index) => (
-            <Col xs={24} sm={12} lg={item.featured ? 8 : 4} key={item.key}>
+            <Col xs={24} md={8} key={item.key}>
               <Link to={item.to} className="metric-link">
-                <Card className={`summary-card ${item.tone}${item.featured ? ' featured' : ''}`} style={{ '--i': index + 2 } as React.CSSProperties}>
+                <Card className={`summary-card ${item.tone}`} style={{ '--i': index + 2 } as React.CSSProperties}>
                   <div className="summary-card-top">
                     <span className="summary-icon">{item.icon}</span>
                     <Typography.Text>{item.label}</Typography.Text>
                   </div>
-                  {loading ? <Skeleton active paragraph={false} /> : <Statistic value={item.value ?? 0} precision={item.precision || 0} />}
+                  {loading ? <Skeleton active paragraph={false} /> : <Statistic value={item.value ?? 0} />}
                   <Typography.Text className="summary-hint">{item.hint}</Typography.Text>
                 </Card>
               </Link>
@@ -254,7 +209,7 @@ export default function Dashboard() {
         </Row>
 
         <Row gutter={[16, 16]} className="dashboard-main-row">
-          <Col xs={24} xl={14}>
+          <Col xs={24} xl={12}>
             <Card
               title="KOOK 频道实时状态"
               extra={<Typography.Text type="secondary">{todayRangeText(data.voiceStats?.range)}</Typography.Text>}
@@ -267,7 +222,7 @@ export default function Dashboard() {
                       <span className="rank-index">{index + 1}</span>
                       <div className="rank-main">
                         <div className="rank-title">
-                          <Typography.Text>{data.kookChannelNames[item.channelId] || item.channelId}</Typography.Text>
+                          <Typography.Text>{item.channelName || item.channelId}</Typography.Text>
                           <Space size={6}>
                             <Tag color={item.activeUserCount ? 'green' : undefined}>{item.activeUserCount || 0} 人在线</Tag>
                             <Tag>{item.sessionCount || 0} 次</Tag>
@@ -283,7 +238,7 @@ export default function Dashboard() {
             </Card>
           </Col>
 
-          <Col xs={24} xl={10}>
+          <Col xs={24} xl={12}>
             <Card title="今日用户语音排行" className="dashboard-section">
               {loading ? <Skeleton active /> : topUsers.length ? (
                 <Space direction="vertical" className="dashboard-rank-list compact">
@@ -305,55 +260,19 @@ export default function Dashboard() {
             </Card>
           </Col>
 
-          <Col xs={24} xl={12}>
+          <Col xs={24}>
             <Card title="最近接龙" extra={<Link to="/takeovers">查看全部</Link>} className="dashboard-section">
-              <List
+              <Table<PlainRow>
+                className="dashboard-takeover-table"
                 loading={loading}
+                rowKey={(row) => rowText(row, 'id', 'takeoverId')}
+                size="middle"
+                pagination={false}
+                columns={takeoverColumns}
                 dataSource={data.recentTakeovers}
                 locale={{ emptyText: <Empty image={Empty.PRESENTED_IMAGE_SIMPLE} description="暂无接龙" /> }}
-                renderItem={(row) => (
-                  <List.Item>
-                    <List.Item.Meta
-                      title={<Typography.Text ellipsis>{rowText(row, 'title')}</Typography.Text>}
-                      description={`${rowText(row, 'creatorName', 'creatorNickname')} · ${rowText(row, 'scheduleText', 'startDate')}`}
-                    />
-                    <Tag>{rowText(row, 'statusLabel', 'status')}</Tag>
-                  </List.Item>
-                )}
+                scroll={{ x: 1120 }}
               />
-            </Card>
-          </Col>
-
-          <Col xs={24} xl={12}>
-            <Card title="待办明细" className="dashboard-section">
-              <Row gutter={[14, 14]}>
-                <Col xs={24} md={12}>
-                  <Typography.Text type="secondary">待处理举报</Typography.Text>
-                  <List
-                    size="small"
-                    dataSource={data.pendingReports}
-                    locale={{ emptyText: '暂无举报' }}
-                    renderItem={(row) => (
-                      <List.Item>
-                        <Typography.Text ellipsis>{rowText(row, 'content', 'takeoverTitle')}</Typography.Text>
-                      </List.Item>
-                    )}
-                  />
-                </Col>
-                <Col xs={24} md={12}>
-                  <Typography.Text type="secondary">待处理反馈</Typography.Text>
-                  <List
-                    size="small"
-                    dataSource={data.pendingFeedbacks}
-                    locale={{ emptyText: '暂无反馈' }}
-                    renderItem={(row) => (
-                      <List.Item>
-                        <Typography.Text ellipsis>{rowText(row, 'content', 'contact', 'nickname')}</Typography.Text>
-                      </List.Item>
-                    )}
-                  />
-                </Col>
-              </Row>
             </Card>
           </Col>
         </Row>

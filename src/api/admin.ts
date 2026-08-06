@@ -12,6 +12,29 @@ export type PageResult<T> = {
 
 export type Query = Record<string, string | number | boolean | undefined>;
 
+export type DashboardSummary = {
+  summary: Record<string, number>;
+  recentTakeovers: Record<string, unknown>[];
+  kookMemberTotal: number;
+  kookUsage: KookChannelUsage[];
+  voiceStats: {
+    range: { startTime: string; endTime: string };
+    userStats: DashboardVoiceUser[];
+    totalDurationSeconds: number;
+    activeUserTotal: number;
+    activeChannelTotal: number;
+  };
+};
+
+export type DashboardVoiceUser = {
+  kookUserId: string;
+  username: string;
+  nickname: string;
+  durationSeconds: number;
+  durationText: string;
+  sessionCount: number;
+};
+
 export function adminLogin(values: { username: string; password: string }) {
   return unwrap<{ token: string; expiresIn: number; admin: AdminUser }>(
     http.post('/admin/auth/login', values),
@@ -59,7 +82,7 @@ export function updateAdminPassword(values: { oldPassword: string; newPassword: 
 }
 
 export function getDashboardSummary() {
-  return unwrap<Record<string, number>>(http.get('/admin/dashboard/summary'));
+  return unwrap<DashboardSummary>(http.get('/admin/dashboard/summary'));
 }
 
 export function listTakeovers(params: Query) {
@@ -258,6 +281,7 @@ export function listKookChannels(params: Query) {
 
 export type KookChannelUsage = {
   channelId: string;
+  channelName?: string;
   durationSeconds: number;
   durationText: string;
   occupiedDurationSeconds: number;

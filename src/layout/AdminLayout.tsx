@@ -11,8 +11,10 @@ import {
   MenuFoldOutlined,
   MenuOutlined,
   MenuUnfoldOutlined,
+  MoonOutlined,
   RobotOutlined,
   SettingOutlined,
+  SunOutlined,
   TeamOutlined,
   ThunderboltOutlined,
   UploadOutlined,
@@ -28,6 +30,7 @@ import { Outlet, useLocation, useNavigate } from 'react-router-dom';
 import { adminLogout, getAdminMe, updateAdminMe, updateAdminPassword, uploadAdminImage } from '../api/admin';
 import { ADMIN_ROLE_KOOK_ADMIN, ADMIN_ROLE_SUPER_ADMIN, clearSession, getAdmin, getToken, hasAdminRole, setSession } from '../auth';
 import type { AdminUser } from '../auth';
+import { useAppTheme } from '../theme';
 
 type MenuItem = Required<MenuProps>['items'][number];
 
@@ -131,6 +134,7 @@ export default function AdminLayout() {
   const navigate = useNavigate();
   const location = useLocation();
   const { message } = AntApp.useApp();
+  const { mode, toggleTheme } = useAppTheme();
   const [admin, setAdmin] = useState<AdminUser | null>(() => getAdmin());
   const [mobileNavOpen, setMobileNavOpen] = useState(false);
   const [siderCollapsed, setSiderCollapsed] = useState(false);
@@ -147,6 +151,7 @@ export default function AdminLayout() {
   const selectedKey = `/${location.pathname.split('/')[1] || 'dashboard'}`;
   const currentLabel = menuItemLabel(availableItems.find((item) => item?.key === selectedKey));
   const adminName = admin?.nickname || admin?.username || 'admin';
+  const nextThemeLabel = mode === 'dark' ? '切换浅色主题' : '切换深色主题';
   const commandItems = [
     { key: '/dashboard', label: '控制台' },
     ...availableItems.map((item) => ({ key: String(item?.key || ''), label: String(menuItemLabel(item) || '') })),
@@ -333,6 +338,15 @@ export default function AdminLayout() {
                 onChange={(event) => setCommandQuery(event.target.value)}
                 onSearch={runCommandSearch}
               />
+              <Tooltip title={nextThemeLabel}>
+                <Button
+                  aria-label={nextThemeLabel}
+                  className="theme-toggle"
+                  icon={mode === 'dark' ? <SunOutlined /> : <MoonOutlined />}
+                  onClick={toggleTheme}
+                  shape="circle"
+                />
+              </Tooltip>
               <Badge count={0} size="small">
                 <Tooltip title="暂无新通知">
                   <Button shape="circle" icon={<BellOutlined />} />
@@ -378,6 +392,14 @@ export default function AdminLayout() {
             <Typography.Text className="mono">{adminName}</Typography.Text>
           </div>
           <Space>
+            <Button
+              aria-label={nextThemeLabel}
+              className="theme-toggle"
+              icon={mode === 'dark' ? <SunOutlined /> : <MoonOutlined />}
+              onClick={toggleTheme}
+            >
+              {mode === 'dark' ? '浅色' : '深色'}
+            </Button>
             <Button icon={<UserOutlined />} onClick={openProfile}>
               个人资料
             </Button>
