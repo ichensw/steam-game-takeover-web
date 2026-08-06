@@ -1,10 +1,7 @@
 import {
   AlertOutlined,
-  BarChartOutlined,
-  CheckCircleOutlined,
   ClockCircleOutlined,
   FireOutlined,
-  MessageOutlined,
   NodeIndexOutlined,
   TeamOutlined,
   UserOutlined,
@@ -180,14 +177,12 @@ export default function Dashboard() {
     .slice(0, 5);
 
   const metrics = [
-    { key: 'takeoverTotal', label: '接龙总数', value: data.summary.takeoverTotal, icon: <TeamOutlined />, tone: 'orange', to: '/takeovers' },
-    { key: 'userTotal', label: '微信用户', value: data.summary.userTotal, icon: <UserOutlined />, tone: 'blue', to: '/users' },
-    { key: 'voiceHours', label: '今日语音小时', value: computed.totalVoiceHours, icon: <ClockCircleOutlined />, tone: 'green', to: '/kook-voice-stats', precision: 1 },
-    { key: 'activeUsers', label: '当前语音在线', value: computed.activeUsers, icon: <FireOutlined />, tone: 'red', to: '/kook-channels' },
-    { key: 'kookMembers', label: 'KOOK 成员', value: data.kookMemberTotal, icon: <NodeIndexOutlined />, tone: 'blue', to: '/kook-members' },
-    { key: 'pendingReportTotal', label: '待处理举报', value: data.summary.pendingReportTotal, icon: <AlertOutlined />, tone: 'red', to: '/reports' },
-    { key: 'pendingFeedbackTotal', label: '待处理反馈', value: data.summary.pendingFeedbackTotal, icon: <MessageOutlined />, tone: 'orange', to: '/feedbacks' },
-    { key: 'adminUserTotal', label: '后台账号', value: data.summary.adminUserTotal, icon: <CheckCircleOutlined />, tone: 'green', to: '/admin-users' },
+    { key: 'takeoverTotal', label: '接龙总数', value: data.summary.takeoverTotal, icon: <TeamOutlined />, tone: 'orange', to: '/takeovers', featured: true, hint: '平台累计接龙' },
+    { key: 'voiceHours', label: '今日语音小时', value: computed.totalVoiceHours, icon: <ClockCircleOutlined />, tone: 'green', to: '/kook-voice-stats', precision: 1, featured: true, hint: todayRangeText(data.voiceStats?.range) },
+    { key: 'userTotal', label: '微信用户', value: data.summary.userTotal, icon: <UserOutlined />, tone: 'blue', to: '/users', hint: '用户池规模' },
+    { key: 'activeUsers', label: '当前语音在线', value: computed.activeUsers, icon: <FireOutlined />, tone: 'red', to: '/kook-channels', hint: `${computed.activeChannels} 个频道活跃` },
+    { key: 'kookMembers', label: 'KOOK 成员', value: data.kookMemberTotal, icon: <NodeIndexOutlined />, tone: 'blue', to: '/kook-members', hint: '社区成员' },
+    { key: 'pendingReportTotal', label: '待处理举报', value: data.summary.pendingReportTotal, icon: <AlertOutlined />, tone: 'red', to: '/reports', hint: computed.urgentTotal > 0 ? '需要处理' : '队列清爽' },
   ];
 
   return (
@@ -231,22 +226,27 @@ export default function Dashboard() {
             <span>反馈待处理</span>
             <strong>{loading ? '--' : data.summary.pendingFeedbackTotal ?? 0}</strong>
           </Link>
+          <Link className="queue-link" to="/admin-users">
+            <span>后台账号</span>
+            <strong>{loading ? '--' : data.summary.adminUserTotal ?? 0}</strong>
+          </Link>
           <Link className="queue-link" to="/kook-members">
             <span>KOOK 成员规模</span>
             <strong>{loading ? '--' : shortNumber(data.kookMemberTotal)}</strong>
           </Link>
         </Card>
 
-        <Row gutter={[16, 16]} className="dashboard-metrics">
+        <Row className="dashboard-metrics">
           {metrics.map((item, index) => (
-            <Col xs={24} sm={12} lg={6} xxl={3} key={item.key}>
+            <Col xs={24} sm={12} lg={item.featured ? 8 : 4} key={item.key}>
               <Link to={item.to} className="metric-link">
-                <Card className={`summary-card ${item.tone}`} style={{ '--i': index + 2 } as React.CSSProperties}>
-                  <Space align="start" className="summary-head">
+                <Card className={`summary-card ${item.tone}${item.featured ? ' featured' : ''}`} style={{ '--i': index + 2 } as React.CSSProperties}>
+                  <div className="summary-card-top">
                     <span className="summary-icon">{item.icon}</span>
                     <Typography.Text>{item.label}</Typography.Text>
-                  </Space>
+                  </div>
                   {loading ? <Skeleton active paragraph={false} /> : <Statistic value={item.value ?? 0} precision={item.precision || 0} />}
+                  <Typography.Text className="summary-hint">{item.hint}</Typography.Text>
                 </Card>
               </Link>
             </Col>
