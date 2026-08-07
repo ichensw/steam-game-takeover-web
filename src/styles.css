@@ -7335,3 +7335,20 @@ html[data-theme] .login-pro-page .ant-input-affix-wrapper:focus-within {
     padding: 14px;
   }
 }
+
+html[data-theme] .ant-input:focus,
+html[data-theme] .ant-input-focused,
+html[data-theme] .ant-input-affix-wrapper:focus,
+html[data-theme] .ant-input-affix-wrapper:focus-within,
+html[data-theme] .ant-input-affix-wrapper-focused,
+html[data-theme] .ant-input-number:focus,
+html[data-theme] .ant-input-number:focus-within,
+html[data-theme] .ant-input-number-focused,
+html[data-theme] .ant-picker:focus,
+html[data-theme] .ant-picker-focused,
+html[data-theme] .ant-select-focused .ant-select-selector,
+html[data-theme] textarea.ant-input:focus {
+  border-color: var(--line-strong) !important;
+  outline: none !important;
+  box-shadow: none !important;
+}
