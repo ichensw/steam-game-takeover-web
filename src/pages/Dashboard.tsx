@@ -61,6 +61,38 @@ function topUsagePercent(value: number, max: number) {
   return Math.max(4, Math.round((value / max) * 100));
 }
 
+function recordValue(value: unknown): Record<string, unknown> {
+  return value && typeof value === 'object' && !Array.isArray(value) ? value as Record<string, unknown> : {};
+}
+
+function arrayValue<T>(value: unknown): T[] {
+  return Array.isArray(value) ? value as T[] : [];
+}
+
+function normalizeDashboard(value: unknown): DashboardData {
+  const source = recordValue(value);
+  const summary = recordValue(source.summary);
+  const voice = recordValue(source.voiceStats);
+  const range = recordValue(voice.range);
+  const summarySource = Object.keys(summary).length ? summary : source;
+  return {
+    summary: Object.fromEntries(Object.entries(summarySource).filter(([, item]) => typeof item === 'number')) as Record<string, number>,
+    recentTakeovers: arrayValue<PlainRow>(source.recentTakeovers),
+    kookMemberTotal: Number(source.kookMemberTotal || 0),
+    kookUsage: arrayValue<DashboardSummary['kookUsage'][number]>(source.kookUsage),
+    voiceStats: Object.keys(voice).length ? {
+      range: {
+        startTime: String(range.startTime || ''),
+        endTime: String(range.endTime || ''),
+      },
+      userStats: arrayValue<DashboardSummary['voiceStats']['userStats'][number]>(voice.userStats),
+      totalDurationSeconds: Number(voice.totalDurationSeconds || 0),
+      activeUserTotal: Number(voice.activeUserTotal || 0),
+      activeChannelTotal: Number(voice.activeChannelTotal || 0),
+    } : null,
+  };
+}
+
 export default function Dashboard() {
   const [data, setData] = useState<DashboardData>(emptyData);
   const [loading, setLoading] = useState(true);
@@ -75,7 +107,7 @@ export default function Dashboard() {
       if (!hasLoaded) setLoading(true);
       try {
         const dashboard = await getDashboardSummary();
-        if (mounted) setData(dashboard);
+        if (mounted) setData(normalizeDashboard(dashboard));
         hasLoaded = true;
       } finally {
         loadingRequest = false;
@@ -94,8 +126,10 @@ export default function Dashboard() {
     const totalVoiceSeconds = data.voiceStats?.totalDurationSeconds || 0;
     const activeUsers = data.voiceStats?.activeUserTotal || 0;
     const activeChannels = data.voiceStats?.activeChannelTotal || 0;
-    const maxChannelSeconds = Math.max(...data.kookUsage.map((item) => Number(item.durationSeconds || 0)), 0);
-    const maxUserSeconds = Math.max(...(data.voiceStats?.userStats || []).map((item) => Number(item.durationSeconds || 0)), 0);
+    const kookUsage = arrayValue<DashboardSummary['kookUsage'][number]>(data.kookUsage);
+    const userStats = arrayValue<DashboardSummary['voiceStats']['userStats'][number]>(data.voiceStats?.userStats);
+    const maxChannelSeconds = Math.max(...kookUsage.map((item) => Number(item.durationSeconds || 0)), 0);
+    const maxUserSeconds = Math.max(...userStats.map((item) => Number(item.durationSeconds || 0)), 0);
     return {
       totalVoiceSeconds,
       totalVoiceHours: hours(totalVoiceSeconds),
@@ -107,11 +141,11 @@ export default function Dashboard() {
     };
   }, [data]);
 
-  const topChannels = data.kookUsage
+  const topChannels = [...arrayValue<DashboardSummary['kookUsage'][number]>(data.kookUsage)]
     .filter((item) => Number(item.durationSeconds || 0) > 0 || Number(item.activeUserCount || 0) > 0)
     .sort((a, b) => Number(b.activeUserCount || 0) - Number(a.activeUserCount || 0) || Number(b.durationSeconds || 0) - Number(a.durationSeconds || 0))
     .slice(0, 5);
-  const topUsers = [...(data.voiceStats?.userStats || [])]
+  const topUsers = [...arrayValue<DashboardSummary['voiceStats']['userStats'][number]>(data.voiceStats?.userStats)]
     .sort((a, b) => b.durationSeconds - a.durationSeconds)
     .slice(0, 5);
 
