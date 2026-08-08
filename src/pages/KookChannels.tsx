@@ -473,6 +473,21 @@ export default function KookChannels() {
     }
   };
 
+  const clearPassword = async () => {
+    if (!editing) return;
+    setSaving(true);
+    try {
+      await updateKookChannel(editing.id, { password: '' });
+      message.success('密码已清除');
+      setDrawerOpen(false);
+      await load();
+    } catch (error) {
+      message.error(getErrorMessage(error));
+    } finally {
+      setSaving(false);
+    }
+  };
+
   const openDetail = (row: Row) => navigate(`/kook-channels/${row.id}`);
 
   const openUsers = async (row: Row) => {
@@ -958,6 +973,7 @@ export default function KookChannels() {
           )}
           <Space>
             <Button type="primary" htmlType="submit" loading={saving}>保存</Button>
+            {editing && <Button danger onClick={clearPassword} loading={saving}>清除密码</Button>}
             <Button onClick={() => setDrawerOpen(false)}>取消</Button>
           </Space>
         </Form>
