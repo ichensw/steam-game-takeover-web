@@ -1,5 +1,6 @@
 import {
   Button,
+  Avatar,
   Card,
   Descriptions,
   Form,
@@ -45,6 +46,8 @@ type KookMemberRow = Record<string, unknown> & {
   nickname?: string;
   identifyNum?: string;
   avatarUrl?: string;
+  avatar_url?: string;
+  avatar?: string;
   isBot?: boolean;
   roleIds?: string[];
   memberStatus?: number;
@@ -273,6 +276,14 @@ export default function KookMembers() {
   };
 
   const columns: ColumnsType<KookMemberRow> = [
+    {
+      title: '头像',
+      width: 72,
+      render: (_, row) => {
+        const name = row.nickname || row.username || String(row.kookUserId || row.id || '-');
+        return <Avatar size={32} src={row.avatarUrl || row.avatar_url || row.avatar}>{String(name).slice(0, 1)}</Avatar>;
+      },
+    },
     { title: 'ID', dataIndex: 'id', width: 80, className: 'mono' },
     { title: 'KOOK 用户 ID', dataIndex: 'kookUserId', width: 160, className: 'mono', ellipsis: true },
     { title: '用户名', dataIndex: 'username', width: 140, ellipsis: true },

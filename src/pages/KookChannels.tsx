@@ -76,6 +76,7 @@ type UserRow = Record<string, unknown> & {
   nickname?: string;
   avatarUrl?: string;
   avatar_url?: string;
+  avatar?: string;
   identify_num?: string;
   bot?: boolean;
 };
@@ -695,7 +696,7 @@ export default function KookChannels() {
         const name = row.nickname || row.username || String(row.id || '-');
         return (
           <Space size={8}>
-            <Avatar size={30} src={row.avatarUrl || row.avatar_url}>{String(name).slice(0, 1)}</Avatar>
+            <Avatar size={30} src={row.avatarUrl || row.avatar_url || row.avatar}>{String(name).slice(0, 1)}</Avatar>
             <span style={{ minWidth: 0 }}>
               <Typography.Text ellipsis style={{ display: 'block', maxWidth: 150 }}>{name}</Typography.Text>
               <Typography.Text type="secondary" className="mono" ellipsis style={{ display: 'block', maxWidth: 150 }}>{row.username || row.id}</Typography.Text>
